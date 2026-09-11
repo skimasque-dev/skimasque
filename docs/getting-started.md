@@ -101,6 +101,10 @@ jobs:
 also goes through policy. Tools that honour `ALL_PROXY` — `psql`, `curl`, `git`,
 most cloud SDKs — now egress through the gateway, subject to policy.
 
+The full, copy-pasteable workflow — with the matching policy and every
+placeholder marked — is
+[`examples/github-actions/managed-postgres-migration.yml`](../examples/github-actions/managed-postgres-migration.yml).
+
 ## 4. Verify
 
 - The **"Run the migration"** step succeeds.
