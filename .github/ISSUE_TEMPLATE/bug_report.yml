@@ -1,0 +1,49 @@
+name: Bug report
+description: Something in the gateway, client, CLI, or policy engine misbehaves
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Not a security issue — see [SECURITY.md](../blob/main/SECURITY.md) for those.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got.
+      placeholder: |
+        Running `skimasque-server --acme --hostname …`, the gateway …
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Exact commands / policy / workflow snippet. Minimise it if you can.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`skimasque --version` / image tag / commit"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - skimasque-server (gateway)
+        - skimasque-client (tunnel)
+        - skimasque (CLI)
+        - skimasque-policy (engine)
+        - other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output with `-v` / `--audit-log`. Redact secrets and internal hostnames.
+      render: text

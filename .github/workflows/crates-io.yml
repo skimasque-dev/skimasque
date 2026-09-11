@@ -1,0 +1,40 @@
+name: crates-io
+
+# Publishes the library crates to crates.io on a `v*` tag. Only the ones with
+# no `h3` in their dependency tree — `skimasque` and `skimasque-cli` pull the
+# git-patched `h3` (see the note in the workspace Cargo.toml), which crates.io
+# rejects, so those ship as release binaries / the gateway image instead.
+#
+# Needs a `CARGO_REGISTRY_TOKEN` secret (a crates.io API token with
+# publish-update on each crate).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal
+
+      - name: Publish in dependency order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          for crate in skimasque-core skimasque-policy skimasque-identity skimasque-protocol; do
+            echo "::group::${crate}"
+            # A no-op if this version is already on crates.io.
+            if cargo publish -p "${crate}" --locked; then
+              echo "published ${crate}"
+            else
+              echo "::warning::cargo publish -p ${crate} failed (already published at this version?)"
+            fi
+            echo "::endgroup::"
+          done

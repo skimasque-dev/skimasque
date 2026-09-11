@@ -1,0 +1,126 @@
+nameOverride: ""
+fullnameOverride: ""
+
+# -- Container image. Defaults to the multi-arch image every release publishes;
+# repoint `repository` if you mirror or rebuild it.
+image:
+  repository: ghcr.io/skimasque-dev/skimasque
+  tag: "" # defaults to .Chart.appVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+replicaCount: 2
+
+# -- The authority the gateway is reached at (its TLS name and the ":authority"
+# of every request). Required.
+authority: ""
+
+# -- Ports. QUIC is UDP; the ops listener (health + metrics) is TCP.
+ports:
+  quic: 4433
+  metrics: 9090
+
+service:
+  type: ClusterIP
+  # For a LoadBalancer, your cloud LB must forward UDP. Annotations go here.
+  annotations: {}
+  # loadBalancerIP: ""
+
+# -- TLS. Provide a Kubernetes secret of type kubernetes.io/tls (cert-manager
+# writes one from a Certificate). With reload.tls the gateway picks up rotations
+# in place. Leave secretName empty to serve a throwaway self-signed cert (dev only).
+tls:
+  secretName: ""
+
+# -- Policies. Rendered into a ConfigMap and mounted read-only; with reload.policy
+# the gateway re-reads it when you `helm upgrade`. Each key is a file name.
+policies: {}
+  # production.toml: |
+  #   name = "production"
+  #   [match]
+  #   repository = "acme/widget"
+  #   [[rules]]
+  #   application = "terraform"
+  #   action = "allow"
+  #   destinations = ["api.production.example.com:443"]
+
+# -- Reload behaviour. Both watch their mounted files (or SIGHUP) and swap in
+# place without dropping a live tunnel.
+reload:
+  policy: true
+  tls: true
+
+# -- Authentication. Prefer OIDC: no shared secret in the cluster.
+auth:
+  # GitHub Actions OIDC + the token-exchange endpoint.
+  githubOidc:
+    enabled: false
+    audiences: [] # e.g. ["https://gateway.example.com"]
+    # A shared HS256 secret so any replica accepts a credential another issued.
+    # Provide it via an existing secret with key "credential-secret".
+    credentialSecret:
+      existingSecret: ""
+  # A static bearer token, from an existing secret with key "auth-token".
+  bearerToken:
+    existingSecret: ""
+
+# -- Transports and egress policy floor.
+connectTcp: true
+allowPrivate: false # let tunnels reach all of RFC 1918 / loopback (usually no)
+allowCidrs: []      # ...or name exact internal ranges, e.g. ["10.0.5.0/24"]
+allowPorts: []      # restrict destination ports, e.g. [443, 5432]
+
+# -- Resource ceilings, passed straight through to the gateway flags. Empty
+# means the binary default; 0 disables that ceiling.
+limits:
+  maxConnections: ""
+  maxConnectionRate: ""
+  maxConnectionBurst: ""
+  maxSourceConnectionRate: ""    # per remote IP; raise/disable if runners share a NAT
+  maxSourceConnectionBurst: ""
+  maxExchangeRate: ""            # per remote IP, token-exchange endpoint
+  maxExchangeBurst: ""
+  maxTunnelsPerConnection: ""
+  tunnelIdleTimeout: ""
+  maxConcurrentRequests: ""
+  shutdownGrace: "20s"
+
+# -- Audit log. When enabled, a writable volume is mounted and --audit-log points
+# at it. persistence.enabled uses a PVC; otherwise an emptyDir (lost on restart).
+audit:
+  enabled: false
+  persistence:
+    enabled: false
+    storageClass: ""
+    size: 1Gi
+
+metrics:
+  # A Prometheus Operator ServiceMonitor.
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    labels: {}
+
+# -- Extra flags appended verbatim, for anything not modelled above.
+extraArgs: []
+
+verbosity: 1 # -v count
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+
+# Spread replicas so a node drain never takes the whole gateway.
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

@@ -1,0 +1,154 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+      - run: rustup component add clippy
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - name: CONNECT-IP feature still builds
+        run: cargo build -p skimasque --features connect-ip
+
+  msrv:
+    # The release container image builds `skimasque-cli` on the pinned Rust in
+    # deploy/docker/Dockerfile. Build it here on the workspace `rust-version` so
+    # a dependency bump that raises the real MSRV fails a PR rather than the
+    # next `docker build`.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the workspace rust-version
+        id: msrv
+        run: |
+          v=$(grep -m1 '^rust-version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - run: rustup toolchain install "${{ steps.msrv.outputs.version }}" --profile minimal
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: msrv-${{ runner.os }}-${{ steps.msrv.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build skimasque-cli on the MSRV toolchain
+        run: cargo "+${{ steps.msrv.outputs.version }}" build --locked -p skimasque-cli
+
+  deploy-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint the Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: deploy/docker/Dockerfile
+
+      - name: Lint and render the Helm chart
+        if: ${{ !cancelled() }}
+        run: |
+          helm lint deploy/helm/skimasque-gateway
+          helm template gw deploy/helm/skimasque-gateway \
+            --set authority=gateway.example.com \
+            --set tls.secretName=gw-tls \
+            --set auth.githubOidc.enabled=true \
+            --set-json 'auth.githubOidc.audiences=["https://gateway.example.com"]' \
+            --set-json 'policies={"p.toml":"name = \"p\"\n"}' \
+            --set metrics.serviceMonitor.enabled=true \
+            --set audit.enabled=true \
+            > /dev/null
+
+      - name: Set up Terraform
+        if: ${{ !cancelled() }}
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Validate the Terraform
+        if: ${{ !cancelled() }}
+        run: |
+          terraform -chdir=deploy/terraform init -backend=false
+          terraform -chdir=deploy/terraform validate
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: cargo-deny (advisories, licenses, bans, sources)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+
+      - name: cargo-audit
+        if: ${{ !cancelled() }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+
+      - name: Scan Cargo.lock for advisories
+        if: ${{ !cancelled() }}
+        run: cargo audit
+
+  fuzz:
+    runs-on: ubuntu-latest
+    # cargo-fuzz defaults its --target to its own build triple; the binstall
+    # artifact is musl, which is statically linked and so incompatible with the
+    # sanitizer. Pin the target to the runner's gnu triple, whose std is present.
+    env:
+      FUZZ_TARGET: x86_64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nightly toolchain
+        run: |
+          rustup toolchain install nightly --profile minimal --component rust-src
+          rustup default nightly
+
+      - name: Cache fuzz build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            fuzz/target
+          key: fuzz-${{ runner.os }}-${{ hashFiles('fuzz/Cargo.lock', 'crates/**/Cargo.toml') }}
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+
+      - name: Build every fuzz target
+        working-directory: fuzz
+        run: cargo fuzz build --target "$FUZZ_TARGET"
+
+      - name: Smoke-run each target
+        working-directory: fuzz
+        run: |
+          for target in $(cargo fuzz list); do
+            echo "::group::${target}"
+            cargo fuzz run --target "$FUZZ_TARGET" "${target}" -- \
+              -max_total_time=15 -max_len=8192 -rss_limit_mb=4096
+            echo "::endgroup::"
+          done

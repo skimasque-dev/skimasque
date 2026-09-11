@@ -1,0 +1,141 @@
+name: e2e-oidc
+
+# Proves the Phase 3 path end to end against real infrastructure: the gateway
+# does real OIDC discovery and JWKS verification against
+# token.actions.githubusercontent.com, and the token it verifies is this
+# runner's own.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  CARGO_TERM_COLOR: always
+  AUDIENCE: https://skimasque.ci.test
+
+jobs:
+  oidc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the binaries
+        run: cargo build --locked -p skimasque-cli --bins
+
+      - name: Write a policy scoped to this repository
+        run: |
+          mkdir -p .masque/policies
+          cat > .masque/policies/ci.toml <<EOF
+          name = "ci"
+
+          [match]
+          repository = "${GITHUB_REPOSITORY}"
+
+          [[rules]]
+          application = "probe"
+          action = "allow"
+          destinations = ["1.1.1.1:53", "8.8.8.8:53", "1.1.1.1:443"]
+          EOF
+          ./target/debug/skimasque policy check ci 1.1.1.1:53 --app probe \
+            --repository "${GITHUB_REPOSITORY}"
+
+      - name: Start the gateway
+        run: |
+          ./target/debug/skimasque-server \
+            --listen 127.0.0.1:4433 --authority localhost:4433 \
+            --self-signed-name localhost --write-cert "${RUNNER_TEMP}/proxy.pem" \
+            --github-oidc --oidc-audience "${AUDIENCE}" --connect-tcp \
+            --policy-file .masque/policies/ci.toml -vv \
+            > "${RUNNER_TEMP}/server.log" 2>&1 &
+          echo $! > "${RUNNER_TEMP}/server.pid"
+          for _ in $(seq 1 100); do
+            [ -f "${RUNNER_TEMP}/proxy.pem" ] && break
+            sleep 0.1
+          done
+
+      - name: Probe through the gateway with this runner's OIDC token
+        run: |
+          ./target/debug/skimasque-client \
+            --proxy 127.0.0.1:4433 --authority localhost:4433 \
+            --ca "${RUNNER_TEMP}/proxy.pem" \
+            --github-oidc --oidc-audience "${AUDIENCE}" --app probe \
+            probe --target 1.1.1.1:53 --dns example.com
+
+      - name: Curl an HTTPS endpoint through a SOCKS5 relay over the gateway
+        run: |
+          ./target/debug/skimasque-client \
+            --proxy 127.0.0.1:4433 --authority localhost:4433 \
+            --ca "${RUNNER_TEMP}/proxy.pem" \
+            --github-oidc --oidc-audience "${AUDIENCE}" --app probe \
+            socks5 --listen 127.0.0.1:1080 \
+            > "${RUNNER_TEMP}/socks.log" 2>&1 &
+          echo $! > "${RUNNER_TEMP}/socks.pid"
+          for _ in $(seq 1 100); do
+            (exec 3<>/dev/tcp/127.0.0.1/1080) 2>/dev/null && break
+            sleep 0.1
+          done
+          code=$(curl -sS --fail --connect-timeout 20 -o /dev/null -w '%{http_code}' \
+            --proxy socks5h://127.0.0.1:1080 https://1.1.1.1/)
+          echo "cloudflare returned HTTP ${code}"
+          kill "$(cat "${RUNNER_TEMP}/socks.pid")" 2>/dev/null || true
+
+      - name: A destination the policy does not list is refused over TCP too
+        run: |
+          ./target/debug/skimasque-client \
+            --proxy 127.0.0.1:4433 --authority localhost:4433 \
+            --ca "${RUNNER_TEMP}/proxy.pem" \
+            --github-oidc --oidc-audience "${AUDIENCE}" --app probe \
+            socks5 --listen 127.0.0.1:1081 \
+            > "${RUNNER_TEMP}/socks-deny.log" 2>&1 &
+          echo $! > "${RUNNER_TEMP}/socks-deny.pid"
+          for _ in $(seq 1 100); do
+            (exec 3<>/dev/tcp/127.0.0.1/1081) 2>/dev/null && break
+            sleep 0.1
+          done
+          if curl -sS --fail --connect-timeout 20 -o /dev/null \
+            --proxy socks5h://127.0.0.1:1081 https://9.9.9.9/
+          then
+            echo "::error::an unlisted TCP destination should have been refused"
+            kill "$(cat "${RUNNER_TEMP}/socks-deny.pid")" 2>/dev/null || true
+            exit 1
+          fi
+          kill "$(cat "${RUNNER_TEMP}/socks-deny.pid")" 2>/dev/null || true
+
+      - name: A token for the wrong audience is refused
+        run: |
+          if ./target/debug/skimasque-client \
+            --proxy 127.0.0.1:4433 --authority localhost:4433 \
+            --ca "${RUNNER_TEMP}/proxy.pem" \
+            --github-oidc --oidc-audience https://wrong.example --app probe \
+            probe --target 1.1.1.1:53 --dns example.com
+          then
+            echo "::error::the wrong-audience probe should have been refused"
+            exit 1
+          fi
+
+      - name: A destination the policy does not list is refused
+        run: |
+          if ./target/debug/skimasque-client \
+            --proxy 127.0.0.1:4433 --authority localhost:4433 \
+            --ca "${RUNNER_TEMP}/proxy.pem" \
+            --github-oidc --oidc-audience "${AUDIENCE}" --app probe \
+            probe --target 9.9.9.9:53 --dns example.com
+          then
+            echo "::error::an unlisted destination should have been refused"
+            exit 1
+          fi
+
+      - name: Gateway log
+        if: always()
+        run: |
+          kill "$(cat "${RUNNER_TEMP}/server.pid")" 2>/dev/null || true
+          echo "--- gateway log ---"
+          cat "${RUNNER_TEMP}/server.log" || true
+          echo "--- socks relay logs ---"
+          cat "${RUNNER_TEMP}"/socks*.log || true

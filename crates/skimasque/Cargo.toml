@@ -1,0 +1,61 @@
+[package]
+name = "skimasque"
+description = "MASQUE proxying over HTTP/3: a CONNECT-UDP client and a tower-based proxy service"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["masque", "quic", "http3", "proxy", "tunnel"]
+categories = ["network-programming"]
+
+[features]
+default = ["self-signed"]
+# Generate throwaway certificates, for development proxies and tests.
+self-signed = ["dep:rcgen"]
+# CONNECT-IP (RFC 9484) transport. The wire formats are always available in
+# `skimasque-core`; this gates the HTTP/3 plumbing and the address-pool proxy.
+connect-ip = []
+# ACME (Let's Encrypt) certificate issuance and renewal for the gateway, via
+# the TLS-ALPN-01 challenge. Adds `rustls-acme`.
+acme = ["dep:rustls-acme", "dep:tokio-util"]
+
+[dependencies]
+skimasque-core.workspace = true
+skimasque-policy.workspace = true
+
+bytes.workspace = true
+futures.workspace = true
+http.workspace = true
+ipnet.workspace = true
+metrics.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+thiserror.workspace = true
+tower = { workspace = true, features = ["util"] }
+tracing.workspace = true
+
+tokio = { workspace = true, features = ["rt", "net", "sync", "time", "macros"] }
+
+h3.workspace = true
+h3-quinn.workspace = true
+quinn.workspace = true
+rustls = { workspace = true }
+webpki-roots = "1.0"
+
+rcgen = { workspace = true, optional = true }
+
+# TLS-ALPN-01 ACME. `ring` to match the rest of the tree (no aws-lc-rs / C
+# toolchain); `webpki-roots` for the ACME directory client's trust store;
+# `tokio` for the async runtime glue.
+rustls-acme = { version = "0.15", default-features = false, features = ["ring", "tls12", "tokio", "webpki-roots"], optional = true }
+# Adapts a tokio `TcpStream` to the `futures-io` traits `AcmeAcceptor` expects.
+tokio-util = { version = "0.7", default-features = false, features = ["compat"], optional = true }
+
+[dev-dependencies]
+# `test-util` is not part of `full`; the bandwidth-limiter test drives paused time.
+tokio = { workspace = true, features = ["full", "test-util"] }
+# `limit` and `timeout` back the composition example in `service`'s docs.
+tower = { workspace = true, features = ["util", "limit", "timeout"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

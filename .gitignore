@@ -1,0 +1,12 @@
+/target
+**/*.rs.bk
+*.pem
+*.der
+.env
+
+# Deployment secrets: the *.example files are committed, the real ones are not.
+deploy/**/*.env
+!deploy/**/*.env.example
+
+# Control-plane backup archives (deploy/docker/backup-control.sh).
+skimasque-control-backup-*.tar.gz

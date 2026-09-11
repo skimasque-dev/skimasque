@@ -1,0 +1,69 @@
+# A hardened systemd unit for the skimasque gateway on a Linux host.
+#
+#   sudo install -Dm0644 deploy/systemd/skimasque-gateway.service \
+#       /etc/systemd/system/skimasque-gateway.service
+#   sudo install -Dm0640 deploy/systemd/gateway.env.example /etc/skimasque/gateway.env
+#   sudo install -Dm0755 target/release/skimasque-server /usr/local/bin/skimasque-server
+#   sudoedit /etc/skimasque/gateway.env      # set the real flags
+#   sudo systemctl enable --now skimasque-gateway
+#
+# Policy lives in /etc/skimasque/policies/ and TLS in /etc/skimasque/tls/;
+# with --policy-reload / --tls-reload the gateway picks up changes in place.
+
+[Unit]
+Description=skimasque MASQUE gateway
+Documentation=https://github.com/skimasque-dev/skimasque
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/skimasque/gateway.env
+ExecStart=/usr/local/bin/skimasque-server $SKIMASQUE_ARGS
+# SIGTERM triggers the graceful drain; give it a little longer than the
+# --shutdown-grace value.
+KillSignal=SIGTERM
+TimeoutStopSec=45
+Restart=on-failure
+RestartSec=2
+
+# --- identity -------------------------------------------------------------
+DynamicUser=yes
+StateDirectory=skimasque
+# /etc/skimasque is read by the process but owned by root.
+ConfigurationDirectory=skimasque
+
+# --- sandbox -------------------------------------------------------------
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+# QUIC is UDP; the ops listener is TCP. Nothing else.
+RestrictAddressFamilies=AF_INET AF_INET6
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallArchitectures=native
+# The gateway binds 4433 and (optionally) the metrics port -- both >1024 -- so
+# it needs no capabilities at all.
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# --- resource ceilings (belt and braces alongside the in-process limits) --
+LimitNOFILE=65536
+TasksMax=8192
+
+[Install]
+WantedBy=multi-user.target

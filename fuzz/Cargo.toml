@@ -1,0 +1,90 @@
+[package]
+name = "skimasque-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+# Its own workspace: `cargo build` / `cargo test` at the repo root never touch
+# these targets, and they build only under `cargo fuzz` (which needs nightly and
+# a sanitizer runtime).
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+bytes = "1"
+skimasque-core = { path = "../crates/skimasque-core" }
+skimasque-policy = { path = "../crates/skimasque-policy" }
+
+[profile.release]
+debug = 1
+
+# The wire-format parsers in `skimasque-core` are hand-rolled byte decoders that
+# run on data a client controls, before authorization. The `skimasque-policy`
+# document parser runs on operator-controlled files. Each target below drives one
+# of them against arbitrary input and asserts only that it does not panic.
+
+[[bin]]
+name = "varint"
+path = "fuzz_targets/varint.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "http3_datagram"
+path = "fuzz_targets/http3_datagram.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "proxying_payload"
+path = "fuzz_targets/proxying_payload.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "capsule_decoder"
+path = "fuzz_targets/capsule_decoder.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "connect_udp_payload"
+path = "fuzz_targets/connect_udp_payload.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "connect_ip"
+path = "fuzz_targets/connect_ip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "uri_template"
+path = "fuzz_targets/uri_template.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "target_parse"
+path = "fuzz_targets/target_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "policy_document"
+path = "fuzz_targets/policy_document.rs"
+test = false
+doc = false
+bench = false

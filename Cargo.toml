@@ -1,0 +1,95 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/skimasque-dev/skimasque"
+
+[workspace.dependencies]
+skimasque-core = { path = "crates/skimasque-core", version = "0.1.0" }
+skimasque = { path = "crates/skimasque", version = "0.1.0" }
+skimasque-policy = { path = "crates/skimasque-policy", version = "0.1.0" }
+skimasque-identity = { path = "crates/skimasque-identity", version = "0.1.0" }
+skimasque-protocol = { path = "crates/skimasque-protocol", version = "0.1.0" }
+
+bytes = "1.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# serde_yaml is archived upstream but stable, ubiquitous, and the YAML we parse
+# is a small fixed schema. Swappable for a maintained fork if that ever bites.
+serde_yaml = "0.9.34"
+toml = "0.8"
+thiserror = "2.0"
+tracing = "0.1"
+
+# GitHub Actions OIDC verification (crate `skimasque-identity`). `jsonwebtoken`
+# 9 verifies RS256 against `ring`, which is already in the tree via `quinn`.
+# `reqwest` fetches OIDC discovery and JWKS; rustls-only so it shares this
+# workspace's TLS stack rather than linking a system library.
+jsonwebtoken = "9"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+tokio = "1.47"
+tower = "0.5"
+http = "1.3"
+futures = "0.3"
+# CIDR parsing for the address-floor allow-list. Already in the tree via
+# `hyper-util`; this pins it as a direct dependency where it is used.
+ipnet = "2.11"
+
+# Metrics and the gateway's ops endpoints. `metrics` is a thin facade -- the
+# `skimasque` crate calls it and it compiles to almost nothing until a binary
+# installs a recorder. `skimasque-server` installs the Prometheus exporter and
+# serves `/metrics` + health on a small `hyper` listener; `hyper`, `hyper-util`
+# and `http-body-util` are already in the tree via `reqwest`.
+metrics = "0.24"
+metrics-exporter-prometheus = { version = "0.17", default-features = false }
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+
+# `ring` for Ed25519 platform-credential signing/verification (`skimasque-identity`),
+# `base64` for key material at the API boundary. `base64` is already in the tree
+# via `jsonwebtoken`.
+ring = "0.17"
+base64 = "0.22"
+
+quinn = { version = "0.11.11", default-features = false, features = ["runtime-tokio", "rustls-ring", "bloom", "log"] }
+h3 = "0.0.8"
+h3-quinn = "0.0.10"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+rcgen = "0.14"
+
+# Pinned `h3`. The released `h3` 0.0.8 (May 2025) cannot express `connect-ip`:
+# its `ext::Protocol` rejects `connect-ip` while decoding `:protocol`, before any
+# of our code runs. Upstream `master` added `Protocol::CONNECT_IP`, fixed
+# `h3-datagram`'s quarter-stream-id encoding (#340), and carries other
+# correctness fixes we want (frame backpressure #344, a `stop_sending` panic
+# #331) -- but the `h3-v*` tags have not advanced in over a year while `master`
+# is developed actively, so there is no 0.0.9 to move to.
+#
+# The rev below is `master` HEAD as of the last review (2026-09, tree quiet for
+# ~1 month). Bump it deliberately in a reviewed PR that scans the intervening
+# commits; do not float it. `h3-quinn` stays on its 0.0.10 registry release and
+# is built against this `h3` -- a breaking change on `h3` `master` to an API it
+# uses would surface as a build failure, which CI catches on a bump.
+#
+# `cargo deny` [sources] allows only this git URL. `cargo audit` cannot advise
+# on a git dependency, so an `h3` advisory has to be watched for by hand
+# (hyperium/h3 releases + RUSTSEC). Cargo cannot gate a `[patch]` behind a
+# feature, so this applies workspace-wide, not only to `--features connect-ip`.
+#
+# Exit paths, in order of preference: (1) `h3` ships 0.0.9 -> drop the patch;
+# (2) `connect-ip` is abandoned as a goal -> drop the patch and accept `h3`
+# 0.0.8 (connect-udp and classic CONNECT work on it). We keep framing HTTP
+# Datagrams ourselves regardless, so a build without the #340 fix is still
+# correct rather than silently crossing tunnels.
+[patch.crates-io]
+h3 = { git = "https://github.com/hyperium/h3", rev = "1f3d5295833ad454343f25d55633fb6bee1027b2" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

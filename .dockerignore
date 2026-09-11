@@ -1,0 +1,8 @@
+# The Docker build stage copies the whole workspace; keep the context small.
+# Everything the build actually needs (Cargo.toml, Cargo.lock, crates/) is kept.
+/target
+/.git
+/.github
+/docs
+/deploy
+*.md

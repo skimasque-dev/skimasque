@@ -1,0 +1,61 @@
+[package]
+name = "skimasque-cli"
+description = "The skimasque CLI, plus the skimasque-server gateway and skimasque-client tunnel binaries it drives"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["masque", "proxy", "gateway", "access-control", "ci"]
+categories = ["command-line-utilities", "network-programming"]
+
+[[bin]]
+name = "skimasque-server"
+path = "src/bin/skimasque-server.rs"
+
+[[bin]]
+name = "skimasque-client"
+path = "src/bin/skimasque-client.rs"
+
+[[bin]]
+name = "skimasque"
+path = "src/bin/skimasque.rs"
+
+[features]
+default = ["acme"]
+# ACME (Let's Encrypt) certificate issuance and renewal for `skimasque-server`
+# (the `--acme` flag, for `--hostname`), via TLS-ALPN-01. On by default; opt out
+# with `--no-default-features` for a leaner dependency tree.
+acme = ["skimasque/acme"]
+
+[dependencies]
+skimasque.workspace = true
+skimasque-core.workspace = true
+skimasque-policy.workspace = true
+skimasque-identity.workspace = true
+skimasque-protocol.workspace = true
+
+anyhow = "1.0"
+base64.workspace = true
+bytes.workspace = true
+clap = { version = "4.6", features = ["derive", "env"] }
+http.workspace = true
+http-body-util.workspace = true
+hyper = { workspace = true, features = ["http1", "server"] }
+ipnet.workspace = true
+hyper-util = { workspace = true, features = ["tokio"] }
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
+reqwest.workspace = true
+ring.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "sync", "time", "macros", "io-util", "io-std", "signal", "fs"] }
+tower = { workspace = true, features = ["util", "limit"] }
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }

@@ -1,0 +1,24 @@
+[package]
+name = "skimasque-protocol"
+description = "The SkiMasque control protocol: the wire types and endpoints a gateway and a control plane exchange"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["skimasque", "protocol", "masque", "gateway", "control-plane"]
+categories = ["network-programming", "encoding"]
+
+[dependencies]
+# Pure data: serde for the wire shapes, ring for the audit-chain hash, base64
+# for the signing-key encoding, skimasque-policy for `WorkloadIdentity` in the
+# credential-mint request. No HTTP client, no async runtime.
+serde = { workspace = true }
+ring.workspace = true
+base64.workspace = true
+skimasque-policy.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

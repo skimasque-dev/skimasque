@@ -1,0 +1,12 @@
+{{- if .Values.policies }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "skimasque-gateway.fullname" . }}-policies
+  labels: {{- include "skimasque-gateway.labels" . | nindent 4 }}
+data:
+{{- range $name, $content := .Values.policies }}
+  {{ $name }}: |
+{{ $content | indent 4 }}
+{{- end }}
+{{- end }}

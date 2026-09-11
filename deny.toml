@@ -1,0 +1,60 @@
+# cargo-deny configuration. Run `cargo deny check` (CI does, per commit).
+
+[graph]
+# Check the platforms we actually ship for; skip the rest so a Windows-only or
+# wasm-only transitive dep does not fail the build.
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+]
+all-features = true
+
+[advisories]
+yanked = "deny"
+# A direct workspace dependency going unmaintained is actionable (swap it); a
+# transitive one often is not, so surface those in the log without failing.
+unmaintained = "workspace"
+ignore = [
+    # Marvin Attack timing side-channel in `rsa`. `rsa` is a dev-dependency of
+    # skimasque-identity only -- its tests mint fixture JWTs -- so it is never in
+    # a shipped binary, and no fixed release exists. Revisit if `rsa` ever
+    # reaches a normal dependency.
+    { id = "RUSTSEC-2023-0071", reason = "rsa is dev-only; no fix available" },
+]
+
+[licenses]
+# SPDX identifiers accepted for any crate in the tree.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "CDLA-Permissive-2.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# We are rustls-only on purpose (crypto is `ring`, already in the tree via
+# quinn); a transitive dep pulling in a C TLS stack should fail loudly.
+deny = [
+    { name = "openssl" },
+    { name = "openssl-sys" },
+    { name = "native-tls" },
+    { name = "openssl-probe" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+# The pinned `h3` patch (see the workspace Cargo.toml for the review notes and
+# exit paths). `cargo audit` does not cover git dependencies, so an `h3`
+# advisory has to be caught by watching hyperium/h3 and RUSTSEC by hand.
+allow-git = ["https://github.com/hyperium/h3"]

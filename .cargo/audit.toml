@@ -1,0 +1,10 @@
+# cargo-audit configuration. `cargo deny check advisories` is the primary gate
+# (see deny.toml); this keeps a bare `cargo audit` green with the same rationale.
+
+[advisories]
+ignore = [
+    # Marvin Attack timing side-channel in `rsa`. It is a dev-dependency of
+    # skimasque-identity only (fixture-JWT signing in tests), never in a shipped
+    # binary, and has no fixed release.
+    "RUSTSEC-2023-0071",
+]

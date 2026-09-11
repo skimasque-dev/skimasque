@@ -1,0 +1,33 @@
+skimasque gateway {{ .Chart.AppVersion }} deployed as {{ include "skimasque-gateway.fullname" . }}.
+
+{{- if not .Values.authority }}
+
+  ! Set `authority` -- the gateway's TLS name and the ":authority" clients send.
+{{- end }}
+{{- if not .Values.tls.secretName }}
+
+  ! No `tls.secretName`: the gateway is serving a throwaway self-signed cert.
+    Point it at a kubernetes.io/tls secret (cert-manager writes one); with
+    `reload.tls` it rotates in place.
+{{- end }}
+{{- if and (not .Values.auth.githubOidc.enabled) (not .Values.auth.bearerToken.existingSecret) }}
+
+  ! No authentication configured. Anyone who can reach the QUIC port can use the
+    gateway. Set `auth.githubOidc.enabled` or `auth.bearerToken.existingSecret`.
+{{- end }}
+
+QUIC (UDP) service:
+  {{ include "skimasque-gateway.fullname" . }}:{{ .Values.ports.quic }}
+{{- if eq .Values.service.type "ClusterIP" }}
+  In-cluster only. For CI runners outside the cluster, use a UDP-forwarding
+  LoadBalancer (`service.type=LoadBalancer`) or a NodePort.
+{{- end }}
+
+Health and metrics (TCP {{ .Values.ports.metrics }}): /healthz  /readyz  /metrics
+
+Next:
+  1. helm get manifest {{ .Release.Name }} | kubectl ... (review)
+  2. Point a runner at the gateway with the setup action, or:
+       skimasque connect <host:port> --proxy <gateway>:{{ .Values.ports.quic }} \
+         --github-oidc --oidc-audience <audience> --app <name>
+  3. Watch decisions: kubectl logs -l app.kubernetes.io/instance={{ .Release.Name }} -f

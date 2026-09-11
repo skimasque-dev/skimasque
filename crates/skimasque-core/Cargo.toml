@@ -1,0 +1,15 @@
+[package]
+name = "skimasque-core"
+description = "Wire-format types for IETF MASQUE: HTTP Datagrams, the Capsule Protocol, CONNECT-UDP and CONNECT-IP"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["masque", "quic", "http3", "datagram", "connect-udp"]
+categories = ["network-programming", "encoding"]
+
+[dependencies]
+bytes.workspace = true
+thiserror.workspace = true

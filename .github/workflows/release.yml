@@ -1,0 +1,218 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and attach binaries to"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    permissions:
+      contents: write
+      # Sigstore-backed build provenance for every release asset.
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    target: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
+          # Apple Silicon — what current Macs run. Intel (x86_64-apple-darwin)
+          # is intentionally not built: its runner (macos-13) is being retired
+          # and the developer share is small.
+          - { os: macos-latest,     target: aarch64-apple-darwin }
+          - { os: windows-latest,   target: x86_64-pc-windows-msvc }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add the Rust target
+        shell: bash
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build
+        shell: bash
+        run: cargo build --release --locked --target ${{ matrix.target }} -p skimasque-cli
+
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ github.event.inputs.tag || github.ref_name }}"
+          stage="skimasque-${version}-${{ matrix.target }}"
+          mkdir "${stage}"
+          bindir="target/${{ matrix.target }}/release"
+          for bin in skimasque skimasque-client skimasque-server; do
+            if [ -f "${bindir}/${bin}.exe" ]; then
+              cp "${bindir}/${bin}.exe" "${stage}/"
+            else
+              cp "${bindir}/${bin}" "${stage}/"
+            fi
+          done
+          cp README.md "${stage}/"
+          tar czf "${stage}.tar.gz" "${stage}"
+          if command -v sha256sum >/dev/null; then
+            sha256sum "${stage}.tar.gz" > "${stage}.tar.gz.sha256"
+          else
+            shasum -a 256 "${stage}.tar.gz" > "${stage}.tar.gz.sha256"
+          fi
+          echo "ASSET=${stage}.tar.gz" >> "${GITHUB_ENV}"
+
+      - name: Generate build provenance
+        # GitHub's attestation store rejects writes from user-owned private
+        # repositories. Skip it while private; it starts working automatically
+        # once the repository is public (or moves to an org).
+        if: ${{ !github.event.repository.private }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ env.ASSET }}
+
+      - name: Attach to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          set -uo pipefail
+          # Matrix jobs race here; whichever loses the create just carries on.
+          for _ in 1 2 3; do
+            gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 && break
+            gh release create "${TAG}" --repo "${GITHUB_REPOSITORY}" \
+              --title "${TAG}" --generate-notes && break
+            sleep 5
+          done
+          set -e
+          gh release upload "${TAG}" "${ASSET}" "${ASSET}.sha256" \
+            --repo "${GITHUB_REPOSITORY}" --clobber
+
+  sbom:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      # `cargo-sbom` reads `cargo metadata` / `Cargo.lock` directly, so it
+      # resolves the `h3` git patch and the workspace cleanly — `anchore/sbom-action`
+      # (syft) choked on this tree. Scoped to `skimasque-cli`: the SBOM
+      # describes the dependency closure of the released binaries (`skimasque` /
+      # `-server` / `-client`).
+      - name: Install cargo-sbom
+        run: cargo install cargo-sbom --version '^0.10' --locked
+
+      - name: Generate an SPDX SBOM
+        run: cargo sbom --cargo-package skimasque-cli --output-format spdx_json_2_3 > skimasque-sbom.spdx.json
+
+      - name: Attach the SBOM to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          gh release upload "${TAG}" skimasque-sbom.spdx.json \
+            --repo "${GITHUB_REPOSITORY}" --clobber
+
+  image:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write # attach the image tarball to the release
+      # Push to GHCR, and (on a public repo) attest the pushed image.
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+    # The gateway image. The build + push runs unconditionally: while the repo
+    # is private the GHCR package is simply created private (it inherits the
+    # repo's visibility), and only the Sigstore attestation step below is
+    # skipped. A `linux/amd64` tarball is also attached to the GitHub release so
+    # the image can be pulled without a GHCR credential.
+    steps:
+      - uses: actions/checkout@v4
+
+      # No QEMU setup: amd64-only build now, native on this runner.
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # A tag push gives vX.Y.Z + X.Y + X + latest; workflow_dispatch tags
+          # by the supplied ref.
+          tags: |
+            type=semver,pattern={{version}},value=${{ github.event.inputs.tag || github.ref_name }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ github.event.inputs.tag || github.ref_name }}
+            type=semver,pattern={{major}},value=${{ github.event.inputs.tag || github.ref_name }}
+
+      - name: Build and push
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          target: gateway   # never the control plane
+          # linux/arm64 dropped: QEMU-emulated compilation of this workspace's
+          # `lto = "thin", codegen-units = 1` release profile ran past an hour
+          # without finishing. Revisit with a native arm64 runner
+          # (docker/setup-buildx-action supports Actions-hosted arm64 runners)
+          # rather than emulation if arm64 images are needed again.
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Attest the image
+        # See the note on the binary provenance step above: unavailable for
+        # user-owned private repositories, automatic once public.
+        if: ${{ !github.event.repository.private }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Export a linux/amd64 image tarball
+        # So the image can be loaded without a GHCR credential — handy while the
+        # package is private. Reuses the build cache, so this is a fast rebuild.
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          target: gateway   # never the control plane
+          platforms: linux/amd64
+          tags: ${{ env.IMAGE }}:${{ github.event.inputs.tag || github.ref_name }}
+          cache-from: type=gha
+          outputs: type=docker,dest=skimasque-image-amd64.tar
+          provenance: false
+
+      - name: Attach the image tarball to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          gzip skimasque-image-amd64.tar
+          gh release upload "${TAG}" skimasque-image-amd64.tar.gz \
+            --repo "${GITHUB_REPOSITORY}" --clobber
+          echo "Load it with:  docker load < skimasque-image-amd64.tar.gz"

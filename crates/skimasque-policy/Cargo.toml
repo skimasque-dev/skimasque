@@ -1,0 +1,18 @@
+[package]
+name = "skimasque-policy"
+description = "The identity-aware network-access policy engine: WHO to WHAT to WHERE, under LIMITS. Independent of MASQUE."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["policy", "access-control", "authorization", "least-privilege", "zero-trust"]
+categories = ["network-programming", "authentication"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+toml.workspace = true

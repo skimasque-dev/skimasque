@@ -1,0 +1,4 @@
+ignored:
+  # Pinning apt package versions (git, ca-certificates, wget) is impractical --
+  # it breaks on every base-image refresh -- for little security benefit here.
+  - DL3008

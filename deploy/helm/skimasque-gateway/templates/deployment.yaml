@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "skimasque-gateway.fullname" . }}
+  labels: {{- include "skimasque-gateway.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {{- include "skimasque-gateway.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "skimasque-gateway.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}{{- toYaml . | nindent 8 }}{{- end }}
+      annotations:
+        {{- if .Values.policies }}
+        # Roll pods when the policy ConfigMap changes, so --policy-reload is a
+        # belt-and-braces rather than the only path.
+        checksum/policies: {{ toYaml .Values.policies | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gateway
+          image: {{ include "skimasque-gateway.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: {{- include "skimasque-gateway.args" . | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: quic
+              containerPort: {{ .Values.ports.quic }}
+              protocol: UDP
+            - name: metrics
+              containerPort: {{ .Values.ports.metrics }}
+              protocol: TCP
+          {{- if or .Values.auth.githubOidc.credentialSecret.existingSecret .Values.auth.bearerToken.existingSecret }}
+          env:
+            {{- if .Values.auth.githubOidc.credentialSecret.existingSecret }}
+            - name: SKIMASQUE_CREDENTIAL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.githubOidc.credentialSecret.existingSecret }}
+                  key: credential-secret
+            {{- end }}
+            {{- if .Values.auth.bearerToken.existingSecret }}
+            - name: SKIMASQUE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.bearerToken.existingSecret }}
+                  key: auth-token
+            {{- end }}
+          {{- end }}
+          livenessProbe:
+            httpGet: { path: /healthz, port: metrics }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /readyz, port: metrics }
+            periodSeconds: 5
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.tls.secretName }}
+            - name: tls
+              mountPath: /etc/skimasque/tls
+              readOnly: true
+            {{- end }}
+            {{- if .Values.policies }}
+            - name: policies
+              mountPath: /etc/skimasque/policies
+              readOnly: true
+            {{- end }}
+            {{- if .Values.audit.enabled }}
+            - name: audit
+              mountPath: /var/lib/skimasque
+            {{- end }}
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.tls.secretName }}
+        - name: tls
+          secret:
+            secretName: {{ .Values.tls.secretName }}
+        {{- end }}
+        {{- if .Values.policies }}
+        - name: policies
+          configMap:
+            name: {{ include "skimasque-gateway.fullname" . }}-policies
+        {{- end }}
+        {{- if .Values.audit.enabled }}
+        - name: audit
+          {{- if .Values.audit.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "skimasque-gateway.fullname" . }}-audit
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- toYaml . | nindent 8 }}
+      {{- end }}
