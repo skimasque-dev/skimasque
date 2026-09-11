@@ -7,8 +7,10 @@
 #   sudoedit /etc/skimasque/gateway.env      # set the real flags
 #   sudo systemctl enable --now skimasque-gateway
 #
-# Policy lives in /etc/skimasque/policies/ and TLS in /etc/skimasque/tls/;
-# with --policy-reload / --tls-reload the gateway picks up changes in place.
+# Policy comes from the control plane by default (gateway.env.example), cached
+# under /var/lib/skimasque/control; swap in /etc/skimasque/policies/ for local
+# static policy instead. TLS lives in /etc/skimasque/tls/; with
+# --policy-reload / --tls-reload the gateway picks up changes in place.
 
 [Unit]
 Description=skimasque MASQUE gateway
@@ -56,10 +58,12 @@ RestrictAddressFamilies=AF_INET AF_INET6
 SystemCallFilter=@system-service
 SystemCallFilter=~@privileged @resources
 SystemCallArchitectures=native
-# The gateway binds 4433 and (optionally) the metrics port -- both >1024 -- so
-# it needs no capabilities at all.
-CapabilityBoundingSet=
-AmbientCapabilities=
+# The gateway binds 443 by default (see gateway.env.example) plus the metrics
+# port on loopback; CAP_NET_BIND_SERVICE is the one capability it needs,
+# granted to the DynamicUser rather than running as root. Drop both lines back
+# to empty if you point --listen at a port above 1024 instead.
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 
 # --- resource ceilings (belt and braces alongside the in-process limits) --
 LimitNOFILE=65536
