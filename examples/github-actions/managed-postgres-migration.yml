@@ -1,0 +1,79 @@
+# A complete example of SkiMasque Cloud (Mode 1 -- fully managed, no gateway
+# infrastructure of your own): a job reaches one internal Postgres instance
+# through a policy, and everything else stays denied. Walked through in full
+# at ../../docs/getting-started.md.
+#
+# What "live" means here: gateway.skimasque.com is SkiMasque's shared,
+# multi-tenant gateway, and https://control.skimasque.com is the dashboard
+# that governs it. Neither is something you run -- they already exist. What
+# you provide is the policy, and the identity your workflow proves via OIDC.
+#
+# Before this runs anything for real:
+#
+#   1. skimasque login                     # GitHub device flow
+#      skimasque org create "Acme"
+#   2. Publish a policy for YOUR repository at https://control.skimasque.com
+#      (Access -> Policy editor), or from a policy-publishing job -- see
+#      ../../docs/github-actions.md. The policy below is the minimum that
+#      makes this workflow's "Run the migration" step succeed:
+#
+#        name = "production"
+#
+#        [match]
+#        repository = "your-org/your-repo"   # <- edit: exactly this repo
+#        branch = "main"
+#
+#        [[rules]]
+#        application = "psql"
+#        action = "allow"
+#        destinations = ["db.internal:5432"] # <- edit: your real target
+#
+#   3. Edit the two placeholders below (marked EDIT) to match: the migration
+#      command and its real destination.
+#
+# Nothing else to configure -- no gateway address, no credentials to store.
+# A token from a different repository, branch, or workflow does not match
+# the policy above and is denied; there is no separate secret to leak.
+
+name: migrate (SkiMasque Cloud example)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # required: this is what lets the job mint an OIDC token
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Exchanges this job's OIDC token for a short-lived credential, then
+      # opens a local SOCKS5 relay through gateway.skimasque.com and exports
+      # ALL_PROXY at it. "application: psql" is the identity `psql` traffic
+      # carries -- policy matches on it as `application = "psql"`.
+      - uses: skimasque-dev/connect@v1
+        with:
+          proxy: gateway.skimasque.com:443
+          audience: https://gateway.skimasque.com
+          application: psql
+
+      # EDIT: the connection string / host and the migration command are
+      # placeholders -- point them at your own database and tool.
+      - name: Run the migration through the gateway
+        env:
+          ALL_PROXY: socks5h://127.0.0.1:1080   # the "h" resolves DNS gateway-side too
+        run: psql "postgresql://ci@db.internal:5432/app" -f migrations/latest.sql
+
+      # Uncomment to see enforcement actually work: a destination the policy
+      # above does not list is refused, with the reason in Proxy-Status.
+      # - name: A destination outside the policy is denied
+      #   env:
+      #     ALL_PROXY: socks5h://127.0.0.1:1080
+      #   run: curl -sS https://secrets.internal/
+
+  # Every decision -- allow and deny -- shows up under your org's Activity
+  # view at https://control.skimasque.com: identity, application,
+  # destination, and the rule or denial reason, with a timestamp.
