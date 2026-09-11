@@ -28,27 +28,40 @@
 #   SKM_CONTAINER     container name                       (default skimasque-gateway)
 #   SKM_PORT          host port mapped to the gateway's 443 (default 443)
 #
-# To pull policy from skimasque's control plane and show up in its fleet view —
-# do NOT run `skimasque login` inside the container; enrol with a one-time
-# registration token (dashboard → Gateways → "Mint a registration token", or
-# `skimasque gateway register` on a workstation):
+# By default this sets up modes 1 & 2 (SkiMasque Cloud Gateway / Customer
+# Gateway): GitHub Actions OIDC as the workload identity, and SkiMasque Cloud
+# as the control plane and policy source.
+#   SKM_OIDC=0         disable the default --oidc identity check — only do
+#                      this if you pass your own identity source after `--`
+#                      (e.g. `-- --auth-token ...`); without any identity
+#                      source anyone who can reach the port can use the
+#                      gateway, and the server prints that warning too
+#   SKM_OIDC_AUDIENCE  --oidc-audience                      (default https://SKM_HOSTNAME)
 #   SKM_CONTROL_PLANE  control plane URL (default https://control.skimasque.com)
-#   SKM_CONTROL_TOKEN  the skmreg_… token — only needed for the first run;
-#                      the identity is then stored under SKM_STATE_DIR
+#                      — set to an empty string to run standalone, without a
+#                      control plane (mode 3 / local policy only — pass your
+#                      own policy source after `--`, e.g. `-- --policy-dir /path`)
+#   SKM_CONTROL_TOKEN  the skmreg_… one-time registration token — needed only
+#                      the first time this gateway registers (dashboard →
+#                      Gateways → "Mint a registration token", or
+#                      `skimasque gateway register` on a workstation; do NOT
+#                      run `skimasque login` inside the container). The
+#                      identity is then stored under SKM_STATE_DIR and the
+#                      token isn't needed again.
 #   SKM_CONTROL_NAME   fleet display name                  (default SKM_HOSTNAME)
 #   SKM_CONTROL_LABELS space-separated key=value pairs for policy scoping
 #   SKM_STATE_DIR      host dir for the control-plane identity + cached policy
 #                      (default ~/skimasque/state)
 #
-# Anything after `--` is passed straight through to skimasque-server, e.g.
-#   deploy/docker/run-gateway.sh -- --github-oidc --oidc-audience https://gateway.example.com
-# Without an identity source (--github-oidc or --auth-token) anyone who can
-# reach the port can use the gateway; the server prints that warning too.
+# Anything after `--` is passed straight through to skimasque-server, and
+# takes precedence where it'd conflict with the defaults above — e.g. your own
+# --policy-dir instead of --control-plane, or --auth-token instead of --oidc
+# (skimasque-server refuses to be given both of either pair).
 set -euo pipefail
 
 die() { echo "run-gateway: $*" >&2; exit 1; }
 
-case "${1:-}" in -h | --help | help) sed -n '2,46p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
+case "${1:-}" in -h | --help | help) sed -n '2,59p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
 
 # Flags for skimasque-server come after a `--` separator.
 passthrough=()
@@ -63,11 +76,9 @@ ACME_DIR="${SKM_ACME_DIR:-$HOME/skimasque/acme}"
 STATE_DIR="${SKM_STATE_DIR:-$HOME/skimasque/state}"
 PORT="${SKM_PORT:-443}"
 HOSTNAME_="${SKM_HOSTNAME:-}"
-CONTROL_PLANE="${SKM_CONTROL_PLANE:-}"
-# A registration token implies control-plane mode; default the URL to SkiMasque
-# Cloud when only the token is given (set SKM_CONTROL_PLANE for a self-hosted one).
-[ -z "${SKM_CONTROL_TOKEN:-}" ] || [ -n "$CONTROL_PLANE" ] \
-  || CONTROL_PLANE="https://control.skimasque.com"
+# `-` (not `:-`) so an explicitly empty SKM_CONTROL_PLANE opts out of the
+# default — distinct from leaving it unset.
+CONTROL_PLANE="${SKM_CONTROL_PLANE-https://control.skimasque.com}"
 
 command -v docker >/dev/null 2>&1 || die "docker not found"
 [ -n "$HOSTNAME_" ] || die "set SKM_HOSTNAME to the gateway's public DNS name"
@@ -76,6 +87,32 @@ if [ -n "$CONTROL_PLANE" ]; then
     https://* | http://*) ;;
     *) die "SKM_CONTROL_PLANE must be a full URL, e.g. https://control.skimasque.com" ;;
   esac
+fi
+
+# Don't fight a policy source or identity flag already passed through after
+# `--` — skimasque-server refuses --control-plane alongside
+# --policy-dir/--policy-file, and --oidc alongside --auth-token.
+policy_source_passed=0
+for arg in "${passthrough[@]}"; do
+  case "$arg" in
+    --control-plane | --control-plane=* | --policy-dir | --policy-dir=* | --policy-file | --policy-file=*)
+      policy_source_passed=1 ;;
+  esac
+done
+[ "$policy_source_passed" = 1 ] && CONTROL_PLANE=""
+
+identity_passed=0
+for arg in "${passthrough[@]}"; do
+  case "$arg" in
+    --oidc | --github-oidc | --auth-token | --auth-token=*) identity_passed=1 ;;
+  esac
+done
+USE_OIDC=1
+[ "${SKM_OIDC:-1}" = 0 ] && USE_OIDC=0
+[ "$identity_passed" = 1 ] && USE_OIDC=0
+
+if [ -n "$CONTROL_PLANE" ] && [ -z "${SKM_CONTROL_TOKEN:-}" ] && [ ! -f "$STATE_DIR/gateway.json" ]; then
+  die "first-time control-plane enrollment needs SKM_CONTROL_TOKEN (dashboard → Gateways → \"Mint a registration token\"), or set SKM_CONTROL_PLANE= to run standalone"
 fi
 
 # Two host dirs the container writes, bind-mounted: the ACME cache, and the
@@ -119,6 +156,8 @@ server_flags=(
 )
 [ -n "${SKM_ACME_EMAIL:-}" ] && server_flags+=(--acme-email "$SKM_ACME_EMAIL")
 [ -n "${SKM_STAGING:-}" ] && server_flags+=(--acme-staging)
+
+[ "$USE_OIDC" = 1 ] && server_flags+=(--oidc --oidc-audience "${SKM_OIDC_AUDIENCE:-https://$HOSTNAME_}")
 
 # The registration token goes in as an env var, not a flag, so it stays out of
 # `docker inspect` / `ps`. It is one-time: ignored once /state holds an identity.
