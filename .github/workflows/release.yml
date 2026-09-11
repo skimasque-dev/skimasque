@@ -41,6 +41,21 @@ jobs:
         shell: bash
         run: rustup target add ${{ matrix.target }}
 
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          # Keyed by target, not runner.os: two of these matrix legs
+          # (x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu) share an OS
+          # but must not share a cache -- their target/ dirs hold different
+          # architectures.
+          key: release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            release-${{ matrix.target }}-
+
       - name: Build
         shell: bash
         run: cargo build --release --locked --target ${{ matrix.target }} -p skimasque-cli
@@ -107,6 +122,17 @@ jobs:
       # (syft) choked on this tree. Scoped to `skimasque-cli`: the SBOM
       # describes the dependency closure of the released binaries (`skimasque` /
       # `-server` / `-client`).
+      # Not keyed by this repo's Cargo.lock -- cargo-sbom is a standalone tool
+      # pinned by its own version range above. Caches the whole `~/.cargo`
+      # (including its "installed crates" tracking files, not just `bin/`) so
+      # a hit lets `cargo install` recognise it's already there and skip the
+      # build entirely, not just skip re-downloading.
+      - name: Cache cargo-sbom
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo
+          key: cargo-sbom-${{ runner.os }}
+
       - name: Install cargo-sbom
         run: cargo install cargo-sbom --version '^0.10' --locked
 
