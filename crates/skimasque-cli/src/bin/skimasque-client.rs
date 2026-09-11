@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
-use anyhow::Context;
+use anyhow::{bail, Context};
 use clap::{ArgAction, Args as ClapArgs, Parser, Subcommand};
 use http::{HeaderMap, HeaderValue};
 use skimasque::client::{Client, Credential, Session};
@@ -108,6 +108,13 @@ struct ConnectionArgs {
     /// gateway's `--oidc-audience` values.
     #[arg(long, value_name = "AUD")]
     oidc_audience: Option<String>,
+
+    /// The organisation to mint a credential for, when authenticating with a
+    /// `skimasque login` session instead of `--github-oidc`/`--auth-token`.
+    /// Defaults to the session's only organisation; required if it belongs to
+    /// more than one.
+    #[arg(long, value_name = "ORG")]
+    org: Option<String>,
 
     /// The application name to declare, sent as `X-Masque-Application`.
     ///
@@ -210,11 +217,11 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-/// An open session, plus -- in OIDC mode -- what a background task needs to
-/// replace the platform credential before it expires.
+/// An open session, plus -- when the credential is short-lived -- what a
+/// background task needs to replace it before it expires.
 struct Connected {
     session: Session,
-    refresh: Option<(OidcExchange, Duration)>,
+    refresh: Option<(RefreshMode, Duration)>,
 }
 
 /// Give `--proxy` an explicit port (default 443), bracketing a bare IPv6
@@ -310,43 +317,98 @@ async fn open_session(args: &ConnectionArgs) -> anyhow::Result<Connected> {
     })
 }
 
-/// The bearer credential for tunnels, and -- in OIDC mode -- how to renew it.
+/// The bearer credential for tunnels, and -- when it is short-lived -- how to
+/// renew it.
 struct Bearer {
     /// The token to send as `Proxy-Authorization: Bearer`, if any.
     header: Option<String>,
-    /// Set in OIDC mode: the exchange to re-run before the credential expires,
-    /// and how long the current one lasts.
-    refresh: Option<(OidcExchange, Duration)>,
+    /// The exchange to re-run before the credential expires, and how long the
+    /// current one lasts. Unset for a static `--auth-token`, which does not
+    /// expire from this client's point of view.
+    refresh: Option<(RefreshMode, Duration)>,
 }
 
-/// Work out the bearer credential for tunnels: a platform credential from an
-/// OIDC exchange, or the static `--auth-token`, or nothing.
+/// Which credential source to use, decided from the flags (and whether a
+/// `skimasque login` session is on disk) alone -- no I/O. Kept separate from
+/// [`resolve_bearer`] so the priority order is unit-testable without a live
+/// session or network access.
+#[derive(Debug, PartialEq, Eq)]
+enum AuthMode {
+    /// `--github-oidc` or `--oidc-token`.
+    Oidc,
+    /// The static `--auth-token`.
+    Static,
+    /// Neither, but a `skimasque login` session exists on disk.
+    Session,
+    /// Neither, and no session either -- `resolve_bearer` fails fast on this.
+    None,
+}
+
+fn auth_mode(args: &ConnectionArgs, has_session: bool) -> AuthMode {
+    if args.github_oidc || args.oidc_token.is_some() {
+        AuthMode::Oidc
+    } else if args.auth_token.is_some() {
+        AuthMode::Static
+    } else if has_session {
+        AuthMode::Session
+    } else {
+        AuthMode::None
+    }
+}
+
+/// Work out the bearer credential for tunnels, in priority order: a platform
+/// credential from a GitHub Actions OIDC exchange, the static `--auth-token`,
+/// or -- falling back to whatever `skimasque login` left on disk -- a
+/// credential minted from that session. Fails fast with a clear error rather
+/// than silently sending no credential (and leaving a `407` from the gateway
+/// as the only signal) when none of these are available.
 async fn resolve_bearer(args: &ConnectionArgs, session: &Session) -> anyhow::Result<Bearer> {
-    if !args.github_oidc && args.oidc_token.is_none() {
-        return Ok(Bearer {
+    let creds = skimasque_cli::account::load()?;
+    match auth_mode(args, creds.is_some()) {
+        AuthMode::Oidc => {
+            let audience = args.oidc_audience.as_deref().context(
+                "--github-oidc / --oidc-token also need --oidc-audience (the value the gateway expects)",
+            )?;
+            let exchange = OidcExchange {
+                audience: audience.to_owned(),
+                static_token: args.oidc_token.clone(),
+            };
+            let credential = exchange.run(session).await?;
+            eprintln!(
+                "exchanged an OIDC token for a platform credential (valid {}s)",
+                credential.expires_in.as_secs()
+            );
+            let ttl = credential.expires_in;
+            Ok(Bearer {
+                header: Some(credential.token),
+                refresh: Some((RefreshMode::Oidc(exchange), ttl)),
+            })
+        }
+        AuthMode::Static => Ok(Bearer {
             header: args.auth_token.clone(),
             refresh: None,
-        });
+        }),
+        AuthMode::Session => {
+            let creds = creds.expect("AuthMode::Session implies a stored session");
+            let api = skimasque_cli::account::Api::new(&creds.control_plane)?;
+            let org = skimasque_cli::account::resolve_org(&api, &creds, args.org.clone()).await?;
+            let exchange = SessionExchange { creds, org };
+            let credential = exchange.run().await?;
+            eprintln!(
+                "minted a platform credential from your skimasque login session (valid {}s)",
+                credential.expires_in.as_secs()
+            );
+            let ttl = credential.expires_in;
+            Ok(Bearer {
+                header: Some(credential.token),
+                refresh: Some((RefreshMode::Session(exchange), ttl)),
+            })
+        }
+        AuthMode::None => bail!(
+            "not authenticated: run `skimasque login`, or pass \
+             --github-oidc/--oidc-token/--auth-token"
+        ),
     }
-
-    let audience = args.oidc_audience.as_deref().context(
-        "--github-oidc / --oidc-token also need --oidc-audience (the value the gateway expects)",
-    )?;
-    let exchange = OidcExchange {
-        audience: audience.to_owned(),
-        static_token: args.oidc_token.clone(),
-    };
-
-    let credential = exchange.run(session).await?;
-    eprintln!(
-        "exchanged an OIDC token for a platform credential (valid {}s)",
-        credential.expires_in.as_secs()
-    );
-    let ttl = credential.expires_in;
-    Ok(Bearer {
-        header: Some(credential.token),
-        refresh: Some((exchange, ttl)),
-    })
 }
 
 /// Everything needed to mint a fresh platform credential mid-session: the
@@ -359,6 +421,8 @@ struct OidcExchange {
 
 impl OidcExchange {
     /// Obtain a current OIDC token and exchange it for a platform credential.
+    /// Goes through the *gateway's* exchange endpoint -- OIDC verification is
+    /// audience-scoped to the specific gateway being connected to.
     async fn run(&self, session: &Session) -> anyhow::Result<Credential> {
         let oidc = match &self.static_token {
             Some(token) => token.clone(),
@@ -370,6 +434,50 @@ impl OidcExchange {
             .exchange_credential(&oidc)
             .await
             .context("exchanging the OIDC token for a platform credential")
+    }
+}
+
+/// Everything needed to mint a fresh platform credential mid-session from a
+/// `skimasque login` session: the account session and which org to mint
+/// against.
+///
+/// Unlike [`OidcExchange`], this talks directly to the *control plane*
+/// (`skimasque_cli::account::Api`), not through the gateway's exchange
+/// endpoint: the session is a management-API credential the client already
+/// holds, and the resulting credential -- Ed25519-signed with the org's key
+/// -- verifies against any gateway in the org, not just the one currently
+/// connected to.
+struct SessionExchange {
+    creds: skimasque_cli::account::Credentials,
+    org: String,
+}
+
+impl SessionExchange {
+    /// Mint a fresh platform credential from the stored login session.
+    async fn run(&self) -> anyhow::Result<Credential> {
+        let api = skimasque_cli::account::Api::new(&self.creds.control_plane)?;
+        let minted = api
+            .mint_credential(&self.creds.session_token, &self.org, None)
+            .await?;
+        Ok(Credential {
+            token: minted.token,
+            expires_in: minted.expires_in,
+        })
+    }
+}
+
+/// How to obtain a fresh platform credential mid-session, and what it takes.
+enum RefreshMode {
+    Oidc(OidcExchange),
+    Session(SessionExchange),
+}
+
+impl RefreshMode {
+    async fn run(&self, session: &Session) -> anyhow::Result<Credential> {
+        match self {
+            RefreshMode::Oidc(exchange) => exchange.run(session).await,
+            RefreshMode::Session(exchange) => exchange.run().await,
+        }
     }
 }
 
@@ -387,12 +495,13 @@ fn refresh_lead_time(ttl: Duration) -> Duration {
 
 /// Keep `session`'s platform credential fresh for as long as the process runs.
 ///
-/// The gateway issues credentials with a finite TTL (`--credential-ttl`), so a
-/// job that runs longer than one credential lasts would see its tunnels start
-/// failing with `407`/`403`. This re-runs the OIDC exchange ahead of each
-/// expiry and installs the new credential on the live session; tunnels opened
-/// afterwards carry it, and tunnels already open are undisturbed.
-async fn refresh_credential(session: Arc<Session>, exchange: OidcExchange, mut ttl: Duration) {
+/// A credential has a finite TTL (the gateway's `--credential-ttl` in OIDC
+/// mode, or the control plane's cap in session mode), so a job or an
+/// interactive session that outlives one would see its tunnels start failing
+/// with `407`/`403`. This re-runs `exchange` ahead of each expiry and installs
+/// the new credential on the live session; tunnels opened afterwards carry
+/// it, and tunnels already open are undisturbed.
+async fn refresh_credential(session: Arc<Session>, exchange: RefreshMode, mut ttl: Duration) {
     loop {
         tokio::time::sleep(ttl.saturating_sub(refresh_lead_time(ttl))).await;
 
@@ -650,5 +759,41 @@ mod tests {
             &[0, 28, 0, 1],
             "QTYPE=AAAA"
         );
+    }
+
+    fn connection_args(extra: &[&str]) -> ConnectionArgs {
+        let mut argv = vec!["skimasque-client"];
+        argv.extend_from_slice(extra);
+        argv.extend_from_slice(&["connect", "--target", "1.1.1.1:53"]);
+        Args::try_parse_from(argv).unwrap().connection
+    }
+
+    #[test]
+    fn auth_mode_picks_oidc_over_everything_else() {
+        let args = connection_args(&["--github-oidc", "--oidc-audience", "https://gw.example"]);
+        assert_eq!(auth_mode(&args, true), AuthMode::Oidc);
+        assert_eq!(auth_mode(&args, false), AuthMode::Oidc);
+    }
+
+    #[test]
+    fn auth_mode_picks_static_token_when_no_oidc_flag_is_given() {
+        let args = connection_args(&["--auth-token", "secret"]);
+        assert_eq!(auth_mode(&args, true), AuthMode::Static);
+        assert_eq!(auth_mode(&args, false), AuthMode::Static);
+    }
+
+    #[test]
+    fn auth_mode_falls_back_to_a_stored_session_when_nothing_else_is_given() {
+        let args = connection_args(&[]);
+        assert_eq!(auth_mode(&args, true), AuthMode::Session);
+    }
+
+    #[test]
+    fn auth_mode_is_none_with_no_flags_and_no_session() {
+        // The exact case that used to send no credential at all and let the
+        // gateway's 407 be the only signal -- resolve_bearer now fails fast
+        // on this instead.
+        let args = connection_args(&[]);
+        assert_eq!(auth_mode(&args, false), AuthMode::None);
     }
 }

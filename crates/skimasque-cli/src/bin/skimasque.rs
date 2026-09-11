@@ -681,7 +681,7 @@ fn run_audit(
 
     let creds = account::require()?;
     let api = account::Api::new(&creds.control_plane)?;
-    let org = resolve_org(&api, &creds, org)?;
+    let org = account::block_on(account::resolve_org(&api, &creds, org))?;
     let filter = AuditFilter {
         gateway,
         decision,
@@ -746,7 +746,7 @@ fn run_org(command: OrgCommand) -> anyhow::Result<ExitCode> {
             }
         }
         OrgCommand::Members { org } => {
-            let org = resolve_org(&api, &creds, org)?;
+            let org = account::block_on(account::resolve_org(&api, &creds, org))?;
             let members = account::block_on(api.list_members(session, &org))?;
             for m in members {
                 let who = m.github_login.as_deref().unwrap_or(&m.user_id);
@@ -754,7 +754,7 @@ fn run_org(command: OrgCommand) -> anyhow::Result<ExitCode> {
             }
         }
         OrgCommand::AddMember { github_login, org } => {
-            let org = resolve_org(&api, &creds, org)?;
+            let org = account::block_on(account::resolve_org(&api, &creds, org))?;
             let member = account::block_on(api.add_member(session, &org, &github_login))?;
             println!(
                 "Added {} to {org} as {}.",
@@ -767,7 +767,7 @@ fn run_org(command: OrgCommand) -> anyhow::Result<ExitCode> {
             role,
             org,
         } => {
-            let org = resolve_org(&api, &creds, org)?;
+            let org = account::block_on(account::resolve_org(&api, &creds, org))?;
             let user_id = resolve_member(&api, session, &org, &github_login)?;
             let member = account::block_on(api.set_member_role(session, &org, &user_id, &role))?;
             println!(
@@ -777,7 +777,7 @@ fn run_org(command: OrgCommand) -> anyhow::Result<ExitCode> {
             );
         }
         OrgCommand::RemoveMember { github_login, org } => {
-            let org = resolve_org(&api, &creds, org)?;
+            let org = account::block_on(account::resolve_org(&api, &creds, org))?;
             let user_id = resolve_member(&api, session, &org, &github_login)?;
             account::block_on(api.remove_member(session, &org, &user_id))?;
             println!("Removed {github_login} from {org}.");
@@ -883,7 +883,7 @@ fn run_gateway_register(args: &[OsString]) -> anyhow::Result<ExitCode> {
     );
     let api = account::Api::new(&base_url)?;
 
-    let org = resolve_org(&api, &creds, parsed.org)?;
+    let org = account::block_on(account::resolve_org(&api, &creds, parsed.org))?;
 
     let token = account::block_on(api.mint_registration_token(&creds.session_token, &org))?;
     let name = parsed.name.unwrap_or_else(hostname_or_default);
@@ -934,35 +934,6 @@ fn run_gateway_register(args: &[OsString]) -> anyhow::Result<ExitCode> {
     println!("need the token on later starts. Pass SKIMASQUE_CONTROL_TOKEN in the environment");
     println!("instead of the flag if you would rather not have it in shell history.");
     Ok(ExitCode::SUCCESS)
-}
-
-/// Pick the organisation to act on: the explicit `--org`, else the only one the
-/// user belongs to, else an error listing the choices.
-fn resolve_org(
-    api: &skimasque_cli::account::Api,
-    creds: &skimasque_cli::account::Credentials,
-    explicit: Option<String>,
-) -> anyhow::Result<String> {
-    use skimasque_cli::account;
-    if let Some(org) = explicit {
-        return Ok(org);
-    }
-    let orgs = account::block_on(api.list_orgs(&creds.session_token))?;
-    match orgs.as_slice() {
-        [only] => Ok(only.id.clone()),
-        [] => bail!(
-            "you are not a member of any organisation on {} -- \
-             `skimasque org create <name>`",
-            creds.control_plane
-        ),
-        many => {
-            eprintln!("you belong to several organisations -- pass --org <id>:");
-            for org in many {
-                eprintln!("  {}  {}", org.id, org.name);
-            }
-            bail!("--org is required")
-        }
-    }
 }
 
 /// The machine's hostname, or `"gateway"` if it cannot be determined without a
@@ -1074,7 +1045,7 @@ fn run_why_remote(
 
     let creds = account::require()?;
     let api = account::Api::new(&creds.control_plane)?;
-    let org = resolve_org(&api, &creds, org)?;
+    let org = account::block_on(account::resolve_org(&api, &creds, org))?;
     let identity = request.identity().into_identity();
 
     let body = serde_json::json!({

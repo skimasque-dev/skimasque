@@ -153,6 +153,15 @@ pub struct RegistrationToken {
     pub expires_at_ms: u64,
 }
 
+/// A credential the control plane minted for the session's own identity —
+/// the developer-side counterpart of [`crate::control::MintedCredential`],
+/// which is the gateway-side one.
+#[derive(Debug, Clone)]
+pub struct MintedCredential {
+    pub token: String,
+    pub expires_in: Duration,
+}
+
 /// A membership row, as the members endpoints return it.
 #[derive(Debug, Clone, Deserialize)]
 pub struct MemberView {
@@ -444,6 +453,38 @@ impl Api {
             .context("parsing the registration token")
     }
 
+    /// `POST /v1/orgs/{org}/credentials` — mint a platform credential for the
+    /// signed-in session: the control plane asserts the developer's GitHub
+    /// login as `actor` (never anything the caller supplies) and signs it
+    /// with the org's Ed25519 key, exactly like a gateway-minted credential.
+    /// `ttl_seconds` is a request the control plane may cap; `None` asks for
+    /// its default.
+    pub async fn mint_credential(
+        &self,
+        session: &str,
+        org: &str,
+        ttl_seconds: Option<u64>,
+    ) -> Result<MintedCredential> {
+        let response = self
+            .http
+            .post(format!("{}/v1/orgs/{}/credentials", self.base_url, org))
+            .bearer_auth(session)
+            .json(&skimasque_protocol::DeveloperCredentialRequest { ttl_seconds })
+            .send()
+            .await
+            .context("minting a credential")?;
+        let body: skimasque_protocol::MintResponse =
+            Self::error_for_status(response, "minting a credential")
+                .await?
+                .json()
+                .await
+                .context("parsing the minted credential")?;
+        Ok(MintedCredential {
+            token: body.credential,
+            expires_in: Duration::from_secs(body.expires_in),
+        })
+    }
+
     /// `POST /v1/orgs` — create an organisation, owned by the session's user.
     pub async fn create_org(&self, session: &str, name: &str) -> Result<CreatedOrg> {
         let response = self
@@ -621,6 +662,35 @@ impl Api {
             .json()
             .await
             .context("parsing the gateways")
+    }
+}
+
+/// Resolve which org a command should act on: `explicit` if given, else the
+/// session's only org, else an error listing the choices. Genuinely `async`
+/// (just awaits [`Api::list_orgs`] directly) rather than wrapped in
+/// [`block_on`], so an already-async caller (`skimasque-client`, whose `main`
+/// runs on a live tokio runtime) can call it directly -- `block_on` would
+/// panic there ("cannot start a runtime from within a runtime"). A
+/// synchronous caller (`skimasque`'s `main`) wraps this call itself.
+pub async fn resolve_org(api: &Api, creds: &Credentials, explicit: Option<String>) -> Result<String> {
+    if let Some(org) = explicit {
+        return Ok(org);
+    }
+    let orgs = api.list_orgs(&creds.session_token).await?;
+    match orgs.as_slice() {
+        [only] => Ok(only.id.clone()),
+        [] => bail!(
+            "you are not a member of any organisation on {} -- \
+             `skimasque org create <name>`",
+            creds.control_plane
+        ),
+        many => {
+            eprintln!("you belong to several organisations -- pass --org <id>:");
+            for org in many {
+                eprintln!("  {}  {}", org.id, org.name);
+            }
+            bail!("--org is required")
+        }
     }
 }
 
