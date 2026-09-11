@@ -61,7 +61,7 @@ jobs:
           ./target/debug/skimasque-server \
             --listen 127.0.0.1:4433 --authority localhost:4433 \
             --self-signed-name localhost --write-cert "${RUNNER_TEMP}/proxy.pem" \
-            --github-oidc --oidc-audience "${AUDIENCE}" --connect-tcp \
+            --github-oidc --oidc-audience "${AUDIENCE}" \
             --policy-file .masque/policies/ci.toml -vv \
             > "${RUNNER_TEMP}/server.log" 2>&1 &
           echo $! > "${RUNNER_TEMP}/server.pid"

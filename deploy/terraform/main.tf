@@ -55,7 +55,7 @@ variable "ci_egress_cidrs" {
 variable "extra_server_args" {
   description = "Appended to `skimasque-server` (auth, policy, OIDC, ...)."
   type        = string
-  default     = "--connect-tcp --metrics-listen 127.0.0.1:9090"
+  default     = "--metrics-listen 127.0.0.1:9090"
 }
 
 data "aws_ami" "al2023_arm64" {
