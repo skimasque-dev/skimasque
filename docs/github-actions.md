@@ -168,6 +168,11 @@ Action inputs: `proxy`, `audience` (required); `authority`, `application`, `ca`,
 `listen`, `version`, `repository`, `client-bin` (optional). Pass `client-bin` to
 use a binary you built or installed yourself and skip the download.
 
+A complete, runnable example against the live SkiMasque Cloud gateway
+(`gateway.skimasque.com`, governed from `https://control.skimasque.com`) is
+[`examples/github-actions/managed-postgres-migration.yml`](../examples/github-actions/managed-postgres-migration.yml)
+— copy it, edit the two marked lines, publish the matching policy, done.
+
 ### Without the action
 
 `skimasque-client` does the whole exchange itself:
