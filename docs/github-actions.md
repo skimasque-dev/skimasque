@@ -59,12 +59,12 @@ On success the claims become a `WorkloadIdentity`:
 $ skimasque-server \
     --listen 0.0.0.0:4433 --authority masque.example:4433 \
     --github-oidc --oidc-audience https://masque.example \
-    --connect-tcp \
     --policy-dir .masque/policies
 ```
 
-`--connect-tcp` turns on TCP tunnels (classic `CONNECT`), which is what carries
-HTTPS, git and database traffic; leave it off for a UDP-only gateway.
+TCP tunnels (classic `CONNECT`, which is what carries HTTPS, git and database
+traffic) are served by default alongside UDP; pass `--no-connect-tcp` for a
+UDP-only gateway.
 
 `--github-oidc` replaces `--auth-token` and turns on the exchange endpoint. A
 tunnel without a verifiable credential is refused.
@@ -160,8 +160,8 @@ fetches the OIDC token from the runner, exchanges it, starts
 most cloud SDKs) egress through the gateway, subject to policy.
 
 The SOCKS5 relay serves both `CONNECT` (TCP — HTTPS, git, database and cloud-SDK
-traffic) and `UDP ASSOCIATE` (DNS and other UDP). TCP needs the gateway running
-with **`--connect-tcp`**; without it, `CONNECT` is answered with a SOCKS
+traffic) and `UDP ASSOCIATE` (DNS and other UDP). Both are on by default; a
+gateway started with **`--no-connect-tcp`** answers `CONNECT` with a SOCKS
 `command not supported` reply and only UDP egresses.
 
 Action inputs: `proxy`, `audience` (required); `authority`, `application`, `ca`,

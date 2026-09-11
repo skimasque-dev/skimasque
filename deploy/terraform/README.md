@@ -12,7 +12,6 @@ module "gateway" {
   authority       = "gateway.example.com"
   ci_egress_cidrs = ["203.0.113.0/24"]     # your runners' egress
   extra_server_args = join(" ", [
-    "--connect-tcp",
     "--github-oidc", "--oidc-audience", "https://gateway.example.com",
     "--policy-dir", "/etc/skimasque/policies",
     "--metrics-listen", "127.0.0.1:9090",

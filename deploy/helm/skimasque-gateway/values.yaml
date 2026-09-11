@@ -65,7 +65,7 @@ auth:
     existingSecret: ""
 
 # -- Transports and egress policy floor.
-connectTcp: true
+connectTcp: true # TCP tunnels alongside UDP; already skimasque-server's own default
 allowPrivate: false # let tunnels reach all of RFC 1918 / loopback (usually no)
 allowCidrs: []      # ...or name exact internal ranges, e.g. ["10.0.5.0/24"]
 allowPorts: []      # restrict destination ports, e.g. [443, 5432]

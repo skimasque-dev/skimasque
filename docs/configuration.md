@@ -84,7 +84,7 @@ companion to `--help`, not a replacement — run `skimasque-server --help`,
 
 | Flag | Default | Notes |
 |---|---|---|
-| `--connect-tcp` | off | also serve TCP tunnels (classic `CONNECT`) — needed for `curl`/`git`/databases via SOCKS |
+| `--no-connect-tcp` | off (TCP on) | UDP only — refuse TCP tunnels (classic `CONNECT`), which are on by default and needed for `curl`/`git`/databases via SOCKS |
 | `--max-concurrent-requests <N>` | `1024` | tunnels opening at once, across connections |
 | `--max-connections <N>` | `1024` | open QUIC connections; `0` = no cap |
 | `--max-connection-rate <N>` | `50` | new connections/s, global; `0` = off |
@@ -94,7 +94,7 @@ companion to `--help`, not a replacement — run `skimasque-server --help`,
 | `--max-exchange-rate <N>` | `10` | token-exchange requests/s per IP (with `--oidc`) |
 | `--max-exchange-burst <N>` | `30` | |
 | `--max-tunnels-per-connection <N>` | `256` | tunnels on one connection; over → `503` |
-| `--tunnel-idle-timeout <DUR>` | `120s` | reclaim an idle tunnel; `0` = off; matters for `--connect-tcp` |
+| `--tunnel-idle-timeout <DUR>` | `120s` | reclaim an idle tunnel; `0` = off; matters most for TCP tunnels |
 | `--shutdown-grace <DUR>` | `10s` | let in-flight tunnels finish after `SIGTERM` |
 
 ### Ops

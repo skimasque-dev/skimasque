@@ -56,8 +56,12 @@ The full argument list for skimasque-server, as a YAML sequence.
 - --policy-reload
 {{- end }}
 {{- end }}
-{{- if $v.connectTcp }}
-- --connect-tcp
+{{- /* TCP tunnels are on by default in skimasque-server itself now; only
+      emit a flag when connectTcp explicitly asks for the non-default (UDP
+      only), so an existing `connectTcp: false` override keeps meaning what
+      it always meant. */}}
+{{- if not $v.connectTcp }}
+- --no-connect-tcp
 {{- end }}
 {{- if $v.allowPrivate }}
 - --allow-private

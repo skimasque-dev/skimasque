@@ -119,7 +119,7 @@ semantics rather than being wrapped in a reliable stream.
 | Mechanism | How SkiMasque uses it |
 |---|---|
 | **CONNECT-UDP** (RFC 9298) | complete, over HTTP/3 extended `CONNECT`; HTTP Datagrams framed by `skimasque-core` (see the design note below) |
-| **CONNECT-TCP** (`draft-ietf-httpbis-connect-tcp`) | classic `CONNECT host:port`, opt-in with `--connect-tcp` — the target arrives in `:authority`, the stream is a plain reliable byte stream with no Capsule framing. The template-driven `:protocol = connect-tcp` variant is blocked on `h3` (a closed `Protocol` enum rejects the value before SkiMasque code runs). |
+| **CONNECT-TCP** (`draft-ietf-httpbis-connect-tcp`) | classic `CONNECT host:port`, on by default (`--no-connect-tcp` for UDP-only) — the target arrives in `:authority`, the stream is a plain reliable byte stream with no Capsule framing. The template-driven `:protocol = connect-tcp` variant is blocked on `h3` (a closed `Protocol` enum rejects the value before SkiMasque code runs). |
 | **CONNECT-IP** (RFC 9484) | wire formats complete; behind the `connect-ip` feature; TUN forwarding not wired |
 | **SOCKS5** (RFC 1928) | `CONNECT` (TCP) and `UDP ASSOCIATE`, as the front end `ALL_PROXY` points at |
 
