@@ -87,6 +87,14 @@ pub mod paths {
     pub fn org_signing_key(org: &str) -> String {
         format!("/v1/orgs/{org}/signing-key")
     }
+
+    /// `POST` [`crate::DeveloperCredentialRequest`] — session-authenticated:
+    /// mint a platform credential asserting the signed-in developer's GitHub
+    /// login as `actor`. The identity is derived from the session server-side,
+    /// never taken from the request.
+    pub fn org_credentials(org: &str) -> String {
+        format!("/v1/orgs/{org}/credentials")
+    }
 }
 
 /// The identity the control plane issues at registration, and the gateway
@@ -172,13 +180,27 @@ pub struct MintRequest {
     pub ttl_seconds: u64,
 }
 
-/// The response to [`MintRequest`].
+/// The response to [`MintRequest`] and [`DeveloperCredentialRequest`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MintResponse {
     /// The signed credential (a JWT), for `Proxy-Authorization: Bearer`.
     pub credential: String,
     /// Its actual lifetime in seconds (after any cap).
     pub expires_in: u64,
+}
+
+/// `POST /v1/orgs/{org}/credentials` — a signed-in developer (`skimasque
+/// login`) asks the control plane to mint a platform credential for their own
+/// session. Deliberately carries no `identity`: unlike [`MintRequest`] (a
+/// gateway forwarding an identity it already verified from OIDC), the actor
+/// here is derived from the session token itself, so a client can never
+/// assert an identity other than its own.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DeveloperCredentialRequest {
+    /// Requested lifetime in seconds. The control plane may cap it. `None`
+    /// asks for the default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ttl_seconds: Option<u64>,
 }
 
 /// The org's Ed25519 signing key, served by [`paths::org_signing_key`]. A
@@ -325,5 +347,19 @@ mod tests {
         assert_eq!(paths::REGISTER, "/v1/gateways/register");
         assert_eq!(paths::gateway_policy("gw_1"), "/v1/gateways/gw_1/policy");
         assert_eq!(paths::org_signing_key("org_1"), "/v1/orgs/org_1/signing-key");
+        assert_eq!(paths::org_credentials("org_1"), "/v1/orgs/org_1/credentials");
+    }
+
+    #[test]
+    fn developer_credential_request_omits_absent_ttl() {
+        let json = serde_json::to_string(&DeveloperCredentialRequest::default()).unwrap();
+        assert_eq!(json, "{}");
+        let with_ttl = DeveloperCredentialRequest {
+            ttl_seconds: Some(600),
+        };
+        assert_eq!(
+            serde_json::to_string(&with_ttl).unwrap(),
+            r#"{"ttl_seconds":600}"#
+        );
     }
 }
