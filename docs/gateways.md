@@ -83,7 +83,6 @@ $ docker run -d --name skimasque-gateway --restart unless-stopped \
     ghcr.io/skimasque-dev/skimasque:latest \
       --listen 0.0.0.0:443 --hostname gw.example.com \
       --acme --acme-email you@example.com --acme-cache /acme \
-      --connect-tcp \
       --github-oidc --oidc-audience https://gw.example.com \
       --allow-cidr 10.0.0.0/8 \
       --policy-dir /etc/skimasque/policies --policy-reload \

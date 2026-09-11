@@ -378,10 +378,18 @@ struct Args {
     #[arg(long, value_name = "DURATION", default_value = "1h")]
     credential_ttl: String,
 
-    /// Also serve TCP tunnels via classic `CONNECT host:port`. This is what a
-    /// SOCKS front end needs to carry `curl`, `git` and database traffic.
-    #[arg(long)]
+    /// Kept only so `--connect-tcp` in existing scripts still parses -- TCP
+    /// tunnels are on by default now (see `--no-connect-tcp`), so this flag
+    /// is always a no-op.
+    #[arg(long, hide = true)]
     connect_tcp: bool,
+
+    /// Serve UDP tunnels only, refusing TCP `CONNECT host:port`. TCP is on
+    /// by default -- it's what a SOCKS front end needs to carry `curl`,
+    /// `git` and database traffic, alongside UDP for DNS and other UDP
+    /// protocols.
+    #[arg(long)]
+    no_connect_tcp: bool,
 
     /// Serve `/healthz`, `/readyz` and Prometheus `/metrics` on this address.
     ///
@@ -453,7 +461,7 @@ struct Args {
     ///
     /// The QUIC idle timeout still applies to a connection as a whole; this
     /// reclaims one idle tunnel inside an otherwise busy connection, which
-    /// matters most for long-lived `--connect-tcp` tunnels.
+    /// matters most for long-lived TCP tunnels.
     #[arg(long, value_name = "DURATION", default_value = "120s")]
     tunnel_idle_timeout: String,
 
@@ -591,7 +599,9 @@ async fn main() -> anyhow::Result<()> {
         );
         tokio::spawn(acme.run());
     }
-    if args.connect_tcp {
+    if args.no_connect_tcp {
+        eprintln!("UDP only: --no-connect-tcp refuses TCP CONNECT tunnels");
+    } else {
         eprintln!("serving TCP tunnels via classic CONNECT");
     }
     if let Some(path) = &args.audit_log {
@@ -940,7 +950,7 @@ fn build_service(
     // connection.
     let limit = GlobalConcurrencyLimitLayer::new(args.max_concurrent_requests);
     let mut dispatch = Dispatch::new().with_udp(UdpProxy::new(policy.clone()));
-    if args.connect_tcp {
+    if !args.no_connect_tcp {
         dispatch = dispatch.with_tcp(TcpProxy::new(policy));
     }
 
@@ -1803,6 +1813,25 @@ mod tests {
     #[test]
     fn the_command_definition_is_consistent() {
         Args::command().debug_assert();
+    }
+
+    #[test]
+    fn tcp_tunnels_are_on_by_default_and_no_connect_tcp_turns_them_off() {
+        let default = parse(&[]);
+        assert!(!default.no_connect_tcp);
+
+        let disabled = parse(&["--no-connect-tcp"]);
+        assert!(disabled.no_connect_tcp);
+    }
+
+    /// `--connect-tcp` used to be the opt-in flag; TCP is on by default now,
+    /// so it's kept only so it still parses in existing scripts -- but it
+    /// must never actually turn TCP *off*.
+    #[test]
+    fn the_old_connect_tcp_flag_still_parses_as_a_no_op() {
+        let args = parse(&["--connect-tcp"]);
+        assert!(args.connect_tcp);
+        assert!(!args.no_connect_tcp);
     }
 
     fn parse(args: &[&str]) -> Args {

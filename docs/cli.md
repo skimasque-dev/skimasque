@@ -142,8 +142,8 @@ record of every decision (conflicts with `--policy-observe`).
   `--max-source-connection-rate` / `-burst` (20 / 60), `--max-exchange-rate` /
   `-burst` (10 / 30), `--max-concurrent-requests` (1024),
   `--max-tunnels-per-connection` (256), `--tunnel-idle-timeout` (`120s`).
-- `--connect-tcp` — also serve TCP tunnels (what a SOCKS front end needs for
-  `curl` / `git` / databases).
+- `--no-connect-tcp` — UDP only. TCP tunnels (what a SOCKS front end needs for
+  `curl` / `git` / databases) are served by default; this refuses them.
 - `--metrics-listen <ADDR>` — `/healthz`, `/readyz`, Prometheus `/metrics` on a
   plain-HTTP listener; keep it on a private interface.
 - `--shutdown-grace <DUR>` — how long in-flight tunnels get after `SIGTERM`
@@ -169,13 +169,14 @@ record of every decision (conflicts with `--policy-observe`).
 | `--github-oidc` | fetch the runner's OIDC token and exchange it (needs `--oidc-audience`) |
 | `--oidc-token <JWT>` (`SKIMASQUE_OIDC_TOKEN`) | supply a token you fetched another way |
 | `--oidc-audience <AUD>` | must match one of the gateway's `--oidc-audience` values |
+| `--org <ORG>` | with none of the above: mint a credential from a `skimasque login` session instead, for this org (auto-resolved if the session belongs to only one) |
 | `--app <NAME>` | the application to declare (`X-Masque-Application`); policy matches on it |
 
 ### Subcommands
 
 | Command | Does |
 |---|---|
-| `socks5 [--listen ADDR]` | run a SOCKS5 relay (default `127.0.0.1:1080`); `CONNECT` (TCP, needs a `--connect-tcp` gateway) and `UDP ASSOCIATE`. Point `ALL_PROXY=socks5h://…` at it. |
+| `socks5 [--listen ADDR]` | run a SOCKS5 relay (default `127.0.0.1:1080`); `CONNECT` (TCP, refused by a `--no-connect-tcp` gateway) and `UDP ASSOCIATE`. Point `ALL_PROXY=socks5h://…` at it. |
 | `connect --target <HOST:PORT>` | one raw TCP tunnel bridged to stdin/stdout (SSH `ProxyCommand`, interop) |
 | `probe --target <HOST:PORT> [--dns NAME \| --text T \| --hex H] [--count N] [--timeout MS]` | send a payload and print the replies |
 
