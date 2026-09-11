@@ -547,7 +547,7 @@ fn run_policy(command: PolicyCommand) -> anyhow::Result<ExitCode> {
 
 /// The starter policy `skimasque init` writes.
 const EXAMPLE_POLICY: &str = r#"# A starter policy. Edit it, then `skimasque policy test` and
-# `skimasque gateway --policy-dir .masque/policies --connect-tcp`.
+# `skimasque gateway --policy-dir .masque/policies`.
 #
 # `[match]` decides which workloads this policy governs -- every field is a
 # constraint, and an empty match governs everyone. `[[rules]]` are evaluated in
@@ -594,7 +594,7 @@ fn run_init(policy_dir: &Path) -> anyhow::Result<ExitCode> {
     println!("next:");
     println!("  1. edit {} to describe who may reach what", example.display());
     println!("  2. check it:        skimasque policy test --policy-dir {dir}");
-    println!("  3. run a gateway:   skimasque gateway --policy-dir {dir} --connect-tcp \\");
+    println!("  3. run a gateway:   skimasque gateway --policy-dir {dir} \\");
     println!("                          --authority <host:port> --write-cert gateway.pem");
     println!("  4. reach a target:  skimasque connect <host:port> --proxy <gateway> \\");
     println!("                          --ca gateway.pem --auth-token <token>");

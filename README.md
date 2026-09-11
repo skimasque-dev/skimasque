@@ -241,7 +241,7 @@ Full DSL: [`docs/policies.md`](docs/policies.md).
 |---|---|
 | [RFC 9297](https://www.rfc-editor.org/rfc/rfc9297) — HTTP Datagrams and the Capsule Protocol | Complete, in both encodings |
 | [RFC 9298](https://www.rfc-editor.org/rfc/rfc9298) — Proxying UDP in HTTP | Complete over HTTP/3 extended `CONNECT` |
-| [`draft-ietf-httpbis-connect-tcp`](https://datatracker.ietf.org/doc/draft-ietf-httpbis-connect-tcp/) — Proxying TCP in HTTP | Classic `CONNECT host:port`, opt-in with `--connect-tcp`; the template-driven variant waits on `h3` support |
+| [`draft-ietf-httpbis-connect-tcp`](https://datatracker.ietf.org/doc/draft-ietf-httpbis-connect-tcp/) — Proxying TCP in HTTP | Classic `CONNECT host:port`, on by default (`--no-connect-tcp` for UDP-only); the template-driven variant waits on `h3` support |
 | [RFC 9484](https://www.rfc-editor.org/rfc/rfc9484) — Proxying IP in HTTP | Wire formats complete; transport behind the `connect-ip` feature, TUN forwarding not wired |
 | [RFC 1928](https://www.rfc-editor.org/rfc/rfc1928) — SOCKS5 | `CONNECT` (TCP) and `UDP ASSOCIATE`, as a front end for applications |
 
