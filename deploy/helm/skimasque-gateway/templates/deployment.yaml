@@ -1,3 +1,4 @@
+{{- include "skimasque-gateway.validate" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -47,6 +48,11 @@ spec:
             - name: metrics
               containerPort: {{ .Values.ports.metrics }}
               protocol: TCP
+            {{- if .Values.tls.acme.enabled }}
+            - name: acme
+              containerPort: {{ .Values.ports.acmeChallenge }}
+              protocol: TCP
+            {{- end }}
           {{- if or .Values.auth.githubOidc.credentialSecret.existingSecret .Values.auth.bearerToken.existingSecret }}
           env:
             {{- if .Values.auth.githubOidc.credentialSecret.existingSecret }}
@@ -88,6 +94,10 @@ spec:
             - name: audit
               mountPath: /var/lib/skimasque
             {{- end }}
+            {{- if .Values.tls.acme.enabled }}
+            - name: acme
+              mountPath: /var/lib/skimasque-acme
+            {{- end }}
       terminationGracePeriodSeconds: 60
       volumes:
         - name: tmp
@@ -108,6 +118,16 @@ spec:
           persistentVolumeClaim:
             claimName: {{ include "skimasque-gateway.fullname" . }}-audit
           {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.tls.acme.enabled }}
+        - name: acme
+          {{- if .Values.tls.acme.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "skimasque-gateway.fullname" . }}-acme
+          {{- else }}
+          # Every restart re-orders from Let's Encrypt. Staging trials only.
           emptyDir: {}
           {{- end }}
         {{- end }}

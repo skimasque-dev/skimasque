@@ -1,0 +1,70 @@
+# The policy for ../../README.md -- a live, no-CI test of both tunnel kinds
+# (TCP CONNECT and UDP) through the real SkiMasque Cloud gateway
+# (gateway.skimasque.com), governed from the real control plane
+# (https://control.skimasque.com).
+#
+# This governs a *developer session*, not a CI job: `skimasque-client --org
+# <org>` (with no --github-oidc / --auth-token) mints a credential from your
+# `skimasque login` session, and that credential carries nothing but your
+# GitHub login as `actor` -- no repository, workflow, or branch. So, unlike
+# every other example in this repo, [match] here is `actor`, not `repository`.
+#
+# Before publishing: EDIT the actor below to exactly what `skimasque whoami`
+# prints after you sign in.
+
+name = "live-test"
+
+[match]
+actor = "YOUR-GITHUB-LOGIN"   # EDIT: exactly what `skimasque whoami` prints
+
+[session]
+max_duration = "15m"
+
+[[rules]]
+id = "tcp-echo"
+application = "probe"
+transport = "tcp"
+action = "allow"
+# tcpbin.com's echo service: whatever bytes you send over the TCP tunnel come
+# straight back, so a reply proves a real CONNECT tunnel round-tripped through
+# the gateway -- not just that the policy said allow.
+destinations = ["tcpbin.com:4242"]
+
+[[rules]]
+id = "dns"
+application = "probe"
+transport = "udp"
+action = "allow"
+# Google's public resolver, for the UDP side. A DNS reply proves a real UDP
+# tunnel round-tripped, the same way the echo does for TCP.
+destinations = ["8.8.8.8:53"]
+
+# --- [[tests]]: run with `skimasque policy test`, no network needed.
+
+[[tests]]
+application = "probe"
+destination = "tcpbin.com:4242"
+transport = "tcp"
+expect = "allow"
+
+[[tests]]
+application = "probe"
+destination = "8.8.8.8:53"
+transport = "udp"
+expect = "allow"
+
+[[tests]]
+# The tcp-echo rule is scoped to `transport = "tcp"`; it does not also grant
+# UDP to the same host. This is what proves transport scoping actually narrows
+# a rule, rather than a rule with no transport covering everything.
+application = "probe"
+destination = "tcpbin.com:4242"
+transport = "udp"
+expect = "deny"
+
+[[tests]]
+# Nothing allows this -- no matching rule means deny, the policy engine's
+# first principle.
+application = "probe"
+destination = "example.com:443"
+expect = "deny"

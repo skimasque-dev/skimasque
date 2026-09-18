@@ -25,6 +25,22 @@ spec:
     requests:
       storage: {{ .Values.audit.persistence.size }}
 {{- end }}
+{{- if and .Values.tls.acme.enabled .Values.tls.acme.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "skimasque-gateway.fullname" . }}-acme
+  labels: {{- include "skimasque-gateway.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- with .Values.tls.acme.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.tls.acme.persistence.size }}
+{{- end }}
 {{- if .Values.metrics.serviceMonitor.enabled }}
 ---
 apiVersion: monitoring.coreos.com/v1

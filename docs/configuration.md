@@ -117,6 +117,7 @@ companion to `--help`, not a replacement — run `skimasque-server --help`,
 | `--github-oidc` | — | off | fetch the runner's OIDC token and exchange it; needs `--oidc-audience` |
 | `--oidc-token <JWT>` | `SKIMASQUE_OIDC_TOKEN` | — | supply a token instead of fetching one |
 | `--oidc-audience <AUD>` | — | — | must match a gateway `--oidc-audience` |
+| `--org <ORG>` | — | — | mint a credential from a `skimasque login` session instead of OIDC/`--auth-token`; inferred if the session belongs to only one org |
 | `--app <NAME>` | — | — | declared application (`X-Masque-Application`); policy matches on it |
 
 Subcommands: `socks5 --listen <ADDR>`, `connect --target <HOST:PORT>`,

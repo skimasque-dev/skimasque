@@ -78,6 +78,23 @@ jobs:
             --set metrics.serviceMonitor.enabled=true \
             --set audit.enabled=true \
             > /dev/null
+          # The ACME path takes the other branch of every TLS conditional.
+          helm template gw deploy/helm/skimasque-gateway \
+            --set authority=gateway.example.com \
+            --set replicaCount=1 \
+            --set tls.acme.enabled=true \
+            --set tls.acme.email=ops@example.com \
+            --set tls.acme.persistence.enabled=true \
+            --set auth.githubOidc.enabled=true \
+            > /dev/null
+          # ...and it must refuse to render alongside a supplied certificate.
+          if helm template gw deploy/helm/skimasque-gateway \
+               --set authority=gateway.example.com \
+               --set tls.acme.enabled=true \
+               --set tls.secretName=gw-tls > /dev/null 2>&1; then
+            echo "chart rendered tls.acme.enabled together with tls.secretName" >&2
+            exit 1
+          fi
 
       - name: Set up Terraform
         if: ${{ !cancelled() }}

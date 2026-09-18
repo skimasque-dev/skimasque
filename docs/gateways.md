@@ -64,12 +64,16 @@ Every release publishes a `linux/amd64` gateway image (`linux/arm64` is
 dropped for now — QEMU-emulated compilation of this workspace's release
 profile did not finish in a reasonable time on the Actions runner; a
 native-arm64 runner is the likely fix) to `ghcr.io/skimasque-dev/skimasque`,
-tagged `vX.Y.Z` / `X.Y` / `X` / `latest`. While the repo is private the
-package is private too — make the
-package public (it is only compiled binaries on a Debian base), authenticate
-with a classic `read:packages` PAT, or `docker load` the
-`skimasque-image-amd64.tar.gz` attached to the release. Once the repo is public,
-each image carries a Sigstore provenance attestation.
+tagged `vX.Y.Z` / `X.Y` / `X` / `latest`. The repository and the package are
+both public, so `docker pull` needs no authentication, and each image carries
+a Sigstore build-provenance attestation you can check before running it:
+
+```console
+$ gh attestation verify oci://ghcr.io/skimasque-dev/skimasque:latest --repo skimasque-dev/skimasque
+```
+
+(The `skimasque-image-amd64.tar.gz` attached to each release is still there as
+a `docker load` alternative if you'd rather not pull from GHCR at all.)
 
 ### Standalone gateway, policy in a file
 
@@ -142,6 +146,27 @@ $ helm install gw deploy/helm/skimasque-gateway -f gateway-values.yaml
 The QUIC Service is `ClusterIP` by default (in-cluster runners). For runners
 outside the cluster, use `service.type=LoadBalancer` with a UDP-capable cloud
 LB, or a NodePort.
+
+For TLS, either point `tls.secretName` at a `kubernetes.io/tls` secret, or let
+the gateway obtain its own certificate:
+
+```yaml
+authority: gateway.example.com   # must resolve to this Service, tcp/443 open
+replicaCount: 1
+tls:
+  acme:
+    enabled: true
+    email: ops@example.com
+    persistence: { enabled: true }   # the cert cache must survive a restart
+```
+
+The chart publishes the TLS-ALPN-01 challenge on Service port 443 and binds it
+to a high container port, since the pod drops every capability. Two caveats
+send you back to cert-manager: the cache is per-pod, so each replica runs its
+own ACME client for the same name, and an `emptyDir` cache re-orders on every
+restart — both spend Let's Encrypt's limit of five duplicate certificates a
+week. `tls.acme` suits a single replica; for more, issue centrally with
+cert-manager and set `tls.secretName`.
 
 ## AWS (Terraform)
 

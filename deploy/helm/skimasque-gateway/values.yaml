@@ -19,6 +19,11 @@ authority: ""
 ports:
   quic: 4433
   metrics: 9090
+  # Only with tls.acme: the TLS-ALPN-01 challenge listener inside the container.
+  # The Service always publishes it on 443 -- the only port Let's Encrypt
+  # validates on -- because the container drops every capability and so cannot
+  # bind a privileged port itself.
+  acmeChallenge: 8443
 
 service:
   type: ClusterIP
@@ -31,6 +36,30 @@ service:
 # in place. Leave secretName empty to serve a throwaway self-signed cert (dev only).
 tls:
   secretName: ""
+
+  # -- Or let the gateway obtain its own certificate from Let's Encrypt over
+  # TLS-ALPN-01 and renew it ahead of expiry. Mutually exclusive with
+  # secretName. Requires `authority` to be a public name that resolves to this
+  # Service, with tcp/443 reachable from the internet.
+  #
+  # Prefer cert-manager + secretName when you run more than one replica: each
+  # replica here runs its own ACME client against the same name, and they race
+  # into Let's Encrypt's duplicate-certificate limit (5 per week).
+  acme:
+    enabled: false
+    # ACME account contact; Let's Encrypt mails expiry warnings here.
+    email: ""
+    # Extra names on the certificate, beyond `authority`.
+    extraDomains: []
+    # Let's Encrypt staging: untrusted certificates, generous rate limits.
+    staging: false
+    # The issued certificate and the ACME account key. This must survive a
+    # restart or every restart re-orders, against those rate limits -- an
+    # emptyDir is for a staging trial only.
+    persistence:
+      enabled: false
+      storageClass: ""
+      size: 128Mi
 
 # -- Policies. Rendered into a ConfigMap and mounted read-only; with reload.policy
 # the gateway re-reads it when you `helm upgrade`. Each key is a file name.

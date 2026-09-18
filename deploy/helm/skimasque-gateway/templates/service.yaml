@@ -22,3 +22,11 @@ spec:
       port: {{ .Values.ports.metrics }}
       targetPort: metrics
       protocol: TCP
+    {{- if .Values.tls.acme.enabled }}
+    # TLS-ALPN-01. Let's Encrypt validates on 443 and nowhere else, so the
+    # Service must publish 443 even though the container binds a high port.
+    - name: acme
+      port: 443
+      targetPort: acme
+      protocol: TCP
+    {{- end }}

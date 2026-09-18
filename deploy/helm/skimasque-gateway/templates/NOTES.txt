@@ -4,11 +4,31 @@ skimasque gateway {{ .Chart.AppVersion }} deployed as {{ include "skimasque-gate
 
   ! Set `authority` -- the gateway's TLS name and the ":authority" clients send.
 {{- end }}
-{{- if not .Values.tls.secretName }}
+{{- if .Values.tls.acme.enabled }}
+
+  * ACME ({{ if .Values.tls.acme.staging }}Let's Encrypt staging{{ else }}Let's Encrypt{{ end }}): the gateway orders a certificate for
+    {{ .Values.authority }} over TLS-ALPN-01 and renews it ahead of expiry. That
+    name must resolve to this Service and tcp/443 must be reachable from the
+    internet, or issuance never completes.
+{{- if not .Values.tls.acme.persistence.enabled }}
+
+  ! `tls.acme.persistence` is off: the certificate cache is an emptyDir, so
+    every restart re-orders. Let's Encrypt allows 5 duplicate certificates a
+    week. Turn persistence on before this serves anything real.
+{{- end }}
+{{- if gt (int .Values.replicaCount) 1 }}
+
+  ! replicaCount is {{ .Values.replicaCount }} and each replica runs its own ACME client for the
+    same name -- they race, and spend that duplicate-certificate limit between
+    them. For more than one replica, issue centrally with cert-manager and set
+    `tls.secretName` instead.
+{{- end }}
+{{- else if not .Values.tls.secretName }}
 
   ! No `tls.secretName`: the gateway is serving a throwaway self-signed cert.
     Point it at a kubernetes.io/tls secret (cert-manager writes one); with
-    `reload.tls` it rotates in place.
+    `reload.tls` it rotates in place, or set `tls.acme.enabled` to have the
+    gateway obtain its own from Let's Encrypt.
 {{- end }}
 {{- if and (not .Values.auth.githubOidc.enabled) (not .Values.auth.bearerToken.existingSecret) }}
 

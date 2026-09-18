@@ -68,13 +68,12 @@ Operational notes:
 
 - `cargo deny check` (advisories, licenses, bans, sources — see [`deny.toml`](deny.toml))
   and `cargo audit` run on every push.
-- An SPDX SBOM is attached to each release. Once the repository is public,
-  release tarballs and the container image at `ghcr.io/skimasque-dev/skimasque`
-  also carry a Sigstore build-provenance attestation
-  (`gh attestation verify <tarball> --repo skimasque-dev/skimasque`,
-  `gh attestation verify oci://ghcr.io/skimasque-dev/skimasque:<tag> --repo skimasque-dev/skimasque`);
-  GitHub's attestation store is not available to user-owned private repos, so
-  that step is skipped until then.
+- An SPDX SBOM is attached to each release. The repository and the
+  `ghcr.io/skimasque-dev/skimasque` package are both public, so release
+  tarballs and the container image also carry a Sigstore build-provenance
+  attestation:
+  `gh attestation verify <tarball> --repo skimasque-dev/skimasque`,
+  `gh attestation verify oci://ghcr.io/skimasque-dev/skimasque:<tag> --repo skimasque-dev/skimasque`.
 - The crypto stack is rustls + `ring`; no OpenSSL or system TLS is linked, and
   `deny.toml` fails the build if one is pulled in.
 

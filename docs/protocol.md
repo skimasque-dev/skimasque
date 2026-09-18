@@ -205,6 +205,7 @@ surface `skimasque login` / `org` / `audit` / `status` and the dashboard expect.
 | `POST /v1/orgs`, `GET /v1/orgs`, `GET /v1/orgs/{org}` | organisations |
 | `POST/GET /v1/orgs/{org}/members`, `DELETE /v1/orgs/{org}/members/{user}`, `PUT …/role` | membership and roles |
 | `POST /v1/orgs/{org}/registration-tokens` | mint a one-time gateway token |
+| `POST /v1/orgs/{org}/credentials` | mint a platform credential for the signed-in developer's own session — asserts their GitHub login as `actor` and nothing else; the interactive-CLI counterpart of the gateway-side `POST /v1/gateways/{id}/credentials` above |
 | `POST /v1/orgs/{org}/policy`, `GET …/policy` | publish / read a policy revision |
 | `POST /v1/orgs/{org}/policy/simulate` | evaluate a hypothetical request against a revision |
 | `GET/POST /v1/orgs/{org}/signing-key`, `…/signing-key/rotate` | the org signing key |

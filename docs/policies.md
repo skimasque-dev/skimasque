@@ -97,6 +97,15 @@ runner's OIDC token:
 | `environment` | `environment` | `production` |
 | `actor` | `actor` | `octocat` |
 
+A credential doesn't have to come from CI at all: `skimasque-client --org
+<org>` (or `skimasque connect`) with no `--github-oidc` / `--auth-token` mints
+one from a `skimasque login` session instead, and that credential carries
+**only `actor`** — the signed-in developer's GitHub login, with `organization`,
+`repository`, `workflow`, and `branch`/`ref` unset. A policy meant for a
+developer's own workstation access matches on `actor` alone; `skimasque policy
+validate --strict` flags this as `match-lacks-repository` (it assumes a CI
+identity), so use plain `validate` for that policy instead.
+
 Because `[match]` *is* the authorization boundary, `skimasque policy validate`
 flags the common mistakes — an empty `[match]`, no `repository`, or a
 `repository` pinned without a `branch` / `ref` (so a fork's PR branch matches).

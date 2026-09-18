@@ -66,6 +66,7 @@ what rate and volume limits.
 | **OIDC issuer** (GitHub, …) | Trusted to sign only tokens it should | Publishes a JWK Set; signs tokens with the claims the CI platform asserts. Not assumed to be malicious, but *is* assumed to sign tokens for **every** repo/workflow on the platform, including an attacker's. |
 | **Legitimate CI job** | Semi-trusted | Runs code from a repository. Holds a valid OIDC token and, after exchange, a credential scoped to its identity. **May be running attacker-controlled code** (a malicious PR, a compromised dependency, a supply-chain attack in the job itself). |
 | **Attacker with their own GitHub repo** | Untrusted | Can obtain a validly-signed OIDC token for *their* `repository` / `workflow_ref` and hit the exchange endpoint. |
+| **Signed-in developer** (`skimasque login`) | Semi-trusted | Not a CI job at all — a control-plane session belonging to a human. Can mint a platform credential asserting only their own GitHub login as `actor` (`POST /v1/orgs/{org}/credentials`, control-plane-side, not `skimasque-server`), the same way `skimasque-client --org <org>` does for interactive/workstation use. |
 | **Network attacker** | Untrusted | On-path between runner and gateway, or between gateway and the OIDC issuer; can send packets to any listener. |
 | **Compromised gateway host** | Out of scope | Per [`SECURITY.md`](../SECURITY.md); if the host is owned, the model does not hold. |
 
@@ -249,7 +250,22 @@ These are the questions the independent review should press on:
    The internal review should re-confirm the three `trusting` call sites and
    that `--insecure` stays out of the Action, and decide whether the
    identity-without-policy mode should be a hard error rather than a warning.
-7. **Fleet secret sharing.** The `--credential-secret` model trades isolation
+7. **The interactive developer-credential path.** `POST
+   /v1/orgs/{org}/credentials` (control-plane-side; see `protocol.md`) lets a
+   signed-in developer's session mint a platform credential directly, with no
+   OIDC token and no CI job in the loop — the control plane asserts the
+   session's GitHub login as `actor` and signs it exactly like a
+   gateway-minted credential, so the gateway verifies and enforces it
+   identically. This is a second entry point onto the credential path
+   alongside B1, with the same bearer-token caveat (a stolen session token
+   mints access for as long as it's valid) but a different actor: a human's
+   own login, not a workload's. It is bounded the same way — deny-by-default
+   means the credential only reaches what a policy explicitly matches on that
+   `actor` — but the threat model above (B1/B2) is written for a CI job as the
+   primary hostile agent, and does not separately analyse a compromised
+   developer laptop or a leaked `skimasque login` session file as an attacker.
+   The review should decide whether that deserves its own boundary.
+8. **Fleet secret sharing.** The `--credential-secret` model trades isolation
    for fleet mobility. `SECURITY.md` now spells out the blast radius and
    rotation; the review should still sanity-check the wording. The control
    plane's D1 scheme narrows this: with `--control-plane --oidc`, the private
@@ -265,7 +281,7 @@ These are the questions the independent review should press on:
    operator-triggered with no automatic cadence yet, and there is no
    per-credential revocation. The review should check the outage/fallback
    window and the still-shared HS256 path.
-8. **Dependency surface.** `quinn`, `h3`, `rustls`, `jsonwebtoken`. The `h3`
+9. **Dependency surface.** `quinn`, `h3`, `rustls`, `jsonwebtoken`. The `h3`
    git pin was reviewed (see the notes in the workspace `Cargo.toml`): the rev
    is `hyperium/h3` `master` HEAD, `master` is developed actively but the
    `h3-v*` tags have not moved in over a year, so there is no imminent release

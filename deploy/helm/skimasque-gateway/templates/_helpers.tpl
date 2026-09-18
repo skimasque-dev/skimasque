@@ -28,6 +28,21 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{/*
+Reject configurations skimasque-server itself would refuse, rather than letting
+the pod crash-loop on a flag conflict.
+*/}}
+{{- define "skimasque-gateway.validate" -}}
+{{- if .Values.tls.acme.enabled -}}
+{{- if .Values.tls.secretName -}}
+{{- fail "tls.acme.enabled and tls.secretName are mutually exclusive: ACME issues a certificate, a secret supplies one. Pick one." -}}
+{{- end -}}
+{{- if not .Values.authority -}}
+{{- fail "tls.acme.enabled requires `authority`: it is the name the certificate is issued for, and it must resolve to this Service from the public internet." -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 The full argument list for skimasque-server, as a YAML sequence.
 */}}
 {{- define "skimasque-gateway.args" -}}
@@ -47,6 +62,30 @@ The full argument list for skimasque-server, as a YAML sequence.
 - /etc/skimasque/tls/tls.key
 {{- if $v.reload.tls }}
 - --tls-reload
+{{- end }}
+{{- end }}
+{{- if $v.tls.acme.enabled }}
+- --acme
+{{- /* --hostname is the name the certificate is issued for; without it the
+      gateway would ask for its own default, gateway.skimasque.com. */}}
+- --hostname
+- {{ $v.authority | quote }}
+- --acme-cache
+- /var/lib/skimasque-acme
+{{- /* Let's Encrypt validates on 443 only; the Service maps 443 here, because
+      the container holds no NET_BIND_SERVICE and cannot bind it directly. */}}
+- --acme-challenge-port
+- {{ $v.ports.acmeChallenge | quote }}
+{{- with $v.tls.acme.email }}
+- --acme-email
+- {{ . | quote }}
+{{- end }}
+{{- range $v.tls.acme.extraDomains }}
+- --acme-extra-domain
+- {{ . | quote }}
+{{- end }}
+{{- if $v.tls.acme.staging }}
+- --acme-staging
 {{- end }}
 {{- end }}
 {{- if $v.policies }}
