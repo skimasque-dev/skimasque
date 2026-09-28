@@ -15,6 +15,8 @@
 //!   minting, audit shipping, and the org signing key. A registered gateway
 //!   authenticates every call after registration with
 //!   `Authorization: Bearer <secret>`, the value it received at registration.
+//!   A multi-tenant platform gateway (SkiMasque Cloud, Mode 1) uses the
+//!   extension in [`platform`] instead.
 //! - **Client ↔ control plane** (not modelled here): `skimasque login`, org and
 //!   policy management, usage and audit queries. That surface is
 //!   management-only and off the enforcement path.
@@ -28,6 +30,8 @@
 
 use serde::{Deserialize, Serialize};
 use skimasque_policy::WorkloadIdentity;
+
+pub mod platform;
 
 /// The protocol revision this crate implements. Bumped only on a
 /// wire-incompatible change; a control plane may advertise the versions it
@@ -94,6 +98,41 @@ pub mod paths {
     /// never taken from the request.
     pub fn org_credentials(org: &str) -> String {
         format!("/v1/orgs/{org}/credentials")
+    }
+
+    /// `POST` [`crate::platform::PlatformRegisterRequest`] — register a
+    /// platform (multi-tenant) gateway with a one-time platform registration
+    /// token. Unauthenticated.
+    pub const PLATFORM_REGISTER: &str = "/v1/platform/register";
+
+    /// `GET` — poll the tenant list ([`crate::platform::TenantList`]) with the
+    /// same `If-None-Match` / `?wait=` semantics as [`gateway_policy`].
+    pub fn platform_tenants(id: &str) -> String {
+        format!("/v1/platform/gateways/{id}/tenants")
+    }
+
+    /// `POST` [`crate::platform::PlatformMintRequest`] — mint an org-scoped
+    /// credential.
+    pub fn platform_credentials(id: &str) -> String {
+        format!("/v1/platform/gateways/{id}/credentials")
+    }
+
+    /// `POST` [`crate::platform::PlatformShipAuditRequest`] — ship a
+    /// hash-chained batch whose events each name their organisation.
+    pub fn platform_audit(id: &str) -> String {
+        format!("/v1/platform/gateways/{id}/audit")
+    }
+
+    /// `GET` — the tail ([`crate::AuditHead`]) of this platform gateway's
+    /// audit chain.
+    pub fn platform_audit_head(id: &str) -> String {
+        format!("/v1/platform/gateways/{id}/audit/head")
+    }
+
+    /// `POST` [`crate::platform::PlatformHeartbeatRequest`] — liveness and
+    /// per-organisation usage.
+    pub fn platform_heartbeat(id: &str) -> String {
+        format!("/v1/platform/gateways/{id}/heartbeat")
     }
 }
 
@@ -348,6 +387,25 @@ mod tests {
         assert_eq!(paths::gateway_policy("gw_1"), "/v1/gateways/gw_1/policy");
         assert_eq!(paths::org_signing_key("org_1"), "/v1/orgs/org_1/signing-key");
         assert_eq!(paths::org_credentials("org_1"), "/v1/orgs/org_1/credentials");
+    }
+
+    #[test]
+    fn platform_paths_are_versioned_and_scoped_to_the_gateway() {
+        assert_eq!(paths::PLATFORM_REGISTER, "/v1/platform/register");
+        assert_eq!(paths::platform_tenants("gw_1"), "/v1/platform/gateways/gw_1/tenants");
+        assert_eq!(
+            paths::platform_credentials("gw_1"),
+            "/v1/platform/gateways/gw_1/credentials"
+        );
+        assert_eq!(paths::platform_audit("gw_1"), "/v1/platform/gateways/gw_1/audit");
+        assert_eq!(
+            paths::platform_audit_head("gw_1"),
+            "/v1/platform/gateways/gw_1/audit/head"
+        );
+        assert_eq!(
+            paths::platform_heartbeat("gw_1"),
+            "/v1/platform/gateways/gw_1/heartbeat"
+        );
     }
 
     #[test]
