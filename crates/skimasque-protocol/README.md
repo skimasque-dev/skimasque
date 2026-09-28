@@ -5,6 +5,10 @@ gateway (`skimasque-server --control-plane <url>`) and a control plane exchange:
 registration, policy distribution (ETag + long-poll), heartbeats, label
 declaration, credential minting, audit shipping, and the org signing key.
 
+The `platform` module adds the multi-tenant extension a shared gateway uses
+(SkiMasque Cloud, Mode 1): platform registration, the tenant list,
+org-scoped credential minting, and per-org audit shipping.
+
 This crate is the *contract*, not an implementation. SkiMasque publishes it so
 that a fully self-hosted deployment ("Mode 3") — your own control plane, your
 own gateway — is possible without SkiMasque Cloud. Anything that serves these

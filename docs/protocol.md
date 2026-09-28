@@ -193,6 +193,95 @@ gateway's local JSONL sink stays authoritative.
 
 ---
 
+## Platform gateway endpoints (Mode 1)
+
+A **platform gateway** is SkiMasque Cloud's shared, multi-tenant gateway. It
+belongs to no single organisation. Types live in `skimasque_protocol::platform`.
+A customer-operated gateway (Mode 2) never calls these endpoints, and a
+platform gateway is refused by the single-org endpoints above
+(`403 platform_gateway`).
+
+Every refusal is `403` or `422` with a body
+`{ "code": "<code>", "message": "<sentence for a person>" }`. The codes are
+`owner_not_verified`, `over_cap`, `unknown_org`, `not_platform_gateway` and
+`platform_gateway`.
+
+### `POST /v1/platform/register`
+
+Register with a one-time **platform** registration token, issued by the
+operator (admin token). Unauthenticated.
+
+```json
+{ "registration_token": "skmreg_…", "name": "shared-1", "labels": { "region": "us" } }
+```
+
+Response: `{ "gateway_id": "gw_…", "secret": "…" }`. There is no `org_id`.
+
+### `GET /v1/platform/gateways/{id}/tenants`
+
+The tenant list, with the same `If-None-Match: "<version>"` and `?wait=<seconds>`
+long-poll semantics as the policy poll.
+
+```json
+{
+  "version": 42,
+  "tenants": [
+    {
+      "org_id": "org_…",
+      "slug": "acme",
+      "owners": ["acme", "octocat"],
+      "policy": { "version": 7, "documents": [ { "name": "prod.toml", "text": "…" } ] },
+      "signing_key": { "org_id": "org_…", "algorithm": "ed25519", "public_key_b64": "…" }
+    }
+  ]
+}
+```
+
+`policy` is `null` until the organisation publishes, and every request for it
+is then denied. Documents are already filtered to those whose label target the
+gateway satisfies. `owners` are lowercase GitHub logins.
+
+A job is resolved to a tenant at token exchange:
+
+- its OIDC audience must be exactly `https://<gateway host>/o/<slug>`;
+- its GitHub owner (`repository_owner`, carried as the identity's
+  `organization`) must be in that tenant's `owners`.
+
+### `POST /v1/platform/gateways/{id}/credentials`
+
+```json
+{ "org_id": "org_…", "identity": { "organization": "acme", "repository": "acme/widget" }, "ttl_seconds": 900 }
+```
+
+The control plane re-checks the owner and the plan allowance, then signs with
+**that organisation's** key. The credential carries a top-level `org_id` claim.
+The response is the same as the single-org mint:
+`{ "credential": "<JWT>", "expires_in": 900 }`.
+
+A platform gateway has **no local fallback**. If this endpoint is unreachable,
+token exchange fails.
+
+### `GET /v1/platform/gateways/{id}/audit/head` and `POST /v1/platform/gateways/{id}/audit`
+
+As the single-org audit endpoints, but each event names its organisation:
+
+```json
+{ "events": [ { "org_id": "org_…", "seq": 12, "prev_hash": "…", "event_json": "{…}" } ] }
+```
+
+The chain is per gateway and hashed exactly as in the single-org protocol. The
+control plane files each event under its `org_id`, and rejects the whole batch
+(`422 unknown_org`) if any event names an organisation that is not a tenant.
+
+### `POST /v1/platform/gateways/{id}/heartbeat`
+
+```json
+{ "status": "online", "tenants_version": 42, "usage_by_org": { "org_…": { "tunnels_opened": 3, "bytes_to_target": 0, "bytes_to_client": 0 } } }
+```
+
+Usage counters are cumulative since the gateway process started, per
+organisation, as in the single-org heartbeat.
+
 ## Client ↔ control plane endpoints
 
 Not part of the stable contract; listed so a self-hosted control plane knows the
