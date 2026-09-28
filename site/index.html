@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkiMasque — least-privilege network access for CI/CD</title>
+<meta name="description" content="Give a CI/CD job exactly the network access it needs, and nothing else, only for as long as it needs it. Identity-aware, deny-by-default tunnels over MASQUE.">
+<meta property="og:title" content="SkiMasque">
+<meta property="og:description" content="Identity-aware, least-privilege network access for CI/CD jobs and developers.">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f7f8f6;
+    --bg-alt: #eef1ee;
+    --surface: #ffffff;
+    --text: #15202b;
+    --muted: #55616d;
+    --border: #d9dfdc;
+    --accent: #0d8a78;
+    --accent-strong: #09685a;
+    --accent-soft: #d6f2ec;
+    --deny: #c2410c;
+    --code-bg: #0f1a22;
+    --code-text: #d7e3ea;
+    --code-muted: #7d909c;
+    --code-key: #7dd3c0;
+    --code-str: #f5c78a;
+    --radius: 12px;
+    --maxw: 1120px;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1218;
+      --bg-alt: #0f1820;
+      --surface: #131e27;
+      --text: #e4ecf0;
+      --muted: #93a3ae;
+      --border: #22313c;
+      --accent: #5eead4;
+      --accent-strong: #99f6e4;
+      --accent-soft: #10302c;
+      --deny: #fb923c;
+      --code-bg: #081016;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent-strong); }
+  code, pre { font-family: var(--mono); }
+  :not(pre) > code {
+    font-size: .9em;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    padding: .1em .35em;
+    border-radius: 5px;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 16px; }
+  @media (min-width: 720px) { .wrap { padding: 0 32px; } }
+
+  /* Nav */
+  header.nav {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  header.nav .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text); text-decoration: none; letter-spacing: -.01em; }
+  .brand img { width: 26px; height: 26px; }
+  nav.links { display: none; gap: 22px; margin-left: auto; }
+  nav.links a { color: var(--muted); text-decoration: none; font-size: 15px; }
+  nav.links a:hover { color: var(--text); }
+  .nav-cta { margin-left: auto; }
+  @media (min-width: 860px) { nav.links { display: flex; } .nav-cta { margin-left: 0; } }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 999px;
+    font-weight: 600; font-size: 15px; text-decoration: none;
+    border: 1px solid transparent; transition: transform .1s, background .15s;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #04211c; }
+  .btn-primary:hover { background: var(--accent-strong); }
+  .btn-ghost { border-color: var(--border); color: var(--text); background: var(--surface); }
+  .btn-sm { padding: 7px 14px; font-size: 14px; }
+  @media (prefers-color-scheme: light) { .btn-primary { color: #fff; } }
+
+  /* Hero */
+  .hero { padding: 72px 0 56px; }
+  .hero-grid { display: grid; gap: 40px; align-items: center; }
+  @media (min-width: 960px) { .hero-grid { grid-template-columns: 1.05fr 1fr; } .hero { padding: 104px 0 88px; } }
+  .eyebrow {
+    display: inline-block; font: 600 13px/1 var(--mono); letter-spacing: .04em;
+    color: var(--accent-strong); background: var(--accent-soft);
+    padding: 7px 11px; border-radius: 999px; margin-bottom: 20px;
+  }
+  h1 { font-size: clamp(34px, 5.4vw, 56px); line-height: 1.06; letter-spacing: -.03em; margin: 0 0 20px; }
+  h1 em { font-style: normal; color: var(--accent); }
+  .lede { font-size: clamp(17px, 2vw, 19px); color: var(--muted); max-width: 36em; margin: 0 0 28px; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  /* Flow diagram */
+  .flow { display: grid; gap: 10px; }
+  .flow-step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 16px; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: center;
+  }
+  .flow-step .n {
+    width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent-strong); font: 700 14px var(--mono);
+  }
+  .flow-step b { display: block; font-size: 15px; }
+  .flow-step span { color: var(--muted); font: 13px/1.45 var(--mono); word-break: break-word; }
+  .flow-arrow { text-align: center; color: var(--muted); font-size: 13px; line-height: 1; }
+  .flow-out { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pill { border-radius: var(--radius); padding: 12px 14px; font: 13px/1.4 var(--mono); border: 1px solid var(--border); background: var(--surface); }
+  .pill.ok { border-color: var(--accent); }
+  .pill.ok::before { content: "ALLOW  "; color: var(--accent); font-weight: 700; }
+  .pill.no { border-style: dashed; color: var(--muted); }
+  .pill.no::before { content: "DENY  "; color: var(--deny); font-weight: 700; }
+
+  /* Sections */
+  section { padding: 72px 0; }
+  section.alt { background: var(--bg-alt); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .kicker { font: 600 13px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent-strong); margin: 0 0 10px; }
+  h2 { font-size: clamp(26px, 3.6vw, 38px); line-height: 1.15; letter-spacing: -.02em; margin: 0 0 14px; }
+  .section-intro { color: var(--muted); max-width: 44em; margin: 0 0 36px; font-size: 17px; }
+  h3 { font-size: 18px; margin: 0 0 8px; letter-spacing: -.01em; }
+
+  .grid { display: grid; gap: 16px; }
+  @media (min-width: 720px) { .g2 { grid-template-columns: 1fr 1fr; } .g3 { grid-template-columns: repeat(3, 1fr); } .g4 { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1000px) { .g4 { grid-template-columns: repeat(4, 1fr); } }
+  .grid > *, .steps > *, .hero-grid > * { min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .problem { display: grid; grid-template-columns: 22px 1fr; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .problem:last-child { border-bottom: 0; }
+  .problem .x { color: var(--deny); font-weight: 700; font-family: var(--mono); }
+  .problem p { margin: 0; }
+
+  .wwwl .card .tag { font: 700 12px var(--mono); letter-spacing: .08em; color: var(--accent-strong); display: block; margin-bottom: 8px; }
+  .wwwl .card code { font-size: 13px; }
+
+  /* Code */
+  pre {
+    margin: 0; background: var(--code-bg); color: var(--code-text);
+    border-radius: var(--radius); padding: 18px 20px; overflow-x: auto;
+    font-size: 13.5px; line-height: 1.6; border: 1px solid #1d2b35;
+  }
+  .codeblock { position: relative; min-width: 0; }
+  .codeblock .label {
+    font: 600 12px var(--mono); color: var(--muted); margin: 0 0 8px; display: flex; justify-content: space-between;
+  }
+  .c { color: var(--code-muted); }
+  .k { color: var(--code-key); }
+  .s { color: var(--code-str); }
+  .deny { color: #fb923c; font-weight: 700; }
+  .ok { color: #5eead4; }
+  .prompt { color: var(--code-muted); user-select: none; }
+
+  .steps { counter-reset: s; display: grid; gap: 28px; }
+  @media (min-width: 960px) { .steps.g2 { grid-template-columns: 1fr 1fr; } }
+  .step h3::before { counter-increment: s; content: counter(s); display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--bg); font: 700 13px var(--mono); margin-right: 10px; vertical-align: 2px; }
+  .step p { color: var(--muted); margin: 0 0 14px; font-size: 15px; }
+
+  /* Modes */
+  .mode { display: flex; flex-direction: column; }
+  .mode .badge { font: 600 12px var(--mono); color: var(--muted); margin-bottom: 6px; }
+  .mode .quote { color: var(--text); font-style: italic; margin: 4px 0 16px !important; }
+  .mode ul { list-style: none; padding: 0; margin: 0 0 16px; font-size: 14px; }
+  .mode li { padding: 6px 0; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 10px; }
+  .mode li span:first-child { color: var(--muted); }
+  .mode li .you { color: var(--accent-strong); font-weight: 600; }
+  .mode.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .mode .foot { margin-top: auto; font-size: 14px; color: var(--muted); }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  th { font-size: 13px; color: var(--muted); font-weight: 600; background: var(--bg-alt); }
+  td .status { display: inline-block; font: 600 12px var(--mono); padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); white-space: nowrap; }
+  td .status.partial { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+
+  .split h3 { display: flex; align-items: center; gap: 8px; }
+  .split ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 15px; }
+  .split li { margin: 6px 0; }
+  .split li b { color: var(--text); font-weight: 600; }
+
+  .principles .card h3 { font-size: 16px; }
+
+  .final { text-align: center; padding: 88px 0; }
+  .final .cta-row { justify-content: center; }
+  .final p { color: var(--muted); max-width: 36em; margin: 0 auto 28px; font-size: 17px; }
+
+  footer { border-top: 1px solid var(--border); padding: 36px 0 48px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: grid; gap: 24px; }
+  @media (min-width: 720px) { footer .wrap { grid-template-columns: 1.4fr 1fr 1fr 1fr; } }
+  footer h4 { color: var(--text); font-size: 14px; margin: 0 0 10px; }
+  footer ul { list-style: none; margin: 0; padding: 0; }
+  footer li { margin: 6px 0; }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="favicon.svg" alt="">SkiMasque</a>
+    <nav class="links" aria-label="Primary">
+      <a href="#how">How it works</a>
+      <a href="#quickstart">Quick start</a>
+      <a href="#policy">Policy</a>
+      <a href="#modes">Deployment</a>
+      <a href="#open-source">Open source</a>
+      <a href="https://github.com/skimasque-dev/skimasque/tree/main/docs">Docs</a>
+    </nav>
+    <a class="btn btn-ghost btn-sm nav-cta" href="https://github.com/skimasque-dev/skimasque">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow">Open-source MASQUE gateway · MIT / Apache-2.0</span>
+        <h1>Network access for CI/CD that's <em>exactly enough</em>, and no more.</h1>
+        <p class="lede">
+          SkiMasque gives a CI/CD job exactly the network access it needs, and nothing else, only for as
+          long as it needs it. No broad VPN and no standing credentials. Each tunnel is
+          short-lived, tied to the job's identity, and denied by default.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#quickstart">Get started in 5 minutes →</a>
+          <a class="btn btn-ghost" href="https://github.com/skimasque-dev/skimasque">View on GitHub</a>
+        </div>
+      </div>
+
+      <div class="flow" aria-label="How a request flows through SkiMasque">
+        <div class="flow-step"><div class="n">1</div><div><b>GitHub Actions job</b><span>OIDC: acme/widget · deploy.yml · refs/heads/main</span></div></div>
+        <div class="flow-arrow">▼ workload identity</div>
+        <div class="flow-step"><div class="n">2</div><div><b>Identity + policy</b><span>WHO → WHAT → WHERE → LIMITS</span></div></div>
+        <div class="flow-arrow">▼ short-lived authorization</div>
+        <div class="flow-step"><div class="n">3</div><div><b>MASQUE gateway</b><span>enforces · deny by default</span></div></div>
+        <div class="flow-arrow">▼</div>
+        <div class="flow-out">
+          <div class="pill ok">db.prod:5432<br><span style="color:var(--muted)">20m · 100 Mbps</span></div>
+          <div class="pill no">anything else</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why -->
+  <section class="alt" id="why">
+    <div class="wrap grid g2" style="gap:48px">
+      <div>
+        <p class="kicker">The problem</p>
+        <h2>CI network access is too broad and lasts too long.</h2>
+        <p class="section-intro">
+          SkiMasque replaces this with a policy over workload identity. The tunnel opens only when
+          that policy allows it, and closes when the job ends.
+        </p>
+      </div>
+      <div>
+        <div class="problem"><span class="x">✗</span><p>A CI job that needs one database gets a VPN that reaches your whole network.</p></div>
+        <div class="problem"><span class="x">✗</span><p>Static credentials in CI secrets don't expire and are hard to rotate.</p></div>
+        <div class="problem"><span class="x">✗</span><p>IP allowlists say <em>where from</em>, never <em>who</em> or <em>which workflow</em>.</p></div>
+        <div class="problem"><span class="x">✗</span><p>"Temporary" access is rarely torn down.</p></div>
+        <div class="problem"><span class="x">✗</span><p>Different repos and workflows need different access, and that's tedious to express with any of the above.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How -->
+  <section id="how" class="wwwl">
+    <div class="wrap">
+      <p class="kicker">How it works</p>
+      <h2>Who, what, where, and for how long.</h2>
+      <p class="section-intro">
+        A workload proves <em>who</em> it is, declares <em>what</em> it is running, and asks to reach a
+        <em>destination</em>. A policy decides. If no rule allows the request, it is denied.
+      </p>
+      <div class="grid g4">
+        <div class="card"><span class="tag">WHO</span><h3>Workload identity</h3><p>A GitHub Actions job proves its repository, workflow, and branch with an OIDC token. GitLab, Buildkite, and generic OIDC are supported too.</p></div>
+        <div class="card"><span class="tag">WHAT</span><h3>Application</h3><p>The job declares what it is running, such as <code>terraform</code> or <code>psql</code>. Rules are scoped to that application.</p></div>
+        <div class="card"><span class="tag">WHERE</span><h3>Destination</h3><p>An exact host, a <code>*.suffix</code> wildcard, an IP, a CIDR, or <code>*</code>, each with an exact port, a range, or <code>*</code>.</p></div>
+        <div class="card"><span class="tag">LIMITS</span><h3>Time and rate</h3><p>Maximum session length, bandwidth, packets per second, connection count, and byte caps. When the job ends, access ends.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick start -->
+  <section class="alt" id="quickstart">
+    <div class="wrap">
+      <p class="kicker">Quick start</p>
+      <h2>Three steps, and no infrastructure to run.</h2>
+      <p class="section-intro">
+        Point CI at SkiMasque Cloud, write a policy, and add one step to your workflow.
+        <a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/getting-started.md">Full walkthrough →</a>
+      </p>
+
+      <div class="steps">
+        <div class="grid g2" style="gap:28px">
+          <div class="step">
+            <h3>Sign in and create an org</h3>
+            <p>The GitHub device flow signs you in to SkiMasque Cloud.</p>
+            <div class="codeblock"><pre><span class="prompt">$ </span>skimasque login
+<span class="prompt">$ </span>skimasque org create <span class="s">"Acme"</span></pre></div>
+          </div>
+          <div class="step">
+            <h3>Write a policy and test it locally</h3>
+            <p><code>skimasque init</code> scaffolds a policy. Its tests run offline and fit in CI.</p>
+            <div class="codeblock"><pre><span class="prompt">$ </span>skimasque policy test
+production
+  <span class="ok">ok</span>   psql -&gt; db.internal:5432      (expect allow)
+  <span class="ok">ok</span>   psql -&gt; secrets.internal:443  (expect deny)</pre></div>
+          </div>
+        </div>
+        <div class="step">
+          <h3>Wire the workflow</h3>
+          <p>
+            The action exchanges the runner's OIDC token for a short-lived credential and sets
+            <code>ALL_PROXY</code> to a local SOCKS5 relay. Tools that honour <code>ALL_PROXY</code>
+            (<code>terraform</code>, <code>psql</code>, <code>curl</code>, <code>git</code>, most cloud SDKs)
+            can then reach only what your policy allows.
+          </p>
+          <div class="codeblock"><div class="label"><span>.github/workflows/deploy.yml</span></div><pre><span class="k">permissions</span>:
+  <span class="k">id-token</span>: write          <span class="c"># the job mints its own OIDC token</span>
+  <span class="k">contents</span>: read
+
+<span class="k">steps</span>:
+  - <span class="k">uses</span>: <span class="s">skimasque-dev/connect@v1</span>
+    <span class="k">with</span>:
+      <span class="k">proxy</span>: <span class="s">gateway.skimasque.com:443</span>
+      <span class="k">audience</span>: <span class="s">https://gateway.skimasque.com</span>
+      <span class="k">application</span>: <span class="s">terraform</span>
+
+  - <span class="k">run</span>: terraform apply -auto-approve   <span class="c"># egresses through the gateway</span></pre></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Policy -->
+  <section id="policy">
+    <div class="wrap">
+      <p class="kicker">Policy as code</p>
+      <h2>Readable policies you can test and diff.</h2>
+      <p class="section-intro">
+        The policy engine does no I/O. It takes a request and returns a decision, so policies can be
+        reviewed, diffed, and tested in CI like any other code. Write them in TOML or YAML.
+        When a request is denied, the engine says why and suggests a rule.
+      </p>
+      <div class="grid g2" style="gap:24px">
+        <div class="codeblock"><div class="label"><span>.masque/policies/production.toml</span></div><pre><span class="k">name</span> = <span class="s">"production"</span>
+
+[<span class="k">match</span>]                       <span class="c"># WHO</span>
+<span class="k">repository</span> = <span class="s">"acme/widget"</span>
+<span class="k">branch</span> = <span class="s">"main"</span>
+
+[[<span class="k">rules</span>]]
+<span class="k">application</span> = <span class="s">"terraform"</span>     <span class="c"># WHAT</span>
+<span class="k">action</span> = <span class="s">"allow"</span>
+<span class="k">destinations</span> = [              <span class="c"># WHERE</span>
+    <span class="s">"api.production.example.com:443"</span>,
+    <span class="s">"*.terraform.io:443"</span>,
+]
+
+[<span class="k">session</span>]                     <span class="c"># LIMITS</span>
+<span class="k">max_duration</span> = <span class="s">"20m"</span>
+[<span class="k">limits</span>]
+<span class="k">bandwidth</span> = <span class="s">"100Mbps"</span>
+<span class="k">connections</span> = 50
+
+[[<span class="k">tests</span>]]                     <span class="c"># runs in CI</span>
+<span class="k">application</span> = <span class="s">"terraform"</span>
+<span class="k">destination</span> = <span class="s">"api.production.example.com:443"</span>
+<span class="k">expect</span> = <span class="s">"allow"</span></pre></div>
+        <div style="display:grid;gap:16px;align-content:start">
+          <div class="codeblock"><div class="label"><span>Explain a denial, offline</span></div><pre><span class="prompt">$ </span>skimasque policy check production google.com:443 --app terraform
+<span class="deny">DENY</span>
+
+Reason:
+No matching allow rule.
+
+Suggested rule:
+  allow terraform google.com:443</pre></div>
+          <div class="card">
+            <h3>More than a rule list</h3>
+            <p>
+              <code>check</code>, <code>test</code>, <code>explain</code>, and <code>learn</code> run locally.
+              Learning mode drafts a policy from observed traffic. <code>validate --strict</code> fails CI when a
+              <code>[match]</code> is too broad. Policies hot-reload on the gateway without dropping tunnels.
+              <a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/policies.md">Full DSL →</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modes -->
+  <section class="alt" id="modes">
+    <div class="wrap">
+      <p class="kicker">Deployment</p>
+      <h2>Start managed. Run more yourself when you need to.</h2>
+      <p class="section-intro">
+        All three modes use the same policy model, the same gateway, and the same GitHub Action.
+        <a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/deployment-modes.md">Compare modes →</a>
+      </p>
+      <div class="grid g3">
+        <div class="card mode featured">
+          <span class="badge">MODE 1 · START HERE</span>
+          <h3>Fully managed</h3>
+          <p class="quote">"Just use it."</p>
+          <ul>
+            <li><span>Control plane</span><span>SkiMasque</span></li>
+            <li><span>Gateway</span><span>SkiMasque</span></li>
+            <li><span>Your egress IP</span><span>No</span></li>
+            <li><span>Operational load</span><span>Lowest</span></li>
+          </ul>
+          <p class="foot">The quickest way to adopt. You configure identity and policy; SkiMasque runs everything else.</p>
+        </div>
+        <div class="card mode">
+          <span class="badge">MODE 2</span>
+          <h3>Customer gateway</h3>
+          <p class="quote">"Keep the network path in my infrastructure."</p>
+          <ul>
+            <li><span>Control plane</span><span>SkiMasque</span></li>
+            <li><span>Gateway</span><span class="you">You</span></li>
+            <li><span>Your egress IP</span><span class="you">Yes</span></li>
+            <li><span>Operational load</span><span>Medium</span></li>
+          </ul>
+          <p class="foot">Run the open-source <code>skimasque-server</code> in your VPC with Docker, systemd, Helm, or Terraform.</p>
+        </div>
+        <div class="card mode">
+          <span class="badge">MODE 3 · ADVANCED</span>
+          <h3>Fully self-hosted</h3>
+          <p class="quote">"Operate everything myself."</p>
+          <ul>
+            <li><span>Control plane</span><span class="you">You</span></li>
+            <li><span>Gateway</span><span class="you">You</span></li>
+            <li><span>Your egress IP</span><span class="you">Yes</span></li>
+            <li><span>Operational load</span><span>Highest</span></li>
+          </ul>
+          <p class="foot">For air-gapped or heavily regulated environments. You implement the documented control protocol or license it from SkiMasque. Expect real work; this is not a config switch.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Principles -->
+  <section id="principles" class="principles">
+    <div class="wrap">
+      <p class="kicker">Principles</p>
+      <h2>The gateway enforces policy and trusts nothing by default.</h2>
+      <p class="section-intro">
+        A valid tunnel credential alone does not open a tunnel. The gateway itself checks identity,
+        application, destination, policy, and expiry, and all five must allow the request.
+      </p>
+      <div class="grid g3">
+        <div class="card"><h3>Least privilege by default</h3><p>If no allow rule matches, the request is denied. Nothing is allowed implicitly.</p></div>
+        <div class="card"><h3>Fail closed</h3><p>If authentication, authorization, or destination validation can't be established, no tunnel is created.</p></div>
+        <div class="card"><h3>SSRF floor</h3><p>An address policy is checked against <em>resolved</em> addresses, so a hostname that resolves to a blocked address is still blocked.</p></div>
+        <div class="card"><h3>Keeps working during an outage</h3><p>A cached policy lets the gateway keep enforcing when the control plane is unreachable. Credentials are verified locally, with no network call.</p></div>
+        <div class="card"><h3>Policy separate from transport</h3><p>The policy engine is a pure function and knows nothing about MASQUE or HTTP.</p></div>
+        <div class="card"><h3>No networking expertise needed</h3><p>You answer three questions: who is running, what application, and what it needs to reach.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Standards -->
+  <section class="alt" id="standards">
+    <div class="wrap">
+      <p class="kicker">Built on open standards</p>
+      <h2>MASQUE over HTTP/3, written in Rust.</h2>
+      <p class="section-intro">
+        The transport implements the IETF MASQUE specifications on <code>quinn</code> and <code>h3</code>.
+        A SOCKS5 front end lets existing tools use it without changes. The gateway also includes in-process ACME
+        (Let's Encrypt) and Prometheus <code>/metrics</code>, <code>/healthz</code>, and <code>/readyz</code> endpoints.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Specification</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><a href="https://www.rfc-editor.org/rfc/rfc9297">RFC 9297</a> — HTTP Datagrams and the Capsule Protocol</td><td><span class="status">Complete</span> in both encodings</td></tr>
+            <tr><td><a href="https://www.rfc-editor.org/rfc/rfc9298">RFC 9298</a> — Proxying UDP in HTTP</td><td><span class="status">Complete</span> over HTTP/3 extended <code>CONNECT</code></td></tr>
+            <tr><td><a href="https://datatracker.ietf.org/doc/draft-ietf-httpbis-connect-tcp/">draft-ietf-httpbis-connect-tcp</a> — Proxying TCP in HTTP</td><td><span class="status">On by default</span> classic <code>CONNECT host:port</code></td></tr>
+            <tr><td><a href="https://www.rfc-editor.org/rfc/rfc9484">RFC 9484</a> — Proxying IP in HTTP</td><td><span class="status partial">Partial</span> wire formats complete; TUN forwarding not yet wired</td></tr>
+            <tr><td><a href="https://www.rfc-editor.org/rfc/rfc1928">RFC 1928</a> — SOCKS5</td><td><span class="status">Complete</span> <code>CONNECT</code> and <code>UDP ASSOCIATE</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Open source vs Cloud -->
+  <section id="open-source">
+    <div class="wrap">
+      <p class="kicker">Open source and SkiMasque Cloud</p>
+      <h2>The enforcement edge is open source, with no features held back.</h2>
+      <p class="section-intro">
+        The open-source gateway does full policy enforcement, including deny-by-default and the SSRF floor,
+        and keeps enforcing if the control plane goes down. SkiMasque Cloud is the paid service that operates the control plane for you.
+      </p>
+      <div class="grid g2 split">
+        <div class="card">
+          <h3>Open source · MIT OR Apache-2.0</h3>
+          <ul>
+            <li><b>Gateway</b> (<code>skimasque-server</code>)</li>
+            <li><b>Tunnel client</b> (<code>skimasque-client</code>) and <b>CLI</b> (<code>skimasque</code>)</li>
+            <li><b>MASQUE transport</b> (<code>skimasque-core</code>, <code>skimasque</code>)</li>
+            <li><b>Policy engine</b> (<code>skimasque-policy</code>)</li>
+            <li><b>OIDC verification</b> (<code>skimasque-identity</code>)</li>
+            <li><b>Control protocol</b> (<code>skimasque-protocol</code>)</li>
+            <li><b>GitHub Action</b> (<a href="https://github.com/skimasque-dev/connect"><code>skimasque-dev/connect</code></a>)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>SkiMasque Cloud</h3>
+          <ul>
+            <li><b>Managed control plane</b>, hosted, highly available, and upgraded for you</li>
+            <li><b>Managed gateways</b> and global egress</li>
+            <li><b>Dashboard</b> showing who has access, whether it's working, and why a request was denied</li>
+            <li><b>Policy workflow</b> with reviewed revisions, diffs, simulation, and access requests</li>
+            <li><b>Organizations, teams, and roles</b></li>
+            <li><b>Audit history</b>, usage metering, notifications, and support</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="alt final">
+    <div class="wrap">
+      <h2>Give your next CI job one destination, not your whole network.</h2>
+      <p>Getting started takes about five minutes. You'll end up with one GitHub Actions job that reaches one protected resource, and everything else denied.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/skimasque-dev/skimasque/blob/main/docs/getting-started.md">Read the getting-started guide</a>
+        <a class="btn btn-ghost" href="https://github.com/skimasque-dev/skimasque">Star on GitHub</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="brand" href="#top"><img src="favicon.svg" alt="">SkiMasque</a>
+      <p style="margin:12px 0 0">Identity-aware, least-privilege network access for CI/CD jobs and developers.</p>
+      <p style="margin:8px 0 0">Licensed under MIT or Apache-2.0.</p>
+    </div>
+    <div>
+      <h4>Get started</h4>
+      <ul>
+        <li><a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/getting-started.md">Getting started</a></li>
+        <li><a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/github-actions.md">GitHub Actions</a></li>
+        <li><a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/policies.md">Policies</a></li>
+        <li><a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/cli.md">CLI reference</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Operate</h4>
+      <ul>
+        <li><a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/deployment-modes.md">Deployment modes</a></li>
+        <li><a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/gateways.md">Running a gateway</a></li>
+        <li><a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/protocol.md">Control protocol</a></li>
+        <li><a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/troubleshooting.md">Troubleshooting</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Project</h4>
+      <ul>
+        <li><a href="https://github.com/skimasque-dev/skimasque">Source code</a></li>
+        <li><a href="https://github.com/skimasque-dev/skimasque/blob/main/docs/architecture.md">Architecture</a></li>
+        <li><a href="https://github.com/skimasque-dev/skimasque/blob/main/SECURITY.md">Security policy</a></li>
+        <li><a href="https://github.com/skimasque-dev/skimasque/blob/main/CONTRIBUTING.md">Contributing</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
