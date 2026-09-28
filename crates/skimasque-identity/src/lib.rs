@@ -42,7 +42,8 @@ use std::time::Duration;
 use skimasque_policy::WorkloadIdentity;
 
 pub use credential::{
-    CredentialIssuer, CredentialSigner, CredentialVerifier, Issued, CREDENTIAL_ISSUER,
+    CredentialIssuer, CredentialSigner, CredentialVerifier, Issued, VerifiedCredential,
+    CREDENTIAL_ISSUER,
 };
 pub use error::Error;
 pub use jwks::{JwksCache, JwksProvider};

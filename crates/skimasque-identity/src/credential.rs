@@ -47,6 +47,10 @@ struct Claims {
     /// The original identity token's subject, kept for audit.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     sub: Option<String>,
+    /// The SkiMasque organisation this credential is scoped to, set by a
+    /// multi-tenant (platform) mint. Absent on single-org credentials.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    org_id: Option<String>,
     #[serde(flatten)]
     identity: WorkloadIdentity,
 }
@@ -58,6 +62,7 @@ fn encode(
     ttl: Duration,
     identity: &WorkloadIdentity,
     subject: Option<&str>,
+    org_id: Option<&str>,
 ) -> Result<Issued, Error> {
     let now = unix_now();
     let claims = Claims {
@@ -65,6 +70,7 @@ fn encode(
         iat: now,
         exp: now + ttl.as_secs() as i64,
         sub: subject.map(str::to_owned),
+        org_id: org_id.map(str::to_owned),
         identity: identity.clone(),
     };
     let token = jsonwebtoken::encode(&Header::new(algorithm), &claims, key)
@@ -75,6 +81,19 @@ fn encode(
     })
 }
 
+/// Verify a credential signed under `algorithm` with `key`, recovering its
+/// claims.
+fn decode_claims(algorithm: Algorithm, key: &DecodingKey, token: &str) -> Result<Claims, Error> {
+    let mut validation = Validation::new(algorithm);
+    validation.set_issuer(&[CREDENTIAL_ISSUER]);
+    validation.leeway = 30;
+    validation.set_required_spec_claims(&["exp", "iss"]);
+
+    jsonwebtoken::decode::<Claims>(token, key, &validation)
+        .map(|data| data.claims)
+        .map_err(|e| Error::Verification(e.to_string()))
+}
+
 /// Verify a credential signed under `algorithm` with `key`, recovering the
 /// identity it carries.
 fn decode(
@@ -82,14 +101,7 @@ fn decode(
     key: &DecodingKey,
     token: &str,
 ) -> Result<WorkloadIdentity, Error> {
-    let mut validation = Validation::new(algorithm);
-    validation.set_issuer(&[CREDENTIAL_ISSUER]);
-    validation.leeway = 30;
-    validation.set_required_spec_claims(&["exp", "iss"]);
-
-    jsonwebtoken::decode::<Claims>(token, key, &validation)
-        .map(|data| data.claims.identity)
-        .map_err(|e| Error::Verification(e.to_string()))
+    decode_claims(algorithm, key, token).map(|c| c.identity)
 }
 
 /// Issues and verifies platform credentials with a symmetric HS256 key.
@@ -151,7 +163,7 @@ impl CredentialIssuer {
         subject: Option<&str>,
         ttl: Duration,
     ) -> Result<Issued, Error> {
-        encode(Algorithm::HS256, &self.encoding, ttl, identity, subject)
+        encode(Algorithm::HS256, &self.encoding, ttl, identity, subject, None)
     }
 
     /// Verify a credential and recover the identity it carries.
@@ -199,8 +211,44 @@ impl CredentialSigner {
         identity: &WorkloadIdentity,
         subject: Option<&str>,
     ) -> Result<Issued, Error> {
-        encode(Algorithm::EdDSA, &self.encoding, self.ttl, identity, subject)
+        encode(Algorithm::EdDSA, &self.encoding, self.ttl, identity, subject, None)
     }
+
+    /// Issue a credential scoped to SkiMasque organisation `org_id` -- the
+    /// multi-tenant (platform gateway) mint. A verifier recovers the org with
+    /// [`CredentialVerifier::verify_claims`]. An empty `org_id` is refused so
+    /// a credential can never look org-scoped without naming an org.
+    pub fn issue_for_org(
+        &self,
+        identity: &WorkloadIdentity,
+        subject: Option<&str>,
+        org_id: &str,
+    ) -> Result<Issued, Error> {
+        let org_id = org_id.trim();
+        if org_id.is_empty() {
+            return Err(Error::Verification(
+                "issuing an org-scoped credential needs an org id".to_owned(),
+            ));
+        }
+        encode(
+            Algorithm::EdDSA,
+            &self.encoding,
+            self.ttl,
+            identity,
+            subject,
+            Some(org_id),
+        )
+    }
+}
+
+/// What a verified credential says: the workload identity and, for a
+/// multi-tenant (platform) credential, the organisation it is scoped to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifiedCredential {
+    pub identity: WorkloadIdentity,
+    /// `Some` only for a credential minted by
+    /// [`CredentialSigner::issue_for_org`].
+    pub org_id: Option<String>,
 }
 
 /// Verifies platform credentials against one or more Ed25519 *public* keys,
@@ -251,6 +299,25 @@ impl CredentialVerifier {
         for key in &self.decoding {
             match decode(Algorithm::EdDSA, key, token) {
                 Ok(identity) => return Ok(identity),
+                Err(e) => last = e,
+            }
+        }
+        Err(last)
+    }
+
+    /// As [`verify`](Self::verify), but also returns the organisation the
+    /// credential is scoped to, if any. A platform gateway uses this and
+    /// refuses a credential whose `org_id` is absent or unknown.
+    pub fn verify_claims(&self, token: &str) -> Result<VerifiedCredential, Error> {
+        let mut last = Error::Verification("no signing key configured".to_owned());
+        for key in &self.decoding {
+            match decode_claims(Algorithm::EdDSA, key, token) {
+                Ok(claims) => {
+                    return Ok(VerifiedCredential {
+                        identity: claims.identity,
+                        org_id: claims.org_id,
+                    })
+                }
                 Err(e) => last = e,
             }
         }
@@ -327,6 +394,7 @@ mod tests {
             iat: now - 10_000,
             exp: now - 3_600,
             sub: None,
+            org_id: None,
             identity: identity(),
         };
         let ancient =
@@ -416,10 +484,68 @@ mod tests {
             iat: now - 10_000,
             exp: now - 3_600,
             sub: None,
+            org_id: None,
             identity: identity(),
         };
         let ancient =
             jsonwebtoken::encode(&Header::new(Algorithm::EdDSA), &claims, &signer.encoding).unwrap();
         assert!(verifier.verify(&ancient).is_err());
+    }
+
+    #[test]
+    fn an_org_scoped_credential_carries_its_org_through_verification() {
+        let (pkcs8, public) = ed25519_keypair();
+        let signer = CredentialSigner::from_pkcs8_der(&pkcs8, Duration::from_secs(600));
+        let verifier = CredentialVerifier::from_ed_public_key(&public);
+
+        let issued = signer
+            .issue_for_org(&identity(), Some("repo:acme/widget"), "org_acme")
+            .unwrap();
+        let verified = verifier.verify_claims(&issued.token).unwrap();
+        assert_eq!(verified.identity, identity());
+        assert_eq!(verified.org_id.as_deref(), Some("org_acme"));
+    }
+
+    #[test]
+    fn a_credential_without_an_org_verifies_with_no_org() {
+        let (pkcs8, public) = ed25519_keypair();
+        let signer = CredentialSigner::from_pkcs8_der(&pkcs8, Duration::from_secs(600));
+        let verifier = CredentialVerifier::from_ed_public_key(&public);
+
+        let issued = signer.issue(&identity(), None).unwrap();
+        let verified = verifier.verify_claims(&issued.token).unwrap();
+        assert_eq!(verified.identity, identity());
+        assert_eq!(verified.org_id, None);
+    }
+
+    #[test]
+    fn the_plain_verify_still_accepts_an_org_scoped_credential() {
+        // Backward compatibility: gateways that predate org scoping call
+        // `verify`, which must keep returning the identity.
+        let (pkcs8, public) = ed25519_keypair();
+        let signer = CredentialSigner::from_pkcs8_der(&pkcs8, Duration::from_secs(600));
+        let verifier = CredentialVerifier::from_ed_public_key(&public);
+
+        let issued = signer.issue_for_org(&identity(), None, "org_acme").unwrap();
+        assert_eq!(verifier.verify(&issued.token).unwrap(), identity());
+    }
+
+    #[test]
+    fn an_empty_org_id_is_refused_at_issue() {
+        let (pkcs8, _public) = ed25519_keypair();
+        let signer = CredentialSigner::from_pkcs8_der(&pkcs8, Duration::from_secs(600));
+        assert!(signer.issue_for_org(&identity(), None, "").is_err());
+        assert!(signer.issue_for_org(&identity(), None, "   ").is_err());
+    }
+
+    #[test]
+    fn an_org_credential_from_another_orgs_key_is_rejected_by_verify_claims() {
+        let (pkcs8_a, _public_a) = ed25519_keypair();
+        let (_pkcs8_b, public_b) = ed25519_keypair();
+        let signer_a = CredentialSigner::from_pkcs8_der(&pkcs8_a, Duration::from_secs(600));
+        let verifier_b = CredentialVerifier::from_ed_public_key(&public_b);
+
+        let issued = signer_a.issue_for_org(&identity(), None, "org_b").unwrap();
+        assert!(verifier_b.verify_claims(&issued.token).is_err());
     }
 }
