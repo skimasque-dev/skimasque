@@ -306,8 +306,13 @@ impl CredentialVerifier {
     }
 
     /// As [`verify`](Self::verify), but also returns the organisation the
-    /// credential is scoped to, if any. A platform gateway uses this and
-    /// refuses a credential whose `org_id` is absent or unknown.
+    /// credential is scoped to, if any.
+    ///
+    /// The returned `org_id` is only as trustworthy as the keys this verifier
+    /// holds: a verifier built from several organisations' keys will accept a
+    /// token one org's key signed that *claims* another org. A multi-tenant
+    /// gateway must use [`verify_for_org`](Self::verify_for_org) with a
+    /// verifier holding only the expected org's keys.
     pub fn verify_claims(&self, token: &str) -> Result<VerifiedCredential, Error> {
         let mut last = Error::Verification("no signing key configured".to_owned());
         for key in &self.decoding {
@@ -323,6 +328,39 @@ impl CredentialVerifier {
         }
         Err(last)
     }
+
+    /// Verify a credential scoped to `expected_org`: the signature must check
+    /// against this verifier's keys **and** the credential's `org_id` claim
+    /// must equal `expected_org`. A missing claim is refused. Build this
+    /// verifier from `expected_org`'s signing key(s) alone; pick them with
+    /// [`peek_org_id`].
+    pub fn verify_for_org(&self, token: &str, expected_org: &str) -> Result<WorkloadIdentity, Error> {
+        let verified = self.verify_claims(token)?;
+        match verified.org_id.as_deref() {
+            Some(org) if org == expected_org => Ok(verified.identity),
+            Some(org) => Err(Error::Verification(format!(
+                "credential is scoped to {org:?}, not {expected_org:?}"
+            ))),
+            None => Err(Error::Verification(
+                "credential is not scoped to an organisation".to_owned(),
+            )),
+        }
+    }
+}
+
+/// The `org_id` claim of `token`, read **without verifying anything**. Use it
+/// only to choose which organisation's keys to verify with (then call
+/// [`CredentialVerifier::verify_for_org`] with the same org). `None` for a
+/// malformed token or one with no `org_id`.
+pub fn peek_org_id(token: &str) -> Option<String> {
+    use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+    #[derive(Deserialize)]
+    struct OrgOnly {
+        org_id: Option<String>,
+    }
+    let payload = token.split('.').nth(1)?;
+    let bytes = BASE64_URL_SAFE_NO_PAD.decode(payload).ok()?;
+    serde_json::from_slice::<OrgOnly>(&bytes).ok()?.org_id
 }
 
 fn unix_now() -> i64 {
@@ -539,7 +577,7 @@ mod tests {
     }
 
     #[test]
-    fn an_org_credential_from_another_orgs_key_is_rejected_by_verify_claims() {
+    fn verify_claims_rejects_a_signature_from_an_unknown_key() {
         let (pkcs8_a, _public_a) = ed25519_keypair();
         let (_pkcs8_b, public_b) = ed25519_keypair();
         let signer_a = CredentialSigner::from_pkcs8_der(&pkcs8_a, Duration::from_secs(600));
@@ -547,5 +585,45 @@ mod tests {
 
         let issued = signer_a.issue_for_org(&identity(), None, "org_b").unwrap();
         assert!(verifier_b.verify_claims(&issued.token).is_err());
+    }
+
+    #[test]
+    fn verify_for_org_rejects_a_credential_naming_a_different_org_even_with_a_valid_key() {
+        // Invariant 1: a verifier holding org A's key must not accept a token
+        // that A's key signed but that claims org B.
+        let (pkcs8_a, public_a) = ed25519_keypair();
+        let signer_a = CredentialSigner::from_pkcs8_der(&pkcs8_a, Duration::from_secs(600));
+        let verifier_a = CredentialVerifier::from_ed_public_key(&public_a);
+
+        let claims_b = signer_a.issue_for_org(&identity(), None, "org_b").unwrap();
+        assert!(verifier_a.verify_for_org(&claims_b.token, "org_a").is_err());
+
+        let claims_a = signer_a.issue_for_org(&identity(), None, "org_a").unwrap();
+        assert_eq!(
+            verifier_a.verify_for_org(&claims_a.token, "org_a").unwrap(),
+            identity()
+        );
+    }
+
+    #[test]
+    fn verify_for_org_rejects_a_credential_with_no_org() {
+        let (pkcs8, public) = ed25519_keypair();
+        let signer = CredentialSigner::from_pkcs8_der(&pkcs8, Duration::from_secs(600));
+        let verifier = CredentialVerifier::from_ed_public_key(&public);
+        let issued = signer.issue(&identity(), None).unwrap();
+        assert!(verifier.verify_for_org(&issued.token, "org_a").is_err());
+    }
+
+    #[test]
+    fn peek_org_id_reads_the_claim_without_verifying_and_never_panics() {
+        let (pkcs8, _public) = ed25519_keypair();
+        let signer = CredentialSigner::from_pkcs8_der(&pkcs8, Duration::from_secs(600));
+        let scoped = signer.issue_for_org(&identity(), None, "org_acme").unwrap();
+        assert_eq!(peek_org_id(&scoped.token).as_deref(), Some("org_acme"));
+        let plain = signer.issue(&identity(), None).unwrap();
+        assert_eq!(peek_org_id(&plain.token), None);
+        for junk in ["", "abc", "a.b.c", "a.!!!.c", "a..c"] {
+            assert_eq!(peek_org_id(junk), None, "{junk:?}");
+        }
     }
 }

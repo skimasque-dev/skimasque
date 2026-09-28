@@ -24,6 +24,8 @@ serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 jsonwebtoken.workspace = true
+# Reading a credential's unverified `org_id` for key selection (`peek_org_id`).
+base64.workspace = true
 getrandom = "0.2"
 tokio = { workspace = true, features = ["sync"] }
 
