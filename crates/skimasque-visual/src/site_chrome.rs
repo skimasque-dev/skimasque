@@ -45,7 +45,11 @@ pub const NAV_GROUPS: &[(&str, &[(&str, &str)])] = &[
 /// A directory-style relative link: `link("../", "policies")` -> `../policies/`.
 pub fn link(root: &str, path: &str) -> String {
     if path.is_empty() {
-        root.to_owned()
+        if root.is_empty() {
+            "./".to_owned()
+        } else {
+            root.to_owned()
+        }
     } else {
         format!("{root}{path}/")
     }
@@ -187,6 +191,7 @@ mod tests {
         assert_eq!(link("", "how-it-works"), "how-it-works/");
         assert_eq!(link("../", "technology/masque"), "../technology/masque/");
         assert_eq!(link("../../", ""), "../../");
+        assert_eq!(link("", ""), "./");
     }
 
     #[test]

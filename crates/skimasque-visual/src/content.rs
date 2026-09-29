@@ -115,12 +115,25 @@ impl CodeExample {
             })
             .collect()
     }
-    fn copy_text(&self) -> String {
-        self.code
-            .lines()
-            .filter_map(|l| l.strip_prefix("$ "))
-            .collect::<Vec<_>>()
-            .join("\n")
+    /// The commands as typed: each `$ ` line, plus the continuation lines that
+    /// follow one ending in `\`. `None` when there is no command (YAML, TOML).
+    fn copy_text(&self) -> Option<String> {
+        let mut out: Vec<&str> = Vec::new();
+        let mut continued = false;
+        for l in self.code.lines() {
+            if continued {
+                out.push(l);
+                continued = l.trim_end().ends_with('\\');
+            } else if let Some(cmd) = l.strip_prefix("$ ") {
+                out.push(cmd);
+                continued = cmd.trim_end().ends_with('\\');
+            }
+        }
+        if out.is_empty() {
+            None
+        } else {
+            Some(out.join("\n"))
+        }
     }
 }
 impl crate::Component for CodeExample {}
@@ -186,5 +199,23 @@ mod tests {
         let h = CodeExample::new("x", "$ echo \"<script>\"").html();
         assert!(!h.as_str().contains("<script>"));
         assert!(h.as_str().contains("&lt;script&gt;"));
+    }
+
+    #[test]
+    fn code_example_copies_backslash_continued_commands_as_typed() {
+        let c = CodeExample::new(
+            "x",
+            "# run\n$ skimasque exec \\n    --org acme \\n    -- terraform apply\nplanning...\n$ echo done",
+        )
+        .html();
+        assert!(c.as_str().contains(
+            "data-copy=\"skimasque exec \\n    --org acme \\n    -- terraform apply\necho done\""
+        ));
+    }
+
+    #[test]
+    fn code_example_without_commands_has_no_data_copy() {
+        let c = CodeExample::new("policy", "# yaml\nname: x\nmax: 20m").html();
+        assert!(!c.as_str().contains("data-copy"));
     }
 }

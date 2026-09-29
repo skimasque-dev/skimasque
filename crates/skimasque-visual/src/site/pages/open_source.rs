@@ -92,7 +92,7 @@ pub fn page() -> Page {
         contents: SitePage::new(
             "../",
             "open-source",
-            "Open source · SkiMasque",
+            "Open Source · SkiMasque",
             "SkiMasque's gateway, client, CLI, policy engine and control protocol are open source under MIT OR Apache-2.0; SkiMasque Cloud adds hosted operations.",
         )
         .push(&hero)

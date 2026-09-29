@@ -103,7 +103,7 @@ pub fn page() -> Page {
         contents: SitePage::new(
             "../",
             "compare",
-            "How SkiMasque compares · SkiMasque",
+            "Compare · SkiMasque",
             "VPNs, mesh VPNs, ZTNA, bastions and PAM solve different problems. SkiMasque makes the workload and its request the unit of network access.",
         )
         .push(&hero)

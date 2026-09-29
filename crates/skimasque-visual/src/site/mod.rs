@@ -321,15 +321,179 @@ mod tests {
         }
     }
 
+    /// `html` with every planned block removed. Blocks are `<div>`s, so the
+    /// end is found by matching nesting depth; a block inside another block
+    /// panics (planned blocks are siblings, never nested).
+    fn strip_planned_blocks(html: &str) -> String {
+        const START: &str = "<div class=\"v-planned-block\"";
+        let mut s = html.to_owned();
+        while let Some(start) = s.find(START) {
+            let mut depth = 0usize;
+            let mut i = start;
+            let end = loop {
+                let open = s[i..].find("<div").map(|p| i + p);
+                let close = s[i..].find("</div>").map(|p| i + p);
+                match (open, close) {
+                    (Some(o), c) if c.is_none_or(|c| o < c) => {
+                        if o > start {
+                            assert!(!s[o..].starts_with(START), "planned blocks must not nest");
+                        }
+                        depth += 1;
+                        i = o + 4;
+                    }
+                    (_, Some(c)) => {
+                        depth -= 1;
+                        i = c + 6;
+                        if depth == 0 {
+                            break i;
+                        }
+                    }
+                    _ => panic!("unclosed planned block"),
+                }
+            };
+            s.replace_range(start..end, "");
+        }
+        s
+    }
+
+    #[test]
+    fn the_planned_block_stripper_matches_nesting_and_rejects_nested_blocks() {
+        let html = r#"a<div class="v-planned-block" role="note"><div>x</div><p>exec</p></div>b<div class="v-planned-block"><div></div></div>c"#;
+        assert_eq!(strip_planned_blocks(html), "abc");
+    }
+
+    #[test]
+    #[should_panic(expected = "must not nest")]
+    fn a_nested_planned_block_is_rejected() {
+        strip_planned_blocks(
+            r#"<div class="v-planned-block"><div class="v-planned-block"></div></div>"#,
+        );
+    }
+
     #[test]
     fn no_page_has_an_email_link_a_form_or_an_input() {
         for p in html_pages() {
-            for banned in ["mailto:", "<form", "<input"] {
+            for banned in [
+                "mailto:",
+                "<form",
+                "<input",
+                "<textarea",
+                "<select",
+                "type=\"submit\"",
+            ] {
                 assert!(!p.contents.contains(banned), "{}: {banned}", p.path);
             }
         }
     }
 
+    #[test]
+    fn a_root_absolute_href_is_never_used() {
+        for p in html_pages() {
+            for url in relative_urls(&p.contents) {
+                assert!(!url.starts_with('/'), "{}: root-absolute {url:?}", p.path);
+            }
+        }
+    }
+
+    /// Every absolute link (and any `//` host-relative one) targets one of
+    /// the hosts the site is allowed to link to.
+    fn disallowed_absolute_links(html: &str) -> Vec<String> {
+        const ALLOWED: [&str; 4] = [
+            "https://github.com/skimasque-dev/skimasque",
+            "https://control.skimasque.com",
+            "https://gateway.skimasque.com",
+            "https://crates.io/crates/",
+        ];
+        let mut bad = Vec::new();
+        for attr in ["href=\"", "src=\""] {
+            for chunk in html.split(attr).skip(1) {
+                let url = chunk.split('"').next().unwrap_or("");
+                let absolute = url.contains("://") || url.starts_with("//");
+                if absolute && !ALLOWED.iter().any(|a| url.starts_with(a)) {
+                    bad.push(url.to_owned());
+                }
+            }
+        }
+        bad
+    }
+
+    #[test]
+    fn absolute_links_only_go_to_allowed_hosts() {
+        for p in html_pages() {
+            // The head loads the web font; only the body links are checked.
+            let body = p.contents.split("<body").nth(1).unwrap_or("");
+            let bad = disallowed_absolute_links(body);
+            assert!(bad.is_empty(), "{}: {bad:?}", p.path);
+        }
+        assert_eq!(
+            disallowed_absolute_links(
+                r#"<a href="https://evil.example/">x</a><a href="//evil.example/">y</a><a href="https://control.skimasque.com">z</a>"#
+            ),
+            vec!["https://evil.example/", "//evil.example/"]
+        );
+    }
+
+    fn page_at<'a>(all: &'a [Page], path: &str) -> &'a str {
+        &all.iter().find(|p| p.path == path).expect(path).contents
+    }
+
+    #[test]
+    fn final_review_content_and_chrome_fixes_hold() {
+        let all = html_pages();
+        let arch = page_at(&all, "architecture/index.html");
+        assert!(arch.contains("keeps enforcing its cached policy"));
+        assert!(!arch.contains("while the control plane is unreachable"));
+        assert_eq!(
+            arch.matches("SkiMasque operates the control plane").count(),
+            1
+        );
+        for path in ["policies/index.html", "how-it-works/index.html"] {
+            assert!(
+                !page_at(&all, path).contains("100 Mbps · us-west")
+                    && !page_at(&all, path).contains("100Mbps · us-west"),
+                "{path}: a region is not a policy limit"
+            );
+        }
+        assert!(!page_at(&all, "policies/index.html").contains("Egress region"));
+        let pricing = page_at(&all, "pricing/index.html");
+        assert!(pricing.contains("Try SkiMasque") && pricing.contains(r#"href="../contact/""#));
+        assert!(pricing.contains("Talk to Us") && pricing.contains("v-btn v-btn-quiet"));
+        assert!(page_at(&all, "index.html").contains("would request access for one command"));
+        // titles use the nav labels' capitalisation
+        for (path, title) in [
+            (
+                "how-it-works/index.html",
+                "<title>How It Works · SkiMasque</title>",
+            ),
+            ("compare/index.html", "<title>Compare · SkiMasque</title>"),
+            (
+                "open-source/index.html",
+                "<title>Open Source · SkiMasque</title>",
+            ),
+        ] {
+            assert!(page_at(&all, path).contains(title), "{path}");
+        }
+        // one dropdown open at a time; the phone menu is a labelled landmark
+        let home = page_at(&all, "index.html");
+        assert_eq!(
+            home.matches(r#"<details class="v-nav-group" name="site-nav">"#)
+                .count(),
+            4
+        );
+        assert!(home
+            .contains(r#"<nav class="v-menu-nav" aria-label="Primary"><details class="v-menu">"#));
+        assert!(
+            home.contains(r#"class="v-brand" href="./""#)
+                || home.contains(r#"href="./">SkiMasque"#)
+        );
+        assert!(
+            !home.contains("<aside"),
+            "no unlabelled complementary landmarks"
+        );
+        let dev = page_at(&all, "developers/index.html");
+        assert!(dev.contains(r#"<div class="v-planned-block" role="note" aria-label="Planned: "#));
+        assert!(crate::CSS.contains("scroll-padding-top"));
+    }
     #[test]
     fn a_broken_link_is_detected() {
         let all = ["index.html", "assets/visual.css", "a/index.html"];
@@ -344,22 +508,24 @@ mod tests {
     #[test]
     fn honesty_and_voice_rules_hold_on_every_page() {
         for p in html_pages() {
-            let mut s = p.contents.clone();
             // Planned blocks may describe what is not built yet, including `skimasque exec`.
-            while let Some(start) = s.find("<aside class=\"v-planned-block\"") {
-                let end = s[start..]
-                    .find("</aside>")
-                    .map(|e| start + e + 8)
-                    .expect("closed planned block");
-                s.replace_range(start..end, "");
-            }
+            let s = strip_planned_blocks(&p.contents);
             let lower = s.to_lowercase();
             assert!(
                 !lower.contains("skimasque exec"),
                 "{}: `skimasque exec` outside a planned block",
                 p.path
             );
-            for banned in ["zero trust", "zero-trust", "buy now"] {
+            for banned in [
+                "zero trust",
+                "zero-trust",
+                "buy now",
+                "guarantee",
+                "temporary vpn",
+                "vpn endpoint",
+                "next-generation",
+                "military-grade",
+            ] {
                 assert!(!lower.contains(banned), "{}: {banned}", p.path);
             }
         }

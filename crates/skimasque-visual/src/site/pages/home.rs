@@ -114,7 +114,7 @@ pub fn page() -> Page {
             )
             .planned(
                 "Command wrapper",
-                "Wrap any command with the access it needs.",
+                "A wrapper that would request access for one command and let it expire.",
                 "a command wrapper is planned",
             ),
     );

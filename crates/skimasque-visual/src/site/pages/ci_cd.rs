@@ -87,7 +87,7 @@ pub fn page() -> Page {
     let action = Section::new("The GitHub Action")
         .alt()
         .push(&Prose::new().p(
-            "The action exchanges the runner's OIDC token for a short-lived credential and sets ALL_PROXY to a local SOCKS5 relay. Tools that honour ALL_PROXY can then reach only what your policy allows.",
+            "The action exchanges the runner's OIDC token for a short-lived credential and sets ALL_PROXY to a local SOCKS5 relay. Tools that honour ALL_PROXY can then reach, through the gateway, only what your policy allows.",
         ))
         .push(&CodeExample::new(".github/workflows/deploy.yml", WORKFLOW));
 

@@ -83,7 +83,7 @@ pub fn page() -> Page {
                     .kv("WHO", "acme/widget · main · deploy-production")
                     .kv("WHAT", "terraform")
                     .kv("WHERE", "db.prod:5432")
-                    .kv("LIMITS", "20m · 100Mbps · us-west"),
+                    .kv("LIMITS", "20m · 100 Mbps"),
             );
 
     let decision = Section::new("Policy decision")
@@ -118,7 +118,6 @@ pub fn page() -> Page {
         .kv("Where do they need to go?", "db.prod:5432")
         .kv("How long?", "20 minutes")
         .kv("Bandwidth limit?", "100 Mbps")
-        .kv("Egress region?", "us-west")
         .p("Then show the generated policy.");
     let ux = Section::new("Policy UX")
         .push(&PlannedBlock::new(

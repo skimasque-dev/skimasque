@@ -61,7 +61,7 @@ pub(super) fn doc(file: &str) -> String {
 /// A row of documentation buttons: `(label, href)`.
 #[derive(Template)]
 #[template(
-    source = r#"<p class="v-cta-row">{% for (label, href) in links %}<a class="v-btn" href="{{ href }}">{{ label }}</a>{% endfor %}</p>"#,
+    source = r#"<p class="v-cta-row">{% for (label, href) in links %}<a class="v-btn v-btn-quiet" href="{{ href }}">{{ label }}</a>{% endfor %}</p>"#,
     ext = "html"
 )]
 pub(super) struct DocLinks {

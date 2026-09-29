@@ -513,7 +513,7 @@ mod tests {
         );
         let p = PlannedBlock::new("command wrapper", &Prose::new().p("skimasque exec")).html();
         assert!(
-            p.as_str().starts_with("<aside class=\"v-planned-block\"")
+            p.as_str().starts_with("<div class=\"v-planned-block\" role=\"note\"")
                 && p.as_str().contains("PLANNED")
                 && p.as_str().contains("skimasque exec")
         );

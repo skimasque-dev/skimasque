@@ -96,7 +96,7 @@ pub fn page() -> Page {
         contents: SitePage::new(
             "../",
             "how-it-works",
-            "How it works · SkiMasque",
+            "How It Works · SkiMasque",
             "SkiMasque turns an authenticated identity into a short-lived, policy-controlled network session.",
         )
         .push(&hero)

@@ -68,7 +68,7 @@ pub fn page() -> Page {
         .push(&Prose::new().list(&[
             "The control plane is not on the traffic path and cannot open or redirect a tunnel.",
             "The gateway trusts the issuer's signing keys and the organization's public key. It does not trust the client's claimed application, the destination, or a credential it cannot verify.",
-            "In the fully managed deployment, organizations share the SkiMasque endpoint but never see each other's traffic or policy.",
+            "In the fully managed deployment, organizations share the SkiMasque endpoint but are isolated from each other's traffic and policy.",
             "Your firewall remains the outer boundary: it decides what a gateway can reach at all.",
         ]))
         .push(&DocLinks::new(&[("Threat model", doc("threat-model.md"))]));

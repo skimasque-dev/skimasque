@@ -90,7 +90,7 @@ pub fn page() -> Page {
         contents: SitePage::new(
             "../",
             "use-cases",
-            "Use cases · SkiMasque",
+            "Use Cases · SkiMasque",
             "Terraform, private APIs, Kubernetes, database migrations, developer debugging and infrastructure automation: temporary access to private infrastructure.",
         )
         .push(&hero)

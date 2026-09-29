@@ -2,7 +2,8 @@
 //! paid tiers and their prices are planned, not final (billing is not in place).
 
 use crate::site::Page;
-use crate::{Component, Hero, Prose, Section, SitePage, TierCard, TierGrid};
+use crate::site_chrome::{link, SIGN_IN_URL};
+use crate::{Component, Cta, CtaBand, Hero, Prose, Section, SitePage, TierCard, TierGrid};
 
 const PAID_NOTE: &str = "paid plans — billing is not available yet";
 
@@ -68,6 +69,11 @@ pub fn page() -> Page {
             .p("The product value is primarily the managed access-control platform."),
     );
 
+    let cta = CtaBand::new("Start with the Free tier.")
+        .line("The Free tier is available now. Paid plans are planned.")
+        .cta(Cta::primary("Try SkiMasque", SIGN_IN_URL))
+        .cta(Cta::secondary("Talk to Us", link("../", "contact")));
+
     Page {
         path: "pricing/index.html",
         contents: SitePage::new(
@@ -79,6 +85,7 @@ pub fn page() -> Page {
         .push(&hero)
         .push(&tiers)
         .push(&philosophy)
+        .push(&cta)
         .html()
         .as_str()
         .to_owned(),

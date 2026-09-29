@@ -1,2 +1,2 @@
-<figure class="v-code" data-copy="{{ self.copy_text() }}"><figcaption class="v-code-label">{{ label }}</figcaption><pre class="v-code-body">{% for r in self.rows() %}<span class="{{ r.class }}">{% if r.prompt %}<span class="v-code-prompt" aria-hidden="true">$ </span>{% endif %}{{ r.text }}</span>
+<figure class="v-code"{% if let Some(c) = self.copy_text() %} data-copy="{{ c }}"{% endif %}><figcaption class="v-code-label">{{ label }}</figcaption><pre class="v-code-body">{% for r in self.rows() %}<span class="{{ r.class }}">{% if r.prompt %}<span class="v-code-prompt" aria-hidden="true">$ </span>{% endif %}{{ r.text }}</span>
 {% endfor %}</pre></figure>

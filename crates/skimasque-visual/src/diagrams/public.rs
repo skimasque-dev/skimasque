@@ -50,7 +50,7 @@ pub fn policy_model() -> Flow {
     .then(
         &Node::new(NodeKind::Policy)
             .label("LIMITS")
-            .sub("20m · 100 Mbps · us-west"),
+            .sub("20m · 100 Mbps"),
     )
     .via(
         active(),

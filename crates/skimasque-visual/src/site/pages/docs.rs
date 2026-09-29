@@ -68,7 +68,7 @@ pub fn page() -> Page {
     let mut page = SitePage::new(
         "../",
         "docs",
-        "Docs · SkiMasque",
+        "Documentation · SkiMasque",
         "Documentation index for SkiMasque: getting started, concepts, CI/CD, deployment, security, reference and architecture.",
     )
     .push(&hero);

@@ -163,7 +163,7 @@ mod tests {
         }
         assert!(s.contains("v-planned-block") && s.contains("skimasque exec"));
         assert_eq!(
-            s.matches("<aside class=\"v-planned-block\"").count(),
+            s.matches("<div class=\"v-planned-block\"").count(),
             2,
             "planned blocks are siblings, never nested"
         );
