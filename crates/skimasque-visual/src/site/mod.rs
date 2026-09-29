@@ -198,8 +198,9 @@ mod tests {
     }
 
     /// Routes the navigation already links to that later page tasks still
-    /// owe. Each page task removes its routes from this list; the list must
-    /// be empty when the last public page lands.
+    /// owe. Each page task removes its routes from this list. Task 9 (the
+    /// last page task) deletes this constant, the two tests below that use
+    /// it, and its use in `every_relative_link_resolves`.
     const PENDING_ROUTES: &[&str] = &[
         "policies/index.html",
         "ci-cd/index.html",
@@ -217,9 +218,6 @@ mod tests {
         "about/index.html",
         "contact/index.html",
         "status/index.html",
-        "trust/index.html",
-        "gateways/index.html",
-        "technology/index.html",
     ];
 
     #[test]
@@ -230,6 +228,47 @@ mod tests {
                 !owned.iter().any(|p| p.path == *r),
                 "{r} exists now: remove it from PENDING_ROUTES"
             );
+        }
+    }
+
+    #[test]
+    fn pending_routes_are_all_linked_from_the_chrome() {
+        let home = pages()
+            .into_iter()
+            .find(|p| p.path == "index.html")
+            .expect("homepage")
+            .contents;
+        for r in PENDING_ROUTES {
+            let dir = r.trim_end_matches("index.html");
+            assert!(
+                home.contains(&format!("href=\"{dir}\"")),
+                "{r} is not linked from the nav/footer: drop it from PENDING_ROUTES"
+            );
+        }
+    }
+
+    /// A heading is at most one level deeper than the one before it.
+    #[test]
+    fn heading_levels_never_skip_downward() {
+        for p in html_pages() {
+            let mut prev = 0usize;
+            for chunk in p.contents.split("<h").skip(1) {
+                let mut cs = chunk.chars();
+                let (Some(d), Some(next)) = (cs.next(), cs.next()) else {
+                    continue;
+                };
+                if !('1'..='6').contains(&d) || !(next == ' ' || next == '>') {
+                    continue;
+                }
+                let level = d.to_digit(10).unwrap() as usize;
+                assert!(
+                    level <= prev + 1,
+                    "{}: h{level} follows h{prev} ({})",
+                    p.path,
+                    chunk.chars().take(60).collect::<String>()
+                );
+                prev = level;
+            }
         }
     }
 

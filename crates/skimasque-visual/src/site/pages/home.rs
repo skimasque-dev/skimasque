@@ -106,7 +106,7 @@ pub fn page() -> Page {
             .feature("Policy-driven", "Define access declaratively.")
             .feature(
                 "Developer-friendly",
-                "Use normal commands with `skimasque connect`, or the GitHub Action in CI.",
+                "Use normal commands with skimasque connect, or the GitHub Action in CI.",
             )
             .feature(
                 "Real network access",
@@ -186,7 +186,10 @@ mod tests {
             s.contains("PLANNED"),
             "the command-wrapper feature is planned"
         );
-        assert!(s.contains("skimasque connect") || !s.contains("skimasque exec"));
+        assert!(
+            s.contains("Use normal commands with skimasque connect, or the GitHub Action in CI.")
+        );
+        assert!(!s.contains('`'), "no literal backticks in rendered copy");
         assert!(!s.to_lowercase().contains("skimasque exec"));
     }
 }

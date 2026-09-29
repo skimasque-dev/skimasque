@@ -59,13 +59,12 @@ pub fn page() -> Page {
                     &PolicySummary::new("alice", "curl", "db.prod:5432", "—"),
                 ),
         )
-        .push(&Prose::new().p("Policies can distinguish these contexts."));
-
-    let closing = Section::new("Closing").alt().push(
-        &Prose::new()
-            .p("Identity tells SkiMasque who is asking.")
-            .p("Policy determines what happens next."),
-    );
+        .push(
+            &Prose::new()
+                .p("Policies can distinguish these contexts.")
+                .p("Identity tells SkiMasque who is asking.")
+                .p("Policy determines what happens next."),
+        );
 
     Page {
         path: "identities/index.html",
@@ -81,7 +80,6 @@ pub fn page() -> Page {
         .push(&actions)
         .push(&developers)
         .push(&together)
-        .push(&closing)
         .html()
         .as_str()
         .to_owned(),
