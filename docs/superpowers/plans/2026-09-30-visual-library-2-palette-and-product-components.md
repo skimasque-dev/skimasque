@@ -17,7 +17,7 @@
 - **Hex colours only inside `/* tokens */ … /* end tokens */`** of `static/visual.css`. Templates and component CSS use role tokens only. Use literal glyphs (`✓ × ● + − ~ ↓ ◇`) in templates, never numeric entities (the hex scanner flags `&#x…;`-like text).
 - Canonical colours: Snow `#F4F3ED`, Ice `#E5F2EE`, Mint `#72C7A5`, Pine `#183C35`, Forest `#28584C`, Earth `#795C43`, Slate `#66736F`; deny is a restrained red. Mint and Slate fail 4.5:1 as small text on Snow: they are fills/borders/lines only; text uses the derived `-ink` steps.
 - **≥4.5:1** contrast for every text/background role pair in both themes, enforced by a test.
-- Themes: `:root` (and `[data-theme="light"]`) = light (website default); `[data-theme="dark"]` = dark (control-plane default, set by the app on `<html>`); `[data-theme="auto"]` follows `prefers-color-scheme`.
+- Themes: with no `data-theme` attribute the library **follows the OS** (`prefers-color-scheme`; light when there is no preference). `data-theme="light"` / `"dark"` force a theme (the app sets one from its user setting; the gallery forces both). Product defaults (site light, app dark) are what each page sets on `<html>`; the library itself defaults to the OS.
 - Every status shows its **word** beside the dot/glyph. Customer wording is "Access granted / Access denied"; ALLOW/DENY stay available for policy-editor contexts.
 - Anything the product does not do today is rendered with the `Planned` marker, never in the present tense. The generated gallery must never contain the substring `exec`.
 - Motion is disabled under `prefers-reduced-motion`.
@@ -131,7 +131,7 @@ fn rule<'a>(rules: &'a [Rule], selector: &str) -> &'a Rule {
 
 const LIGHT: &str = r#":root, [data-theme="light"]"#;
 const DARK: &str = r#"[data-theme="dark"]"#;
-const AUTO: &str = r#":root[data-theme="auto"]"#;
+const AUTO: &str = r#":root:not([data-theme="light"])"#;
 
 #[test]
 fn the_three_theme_blocks_declare_the_same_roles() {
@@ -142,10 +142,10 @@ fn the_three_theme_blocks_declare_the_same_roles() {
         v
     };
     assert_eq!(names(LIGHT), names(DARK), "light vs dark");
-    assert_eq!(names(DARK), names(AUTO), "dark vs auto");
+    assert_eq!(names(DARK), names(AUTO), "dark vs OS-dark");
     let auto = &rule(&rules, AUTO).decls;
     let dark = &rule(&rules, DARK).decls;
-    assert_eq!(auto, dark, "auto must repeat the dark values exactly");
+    assert_eq!(auto, dark, "the OS-dark block must repeat the dark values exactly");
 }
 
 fn resolve(name: &str, theme: &Rule, tokens: &Rule) -> Option<String> {
@@ -231,8 +231,8 @@ fn every_text_role_meets_4_5_to_1_on_every_surface_in_both_themes() {
 }
 /* end tokens */
 
-/* roles. Light is the default (the website). The control plane sets data-theme="dark" on <html>;
-   data-theme="auto" follows the OS. The same role set is declared three times (light, dark, auto):
+/* roles. With no data-theme the OS decides (light when there is no preference); data-theme="light" or
+   "dark" on any element forces a theme. The same role set is declared three times (light, dark, OS-dark):
    tests/css.rs fails if the sets drift apart or a text role drops under 4.5:1. */
 :root, [data-theme="light"] {
   color-scheme: light;
@@ -265,7 +265,7 @@ fn every_text_role_meets_4_5_to_1_on_every_surface_in_both_themes() {
   --v-structure-text: var(--forest-300); --v-edge-text: var(--earth-300); --v-neutral-text: var(--slate-300);
 }
 @media (prefers-color-scheme: dark) {
-  :root[data-theme="auto"] {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --bg: var(--pine-950); --surface: var(--pine-900); --surface-raised: var(--pine); --input: var(--forest-fill);
     --text: var(--snow); --text-soft: var(--ice); --text-muted: var(--slate-300);
@@ -312,7 +312,7 @@ fn every_text_role_meets_4_5_to_1_on_every_surface_in_both_themes() {
 cargo clippy -p skimasque-visual --all-targets --features site -- -D warnings
 cargo run -q -p skimasque-visual --features site --bin sitegen
 git add crates/skimasque-visual site/components
-git commit -m "feat(visual): canonical palette, light/dark/auto roles, contrast test"
+git commit -m "feat(visual): canonical palette, light/dark/OS roles, contrast test"
 ```
 
 ---
@@ -1417,4 +1417,4 @@ impl Component for IdentityCard {}
 - **Spec coverage:** palette + derived tokens + contrast test + light/dark/auto → Task 1; `Status::Granted/Denied`, technical wording → Task 2; parked `.v-flow-wrap` fix (Task 1) and 980px review (Task 3); `Planned`, `EmptyState` (§51 copy), `CodeExample` (Pine, mint, `data-copy`) → Task 4; `PolicyCard`, `PolicySummary`, `PolicyExplorer`, `PolicyDiff` → Task 5; `DecisionExplainer`, `DecisionCard`, `AuditEventCard` → Task 6; `SessionCard` (+bar), `SessionTimeline`, `GatewayCard`, `HealthCard`, `IdentityCard` → Task 7; parked minors (icon-id uniqueness, recursive template scan, hostile-caption test via hostile group, `--v-warning`, connection-label comment) → Tasks 1 and 7. Diagrams/motifs (plan 3), site chrome/pages (plan 4) are out of scope by the delivery table.
 - **Placeholders:** none; every step carries code or a command.
 - **Type consistency:** `DecisionBadge::new/technical` (Task 2) used in Tasks 5–6; `Planned::new().note` (Task 4) used in Task 7; `Tone::Warning` (Task 1) used by `Status::Degraded` (Task 2); `Status::Healthy/Degraded/Offline` (Task 2) used in Task 7; `.v-card` classes defined in Task 5 are reused in Tasks 6–7; `rules()/rule()/contrast()` helpers defined in Task 1's test file are reused by Task 4's palette-pair test.
-- **Known judgement calls:** default theme is light without media query (the app must set `data-theme="dark"`; `auto` is opt-in); `--sand` is added as the edge fill for light; the library's only button style is `.v-btn` (Mint fill, Pine text, 6.0:1).
+- **Known judgement calls:** the library follows the OS by default (owner decision); site and app may still pin a theme via `data-theme`; `--sand` is added as the edge fill for light; the library's only button style is `.v-btn` (Mint fill, Pine text, 6.0:1).
