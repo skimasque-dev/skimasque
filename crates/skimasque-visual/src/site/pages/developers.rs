@@ -22,11 +22,12 @@ struct Stack {
 }
 impl Component for Stack {}
 
-const CONNECT: &str = "# Bridge one TCP tunnel to stdin/stdout, through a gateway you name\n$ skimasque connect db.internal:5432 --proxy gateway.example.com\n\n# Or run a local SOCKS5 relay and point ALL_PROXY at it\n$ skimasque-client --proxy gateway.example.com --github-oidc --oidc-audience https://gateway.example.com --app psql socks5 --listen 127.0.0.1:1080\n$ ALL_PROXY=socks5h://127.0.0.1:1080 psql -h db.internal -p 5432";
+const CONNECT: &str = "# Bridge one TCP tunnel to stdin/stdout, signed in with skimasque login\n$ skimasque connect db.internal:5432 --proxy gateway.example.com --org acme\n\n# Or run a local SOCKS5 relay and point ALL_PROXY at it\n$ skimasque-client --proxy gateway.example.com --org acme --app psql socks5 --listen 127.0.0.1:1080\n$ ALL_PROXY=socks5h://127.0.0.1:1080 psql -h db.internal -p 5432";
 
-const QUICK_START: &str = "$ skimasque login\n$ skimasque org create \"Acme\"\n$ skimasque init\n$ skimasque policy test production";
+const QUICK_START: &str =
+    "$ skimasque login\n$ skimasque org create \"Acme\"\n$ skimasque init\n$ skimasque policy test";
 
-const LOCAL_POLICY: &str = "$ skimasque policy check production db.internal:5432 --app psql\n$ skimasque policy explain production db.internal:5432\n$ skimasque why db.internal:5432 --app psql --repository acme/web --branch main";
+const LOCAL_POLICY: &str = "$ skimasque policy check developer-db dev-db.internal:5432 --app psql\n$ skimasque policy explain developer-db dev-db.internal:5432 --app psql\n$ skimasque why dev-db.internal:5432 --app psql --repository acme/platform --branch main";
 
 const EXEC_FLOW: &str =
     "$ skimasque exec \\\n    --policy production \\\n    --app terraform \\\n    -- terraform apply";
@@ -152,7 +153,7 @@ mod tests {
             "SkiMasque should feel like a developer tool, not a VPN client.",
             "skimasque connect",
             "skimasque login",
-            "skimasque policy test production",
+            "skimasque policy test",
             "Local development",
             "No network ceremony",
             "Developer flow",

@@ -40,7 +40,8 @@ expect = "allow""#;
 const DEVELOPER_DB_TOML: &str = r#"name = "developer-db"
 
 [match]                       # WHO
-organization = "acme"
+repository = "acme/platform"
+branch = "main"
 
 [[rules]]
 application = "psql"          # WHAT
@@ -50,7 +51,7 @@ destinations = ["dev-db.internal:5432"]   # WHERE
 [session]                     # LIMITS
 max_duration = "60m""#;
 
-const DENIAL: &str = "$ skimasque policy check production google.com:443 --app terraform\nDENY\n\nReason:\nNo matching allow rule.\n\nSuggested rule:\n  allow terraform google.com:443";
+const DENIAL: &str = "$ skimasque policy check production google.com:443 --app terraform\nDENY\n\nPolicy: production\n\nReason:\nNo matching allow rule.\n\nClosest rules:\n  api.production.example.com:443\n  *.terraform.io:443\n\nSuggested rule:\n\n  allow terraform google.com:443";
 
 fn default_deny_flow() -> Flow {
     Flow::new("A request that matches no allow rule is denied.")
