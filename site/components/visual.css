@@ -143,7 +143,8 @@
 .v-flow .v-conn-active .v-conn-line { border-left: 3px solid var(--v-active); }
 .v-flow .v-conn-denied .v-conn-line { border-left: 2px dashed var(--v-deny); }
 .v-flow .v-conn-label { padding: 0; margin-left: 14px; align-self: center; }
-@container (min-width: 980px) {
+/* 7-node "access" flow needs ≈987px in row layout; threshold measured in plan 2 */
+@container (min-width: 1040px) {
   .v-flow { flex-direction: row; align-items: center; flex-wrap: nowrap; }
   .v-flow-step { flex-direction: row; align-items: center; }
   .v-flow .v-node { flex-shrink: 1; }
