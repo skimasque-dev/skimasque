@@ -24,6 +24,9 @@ serde_json = "1.0"
 serde_yaml = "0.9.34"
 toml = "0.8"
 thiserror = "2.0"
+# Server-rendered components (crate `skimasque-visual`). 0.12 to match the
+# control plane's dashboard, which renders these components.
+askama = "0.12"
 tracing = "0.1"
 
 # GitHub Actions OIDC verification (crate `skimasque-identity`). `jsonwebtoken`

@@ -1,0 +1,12 @@
+[package]
+name = "skimasque-visual"
+description = "SkiMasque's visual language: nodes, connections, statuses, flows and diagrams, rendered server-side for the dashboard and the website."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+askama.workspace = true

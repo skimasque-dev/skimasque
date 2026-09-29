@@ -1,0 +1,61 @@
+/* SkiMasque visual library. Canonical source of the Alpine tokens: the
+   dashboard (skimasque-dev/control) and the website both load this file.
+   1 tokens · 2 roles · 3 base utilities · 4+ component layers (appended by later tasks). */
+
+/* tokens */
+:root {
+  --alpine-950: #0b1117; --alpine-900: #111a22; --alpine-850: #16212a; --alpine-800: #1d2a34;
+  --alpine-700: #30414d; --alpine-600: #435763; --alpine-500: #61737e; --alpine-400: #81919a;
+  --snow-50: #f7faf9; --snow-100: #edf3f1; --snow-200: #dce7e3; --white: #ffffff;
+  --mint-500: #63d7b1; --mint-400: #7de4c2; --mint-300: #a1efd5; --mint-200: #c9f7e7;
+  --forest-950: #0b1512; --forest-900: #102019; --forest-800: #173026; --forest-700: #234638; --forest-600: #35614d;
+  --earth-950: #17120e; --earth-900: #211914; --earth-800: #30221a; --earth-700: #4a3527; --earth-600: #66503d;
+  --success: #63d7b1; --warning: #e7c66a; --danger: #e87979; --info: #79bde8;
+  --mint-ink: #0b7a5b; --danger-ink: #b93b3b; --warning-ink: #8a6300; --info-ink: #1f6fa8;
+  --font: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px;
+}
+/* end tokens */
+
+/* roles: dark is the default */
+:root, [data-theme="dark"] {
+  color-scheme: dark;
+  --bg: var(--alpine-950); --surface: var(--alpine-900); --surface-raised: var(--alpine-850);
+  --text: var(--snow-50); --text-muted: var(--alpine-400);
+  --line: rgba(255,255,255,.10); --line-strong: rgba(255,255,255,.20);
+  --accent: var(--mint-500); --accent-text: var(--mint-400); --on-accent: var(--alpine-950); --focus: var(--mint-400);
+  --v-active: var(--mint-500); --v-structure: var(--forest-600); --v-structure-fill: var(--forest-900);
+  --v-edge: var(--earth-600); --v-edge-fill: var(--earth-900);
+  --v-neutral: var(--alpine-500); --v-deny: var(--danger); --v-info: var(--info);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: var(--snow-50); --surface: var(--white); --surface-raised: var(--snow-100);
+    --text: var(--alpine-950); --text-muted: var(--alpine-600);
+    --line: rgba(11,17,23,.12); --line-strong: rgba(11,17,23,.24);
+    --accent-text: var(--mint-ink); --focus: var(--mint-ink);
+    --v-active: var(--mint-ink); --v-structure: var(--forest-600); --v-structure-fill: var(--snow-100);
+    --v-edge: var(--earth-600); --v-edge-fill: var(--snow-100);
+    --v-neutral: var(--alpine-500); --v-deny: var(--danger-ink); --v-info: var(--info-ink);
+  }
+}
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: var(--snow-50); --surface: var(--white); --surface-raised: var(--snow-100);
+  --text: var(--alpine-950); --text-muted: var(--alpine-600);
+  --line: rgba(11,17,23,.12); --line-strong: rgba(11,17,23,.24);
+  --accent-text: var(--mint-ink); --focus: var(--mint-ink);
+  --v-active: var(--mint-ink); --v-structure: var(--forest-600); --v-structure-fill: var(--snow-100);
+  --v-edge: var(--earth-600); --v-edge-fill: var(--snow-100);
+  --v-neutral: var(--alpine-500); --v-deny: var(--danger-ink); --v-info: var(--info-ink);
+}
+
+/* base utilities */
+.v-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.v-tone-active    { --v-tone: var(--v-active); }
+.v-tone-structure { --v-tone: var(--v-structure); }
+.v-tone-edge      { --v-tone: var(--v-edge); }
+.v-tone-neutral   { --v-tone: var(--v-neutral); }
+.v-tone-deny      { --v-tone: var(--v-deny); }
+.v-tone-info      { --v-tone: var(--v-info); }
