@@ -52,6 +52,7 @@ pub mod boundary;
 pub mod connection;
 pub mod content;
 pub mod decision;
+pub mod diagrams;
 pub mod flow;
 pub mod icons;
 pub mod layout;

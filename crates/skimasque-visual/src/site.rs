@@ -44,6 +44,15 @@ fn item(caption: impl Into<String>, c: &impl Component) -> Item {
     }
 }
 
+fn entry_items(v: Vec<crate::diagrams::Entry>) -> Vec<Item> {
+    v.into_iter()
+        .map(|e| Item {
+            caption: e.title.to_owned(),
+            html: e.html,
+        })
+        .collect()
+}
+
 fn groups() -> Vec<Group> {
     let nodes = NodeKind::ALL
         .iter()
@@ -504,6 +513,11 @@ listening on 127.0.0.1:5432",
                 ),
             ],
         },
+        Group {
+            title: "Public diagrams",
+            wide: true,
+            items: entry_items(crate::diagrams::public_set()),
+        },
     ]
 }
 
@@ -598,6 +612,10 @@ mod tests {
             "v-branch",
             "v-seq",
             "v-contour",
+            "v-reveal",
+            "v-compare-side",
+            "skimasque connect",
+            "YOUR VPC",
             "v-mountain",
             "v-route",
             "v-trail",
