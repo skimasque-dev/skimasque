@@ -95,6 +95,19 @@ mod tests {
     }
 
     #[test]
+    fn the_last_steps_connection_never_renders() {
+        let h = Flow {
+            steps: vec![Step {
+                node: Node::new(NodeKind::Gateway),
+                next: Some(Connection::new(ConnKind::Active)),
+            }],
+            caption: "x".into(),
+        }
+        .html();
+        assert!(!h.as_str().contains("v-conn"), "{h}");
+    }
+
+    #[test]
     fn then_defaults_the_link_to_a_normal_connection() {
         let h = Flow::new("x")
             .then(Node::new(NodeKind::Workload))

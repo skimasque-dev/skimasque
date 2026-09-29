@@ -184,6 +184,8 @@ mod tests {
             "sprite emitted once"
         );
         assert_eq!(page.matches(r#"<svg class="v-sprite""#).count(), 1);
+        assert_eq!(page.matches("<h1").count(), 1, "one page-level h1");
+        assert_eq!(page.matches("<h2").count(), 2, "one h2 per theme");
         assert!(page.contains(r#"data-theme="dark""#) && page.contains(r#"data-theme="light""#));
         for kind in crate::NodeKind::ALL {
             assert!(
