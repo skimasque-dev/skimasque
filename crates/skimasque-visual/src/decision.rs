@@ -18,6 +18,7 @@ pub struct Check {
     pub label: String,
     pub pass: bool,
     pub detail: Option<String>,
+    pub narrated: bool,
 }
 impl Check {
     pub fn pass(label: impl Into<String>) -> Self {
@@ -25,6 +26,7 @@ impl Check {
             label: label.into(),
             pass: true,
             detail: None,
+            narrated: false,
         }
     }
     pub fn fail(label: impl Into<String>) -> Self {
@@ -32,6 +34,18 @@ impl Check {
             label: label.into(),
             pass: false,
             detail: None,
+            narrated: false,
+        }
+    }
+    /// One narrated step ("Identity is governed by policy X."): the text is the
+    /// whole message, so no "matched" word follows it. A screen reader still hears
+    /// whether it passed.
+    pub fn step(text: impl Into<String>, pass: bool) -> Self {
+        Self {
+            label: text.into(),
+            pass,
+            detail: None,
+            narrated: true,
         }
     }
     pub fn detail(mut self, detail: impl Into<String>) -> Self {
@@ -256,5 +270,40 @@ mod tests {
             .as_str()
             .to_owned();
         assert!(!s.contains("<script>") && !s.contains("<img>"));
+    }
+
+    #[test]
+    fn a_narrated_check_reads_as_a_sentence_with_a_hidden_state_word() {
+        let e = DecisionExplainer::new(
+            vec![
+                Check::step("Identity is governed by policy `production-db`.", true),
+                Check::step("No rule allows curl to db.prod:5432.", false),
+            ],
+            false,
+            "No matching allow rule.",
+        );
+        let h = e.html();
+        let s = h.as_str();
+        assert!(
+            s.contains("Identity is governed by policy `production-db`."),
+            "{s}"
+        );
+        assert!(!s.contains("matched"), "{s}");
+        assert!(!s.contains("did not match"), "{s}");
+        assert!(s.contains("<span class=\"v-sr\">passed</span>"), "{s}");
+        assert!(s.contains("<span class=\"v-sr\">failed</span>"), "{s}");
+        assert_eq!(s.matches("<li class=\"v-check ").count(), 2);
+    }
+
+    #[test]
+    fn a_dimension_check_still_shows_its_word() {
+        let e = DecisionExplainer::new(vec![Check::pass("Identity")], true, "ok");
+        assert!(e.html().as_str().contains("matched"));
+    }
+
+    #[test]
+    fn a_narrated_check_with_an_empty_sentence_still_renders_one_item() {
+        let e = DecisionExplainer::new(vec![Check::step("", true)], true, "ok");
+        assert_eq!(e.html().as_str().matches("<li class=\"v-check ").count(), 1);
     }
 }
