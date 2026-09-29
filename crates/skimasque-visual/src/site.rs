@@ -6,9 +6,9 @@ use askama::Template;
 
 use crate::{
     AuditEventCard, Boundary, Branch, Change, Check, CodeExample, Compare, Component, ConnKind,
-    Connection, Contour, DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Flow,
+    Connection, Contour, DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Expire, Flow,
     GatewayCard, HealthCard, Html, Icons, IdentityCard, Layers, Mountain, Node, NodeKind, Planned,
-    PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary, Route, Run, RunCard, Sequence,
+    PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary, Reveal, Route, Run, RunCard, Sequence,
     SessionCard, SessionTimeline, Shape, Status, StatusBadge, TimelineEvent, Tone, TrailMarker,
     DIMENSIONS,
 };
@@ -481,6 +481,25 @@ listening on 127.0.0.1:5432",
                         Run::Blue,
                         "Your Gateway",
                         &["Cloud control plane", "Gateway in your network"],
+                    ),
+                ),
+            ],
+        },
+        Group {
+            title: "Motion",
+            wide: false,
+            items: vec![
+                item(
+                    "expired session",
+                    &Expire::new(&Node::new(NodeKind::Session).status(Status::Expired)),
+                ),
+                item(
+                    "reveal",
+                    &Reveal::new(
+                        &Flow::new("Request, policy, decision.")
+                            .then(&Node::new(NodeKind::Workload))
+                            .then(&Node::new(NodeKind::Policy))
+                            .then(&Node::new(NodeKind::Allow)),
                     ),
                 ),
             ],

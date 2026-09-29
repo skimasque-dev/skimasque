@@ -334,3 +334,54 @@ fn translucent_tints_keep_their_text_at_4_5_to_1_on_every_ground() {
         assert!(r >= 4.5, "{theme_name}: on-accent on accent-hover = {r:.2}");
     }
 }
+
+#[test]
+fn every_animation_is_switched_off_under_reduced_motion() {
+    let css = skimasque_visual::CSS;
+    let (main, rm): (Vec<&str>, Vec<&str>) = {
+        // split the stylesheet into the reduced-motion blocks and the rest
+        let mut main = Vec::new();
+        let mut rm = Vec::new();
+        let mut depth = 0i32;
+        let mut in_rm = false;
+        for line in css.lines() {
+            if !in_rm && line.contains("prefers-reduced-motion") {
+                in_rm = true;
+                depth = 0;
+            }
+            if in_rm {
+                depth += line.matches('{').count() as i32 - line.matches('}').count() as i32;
+                rm.push(line);
+                if depth <= 0 {
+                    in_rm = false;
+                }
+            } else {
+                main.push(line);
+            }
+        }
+        (main, rm)
+    };
+    let rm_text = rm.join("\n");
+    let mut seen = 0;
+    for line in main {
+        if let Some(open) = line.find('{') {
+            let (sel, body) = line.split_at(open);
+            if body.contains("animation:")
+                && !body.contains("animation: none")
+                && !sel.trim_start().starts_with("@keyframes")
+            {
+                seen += 1;
+                let sel = sel.trim();
+                assert!(
+                    rm_text.contains(sel),
+                    "no reduced-motion override for `{sel}`"
+                );
+            }
+        }
+    }
+    assert!(rm_text.contains("animation: none"));
+    assert!(
+        seen >= 1,
+        "the guard found the existing .v-conn-active animation"
+    );
+}
