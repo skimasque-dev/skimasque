@@ -1,6 +1,6 @@
 # SkiMasque product surface — spec amendment
 
-Status: approved 2026-09-29; plans 2, 3 and 4 (site chrome and public pages) implemented
+Status: approved 2026-09-29; plans 2, 3, 4 (site chrome and public pages) and 5a (control-plane component gaps) implemented
 Amends: `2026-09-29-visual-library-design.md` (visual library) and, in
 `skimasque-dev/control`, `2026-09-28-alpine-dashboard-design.md` (dashboard).
 Source: "SkiMasque — Complete Public Website & Control Plane Specification"

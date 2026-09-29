@@ -88,7 +88,8 @@ struct CodeRow {
 }
 
 /// A code block: `$ ` lines are commands (mint prompt), `# ` lines comments,
-/// everything else output. `data-copy` carries the commands for the host's copy button.
+/// everything else output. `data-copy` carries the commands for the host's copy button:
+/// any script that looks for `[data-copy]` and copies the attribute works.
 #[derive(Template, Debug, Clone)]
 #[template(path = "code_example.html")]
 pub struct CodeExample {
