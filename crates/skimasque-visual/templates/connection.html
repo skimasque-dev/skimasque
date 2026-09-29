@@ -1,0 +1,1 @@
+<span class="v-conn v-conn-{{ kind.slug() }}"><span class="v-conn-line" aria-hidden="true"></span>{% if kind.is_denied() %}<span class="v-conn-x" aria-hidden="true">×</span>{% endif %}{% if let Some(l) = label %}<span class="v-conn-label">{{ l }}</span>{% endif %}{% if !kind.spoken().is_empty() %}<span class="v-sr">{{ kind.spoken() }}</span>{% endif %}</span>
