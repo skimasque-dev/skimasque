@@ -263,3 +263,74 @@ fn code_block_palette_pairs_meet_4_5_to_1() {
         );
     }
 }
+
+fn rgb(hex: &str) -> [f64; 3] {
+    let h = hex.trim_start_matches('#');
+    [0, 2, 4].map(|i| u8::from_str_radix(&h[i..i + 2], 16).unwrap() as f64)
+}
+
+fn to_hex(c: [f64; 3]) -> String {
+    format!(
+        "#{:02x}{:02x}{:02x}",
+        c[0].round() as u8,
+        c[1].round() as u8,
+        c[2].round() as u8
+    )
+}
+
+/// Alpha-blend `top` (r, g, b in 0..=255) at `alpha` over the `ground` hex.
+fn blend(top: [f64; 3], alpha: f64, ground: &str) -> String {
+    let g = rgb(ground);
+    to_hex([0, 1, 2].map(|i| top[i] * alpha + g[i] * (1.0 - alpha)))
+}
+
+fn parse_rgba(v: &str) -> ([f64; 3], f64) {
+    let inner = v
+        .strip_prefix("rgba(")
+        .and_then(|v| v.strip_suffix(')'))
+        .unwrap_or_else(|| panic!("not rgba(): {v}"));
+    let p: Vec<f64> = inner
+        .split(',')
+        .map(|s| s.trim().parse().unwrap())
+        .collect();
+    ([p[0], p[1], p[2]], p[3])
+}
+
+#[test]
+fn translucent_tints_keep_their_text_at_4_5_to_1_on_every_ground() {
+    let rules = rules(skimasque_visual::CSS);
+    let tokens = rule(&rules, ":root");
+    let grounds = ["--bg", "--surface", "--surface-raised"];
+    for (theme_name, sel) in [("light", LIGHT), ("dark", DARK)] {
+        let theme = rule(&rules, sel);
+        let get = |n: &str| resolve(n, theme, tokens).unwrap_or_else(|| panic!("{n} unresolved"));
+        let (soft, soft_a) = parse_rgba(&get("--accent-soft"));
+        let deny = rgb(&get("--v-deny"));
+        for g in grounds {
+            let ground = get(g);
+            // .v-diff-added: --accent-soft tint; field text is --text-soft there.
+            let added = blend(soft, soft_a, &ground);
+            for t in ["--text", "--text-soft", "--v-active"] {
+                let r = contrast(&get(t), &added);
+                println!("{theme_name} added {t} on {g}: {r:.2}");
+                assert!(
+                    r >= 4.5,
+                    "{theme_name}: {t} on added tint over {g} = {r:.2}"
+                );
+            }
+            // .v-check-fail: --v-deny at 8%.
+            let failed = blend(deny, 0.08, &ground);
+            for t in ["--text", "--text-muted", "--v-deny"] {
+                let r = contrast(&get(t), &failed);
+                println!("{theme_name} failed {t} on {g}: {r:.2}");
+                assert!(
+                    r >= 4.5,
+                    "{theme_name}: {t} on failed tint over {g} = {r:.2}"
+                );
+            }
+        }
+        let r = contrast(&get("--on-accent"), &get("--accent-hover"));
+        println!("{theme_name} on-accent on accent-hover: {r:.2}");
+        assert!(r >= 4.5, "{theme_name}: on-accent on accent-hover = {r:.2}");
+    }
+}

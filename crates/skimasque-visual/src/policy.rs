@@ -36,6 +36,8 @@ pub struct PolicyCard {
     pub status: Status,
     pub summary: PolicySummary,
     pub meta: Option<String>,
+    /// Must be an app-built path. It is HTML-escaped but not scheme-checked;
+    /// never pass user input.
     pub href: Option<String>,
 }
 impl PolicyCard {
@@ -83,6 +85,7 @@ pub struct PolicyExplorer {
     pub limits: Vec<String>,
     pub allow: bool,
     pub reason: String,
+    pub technical: bool,
 }
 impl PolicyExplorer {
     pub fn new(
@@ -101,7 +104,13 @@ impl PolicyExplorer {
             limits: own(limits),
             allow,
             reason: reason.into(),
+            technical: false,
         }
+    }
+    /// ALLOW / DENY wording instead of ACCESS GRANTED / DENIED.
+    pub fn technical(mut self) -> Self {
+        self.technical = true;
+        self
     }
     fn layers(&self) -> Vec<Layer> {
         vec![
@@ -128,7 +137,8 @@ impl PolicyExplorer {
         ]
     }
     fn decision_html(&self) -> Html {
-        DecisionBadge::new(self.allow).html()
+        let b = DecisionBadge::new(self.allow);
+        if self.technical { b.technical() } else { b }.html()
     }
 }
 impl Component for PolicyExplorer {}
@@ -270,6 +280,22 @@ mod tests {
             PolicyExplorer::new(&[], &[], &[], &[], false, "no matching allow rule").html();
         assert!(denied.as_str().contains("ACCESS DENIED"));
         assert!(denied.as_str().contains("any"), "an empty layer says so");
+    }
+
+    #[test]
+    fn explorer_technical_uses_allow_deny_wording() {
+        let s = PolicyExplorer::new(&[], &[], &[], &[], true, "r")
+            .technical()
+            .html()
+            .as_str()
+            .to_owned();
+        assert!(s.contains("ALLOW") && !s.contains("ACCESS"), "{s}");
+        let d = PolicyExplorer::new(&[], &[], &[], &[], false, "r")
+            .technical()
+            .html()
+            .as_str()
+            .to_owned();
+        assert!(d.contains("DENY") && !d.contains("ACCESS"));
     }
 
     #[test]

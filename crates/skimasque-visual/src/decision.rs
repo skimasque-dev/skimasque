@@ -1,4 +1,4 @@
-//! Decision components: why access was granted or denied.
+//! Dself.explainer.clone().map(|e| if self.technical { e.technical() } else { e }.html())cision components: why access was granted or denied.
 
 use askama::Template;
 
@@ -115,6 +115,7 @@ pub struct AuditEventCard {
     pub card: DecisionCard,
     pub reason: String,
     pub explainer: Option<DecisionExplainer>,
+    pub technical: bool,
 }
 impl AuditEventCard {
     pub fn new(card: DecisionCard, reason: impl Into<String>) -> Self {
@@ -122,6 +123,7 @@ impl AuditEventCard {
             card,
             reason: reason.into(),
             explainer: None,
+            technical: false,
         }
     }
     pub fn explainer(mut self, e: DecisionExplainer) -> Self {
@@ -130,15 +132,17 @@ impl AuditEventCard {
     }
     /// Audit's technical detail: ALLOW / DENY wording on the card and the explainer.
     pub fn technical(mut self) -> Self {
-        self.card = self.card.technical();
-        self.explainer = self.explainer.map(DecisionExplainer::technical);
+        self.technical = true;
         self
     }
     fn card_html(&self) -> Html {
-        self.card.html()
+        let c = self.card.clone();
+        if self.technical { c.technical() } else { c }.html()
     }
     fn explainer_html(&self) -> Option<Html> {
-        self.explainer.as_ref().map(|e| e.html())
+        self.explainer
+            .clone()
+            .map(|e| if self.technical { e.technical() } else { e }.html())
     }
 }
 impl Component for AuditEventCard {}
@@ -231,6 +235,18 @@ mod tests {
             .to_owned();
         assert!(full.contains("<details") && full.contains("v-check-pass"));
         assert!(full.contains("ALLOW"));
+    }
+
+    #[test]
+    fn audit_technical_wording_does_not_depend_on_call_order() {
+        let card = DecisionCard::new(true, "a", "b", "c");
+        let s = AuditEventCard::new(card, "r")
+            .technical()
+            .explainer(granted())
+            .html()
+            .as_str()
+            .to_owned();
+        assert!(s.contains("ALLOW") && !s.contains("ACCESS"), "{s}");
     }
 
     #[test]

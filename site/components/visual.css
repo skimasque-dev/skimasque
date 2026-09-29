@@ -185,7 +185,7 @@
 .v-empty-body span { display: block; }
 /* code blocks are Pine in both themes, so they use palette tokens, not roles */
 .v-code { margin: 0; border-radius: var(--radius-lg); background: var(--pine-950); color: var(--snow); font: 13px/1.6 var(--font); overflow: hidden; max-width: 100%; }
-.v-code-label { padding: 8px 16px; color: var(--slate-300); font-size: 11px; letter-spacing: .08em; border-bottom: 1px solid var(--line-default); }
+.v-code-label { padding: 8px 16px; color: var(--slate-300); font-size: 11px; letter-spacing: .08em; border-bottom: 1px solid color-mix(in srgb, var(--snow) 12%, transparent); }
 .v-code-body { margin: 0; padding: 12px 16px; overflow-x: auto; white-space: pre; }
 .v-code-prompt { color: var(--mint); }
 .v-code-cmd { color: var(--snow); }
@@ -199,7 +199,7 @@
 .v-card-title { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .v-card-title a { color: var(--text); text-decoration-color: var(--v-active); text-underline-offset: 3px; }
 .v-card-title a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.v-card-meta { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.v-card-meta { margin: 0; color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
 
 /* policy summary */
 .v-summary { margin: 0; display: grid; gap: 6px; }
@@ -227,6 +227,7 @@
 .v-diff-changed { --v-tone: var(--v-warning); }
 .v-diff-glyph { font-weight: 700; color: var(--v-tone); }
 .v-diff-field { color: var(--text-muted); }
+.v-diff-added .v-diff-field { color: var(--text-soft); }
 .v-diff-before { text-decoration: line-through; color: var(--text-muted); }
 .v-diff-empty { margin: 0; color: var(--text-muted); }
 
@@ -244,7 +245,8 @@
 .v-explain-reason { margin: 0; overflow-wrap: anywhere; }
 .v-decision-line { margin: 0; overflow-wrap: anywhere; }
 .v-decision-who { font-weight: 600; }
-.v-audit-event { display: grid; gap: 8px; }
+.v-audit-event { padding: 16px; border: 1px solid var(--line-default); border-radius: var(--radius-lg); background: var(--surface); display: grid; gap: 8px; }
+.v-audit-event > .v-card { border: 0; padding: 0; background: none; }
 .v-audit-reason { margin: 0; color: var(--text-soft); overflow-wrap: anywhere; }
 .v-audit-why summary { cursor: pointer; color: var(--accent-text); }
 .v-audit-why summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -266,7 +268,7 @@
 .v-timeline-event::before { content: ""; position: absolute; left: 5px; top: 14px; bottom: 0; border-left: 2px solid var(--line-strong); }
 .v-timeline-event:last-child::before { display: none; }
 .v-timeline-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--v-tone); align-self: center; box-sizing: border-box; }
-.v-timeline-time { color: var(--text-muted); font-size: 12px; }
+.v-timeline-time { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
 .v-timeline-label { overflow-wrap: anywhere; font-weight: 600; }
 .v-timeline-empty { margin: 0; color: var(--text-muted); font: 13px/1.5 var(--font); }
 @media (max-width: 480px) { .v-facts > div, .v-summary > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }

@@ -24,6 +24,8 @@ impl crate::Component for Planned {}
 pub struct EmptyState {
     pub title: String,
     pub lines: Vec<String>,
+    /// (label, href). The href must be an app-built path: it is HTML-escaped but
+    /// not scheme-checked; never pass user input.
     pub action: Option<(String, String)>,
 }
 impl EmptyState {
