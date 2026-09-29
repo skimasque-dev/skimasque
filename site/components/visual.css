@@ -114,7 +114,7 @@
 @media (min-width: 720px) {
   .v-flow { flex-direction: row; align-items: center; flex-wrap: nowrap; }
   .v-flow-step { flex-direction: row; align-items: center; }
-  .v-flow .v-conn { display: inline-grid; min-height: 28px; min-width: 64px; margin: 0 4px; gap: 0; }
+  .v-flow .v-conn { display: inline-grid; justify-content: normal; min-height: 28px; min-width: 64px; margin: 0 4px; gap: 0; }
   .v-flow .v-conn-line { min-height: 0; min-width: 48px; height: 0; width: auto; border-left: 0; border-top: 2px solid var(--v-neutral); }
   .v-flow .v-conn-line::after { content: "▸"; left: auto; right: -6px; bottom: auto; top: -9px; }
   .v-flow .v-conn-control .v-conn-line { border-top-style: dashed; }
