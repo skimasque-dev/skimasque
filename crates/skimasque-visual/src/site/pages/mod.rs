@@ -5,9 +5,11 @@ use askama::Template;
 use super::{Page, DOCS_BASE};
 use crate::Component;
 
+mod about;
 mod architecture;
 mod ci_cd;
 mod compare;
+mod contact;
 mod deployment;
 mod developers;
 mod docs;
@@ -21,6 +23,7 @@ mod open_source;
 mod policies;
 mod pricing;
 mod security;
+mod status;
 mod trust;
 mod use_cases;
 
@@ -44,6 +47,9 @@ pub fn all() -> Vec<Page> {
         docs::page(),
         faq::page(),
         trust::page(),
+        about::page(),
+        contact::page(),
+        status::page(),
     ]
 }
 

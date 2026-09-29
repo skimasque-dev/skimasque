@@ -197,43 +197,6 @@ mod tests {
         assert!(resolve("index.html", "../x").is_none());
     }
 
-    /// Routes the navigation already links to that later page tasks still
-    /// owe. Each page task removes its routes from this list. Task 9 (the
-    /// last page task) deletes this constant, the two tests below that use
-    /// it, and its use in `every_relative_link_resolves`.
-    const PENDING_ROUTES: &[&str] = &[
-        "about/index.html",
-        "contact/index.html",
-        "status/index.html",
-    ];
-
-    #[test]
-    fn pending_routes_are_not_yet_generated() {
-        let owned = pages();
-        for r in PENDING_ROUTES {
-            assert!(
-                !owned.iter().any(|p| p.path == *r),
-                "{r} exists now: remove it from PENDING_ROUTES"
-            );
-        }
-    }
-
-    #[test]
-    fn pending_routes_are_all_linked_from_the_chrome() {
-        let home = pages()
-            .into_iter()
-            .find(|p| p.path == "index.html")
-            .expect("homepage")
-            .contents;
-        for r in PENDING_ROUTES {
-            let dir = r.trim_end_matches("index.html");
-            assert!(
-                home.contains(&format!("href=\"{dir}\"")),
-                "{r} is not linked from the nav/footer: drop it from PENDING_ROUTES"
-            );
-        }
-    }
-
     /// A heading is at most one level deeper than the one before it.
     #[test]
     fn heading_levels_never_skip_downward() {
@@ -260,8 +223,7 @@ mod tests {
     }
 
     /// Every relative href/src on a generated public page resolves to a
-    /// generated page or asset, or to a hand-written file in KEEP (or is a
-    /// route still pending).
+    /// generated page or asset, or to a hand-written file in KEEP.
     #[test]
     fn every_relative_link_resolves() {
         let owned = pages();
@@ -271,10 +233,55 @@ mod tests {
                 let target = resolve(p.path, &url)
                     .unwrap_or_else(|| panic!("{}: link {url:?} leaves the site", p.path));
                 assert!(
-                    resolves(&all, &target) || PENDING_ROUTES.contains(&target.as_str()),
+                    resolves(&all, &target),
                     "{}: broken link {url:?} -> {target:?}",
                     p.path
                 );
+            }
+        }
+    }
+
+    #[test]
+    fn all_twenty_one_canonical_routes_are_generated() {
+        let owned = pages();
+        let paths: Vec<&str> = owned.iter().map(|p| p.path).collect();
+        for r in [
+            "",
+            "how-it-works",
+            "identities",
+            "policies",
+            "ci-cd",
+            "developers",
+            "compare",
+            "deployment",
+            "gateways",
+            "security",
+            "architecture",
+            "technology/masque",
+            "use-cases",
+            "open-source",
+            "pricing",
+            "docs",
+            "faq",
+            "trust",
+            "about",
+            "contact",
+            "status",
+        ] {
+            let want = if r.is_empty() {
+                "index.html".to_owned()
+            } else {
+                format!("{r}/index.html")
+            };
+            assert!(paths.contains(&want.as_str()), "missing route /{r}");
+        }
+    }
+
+    #[test]
+    fn no_page_has_an_email_link_a_form_or_an_input() {
+        for p in html_pages() {
+            for banned in ["mailto:", "<form", "<input"] {
+                assert!(!p.contents.contains(banned), "{}: {banned}", p.path);
             }
         }
     }
