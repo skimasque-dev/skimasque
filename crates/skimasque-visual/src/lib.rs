@@ -48,6 +48,7 @@ pub mod connection;
 pub mod flow;
 pub mod icons;
 pub mod node;
+pub mod site;
 pub mod status;
 
 pub use boundary::{Boundary, BoundaryKind};

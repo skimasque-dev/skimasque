@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Component gallery · SkiMasque</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="visual.css">
+<style>
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.6 var(--font); }
+  .g-theme { background: var(--bg); color: var(--text); padding: 32px 24px 48px; }
+  .g-theme > h1 { font-size: 20px; margin: 0 0 4px; }
+  .g-theme > p { color: var(--text-muted); margin: 0 0 24px; }
+  .g-group > h2 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted);
+    border-bottom: 1px solid var(--line); padding-bottom: 6px; margin: 32px 0 16px; }
+  .g-items { display: flex; flex-wrap: wrap; gap: 20px 28px; align-items: flex-start; }
+  .g-item { display: grid; gap: 6px; min-width: 0; max-width: 100%; }
+  .g-item > span { font-size: 11px; color: var(--text-muted); }
+  @media (max-width: 719px) { .g-theme { padding: 24px 16px 40px; } }
+</style>
+</head>
+<body>
+{{ sprite|safe }}
+<main>
+{% for theme in themes %}
+<section class="g-theme" data-theme="{{ theme }}" aria-label="{{ theme }} theme">
+  <h1>SkiMasque components</h1>
+  <p>{{ theme }} theme · every primitive in every state</p>
+  {% for g in groups %}
+  <section class="g-group">
+    <h2>{{ g.title }}</h2>
+    <div class="g-items">
+      {% for i in g.items %}<div class="g-item"><span>{{ i.caption }}</span>{{ i.html|safe }}</div>{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</section>
+{% endfor %}
+</main>
+</body>
+</html>

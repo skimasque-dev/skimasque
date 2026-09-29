@@ -27,6 +27,8 @@ jobs:
       - run: rustup component add clippy
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+      - name: Generated site pages are up to date
+        run: cargo run -q -p skimasque-visual --bin sitegen -- --check
       - name: CONNECT-IP feature still builds
         run: cargo build -p skimasque --features connect-ip
 
