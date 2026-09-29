@@ -50,10 +50,14 @@ pub enum NodeKind {
     Internet,
     Allow,
     Deny,
+    ControlPlane,
+    Cli,
+    Credential,
+    Audit,
 }
 
 impl NodeKind {
-    pub const ALL: [NodeKind; 19] = [
+    pub const ALL: [NodeKind; 23] = [
         NodeKind::Workload,
         NodeKind::Developer,
         NodeKind::GitHub,
@@ -73,6 +77,10 @@ impl NodeKind {
         NodeKind::Internet,
         NodeKind::Allow,
         NodeKind::Deny,
+        NodeKind::ControlPlane,
+        NodeKind::Cli,
+        NodeKind::Credential,
+        NodeKind::Audit,
     ];
 
     pub fn slug(self) -> &'static str {
@@ -96,6 +104,10 @@ impl NodeKind {
             NodeKind::Internet => "internet",
             NodeKind::Allow => "allow",
             NodeKind::Deny => "deny",
+            NodeKind::ControlPlane => "control-plane",
+            NodeKind::Cli => "cli",
+            NodeKind::Credential => "credential",
+            NodeKind::Audit => "audit",
         }
     }
 
@@ -120,6 +132,10 @@ impl NodeKind {
             NodeKind::Cloud => "i-cloud",
             NodeKind::Firewall => "i-firewall",
             NodeKind::Internet => "i-internet",
+            NodeKind::ControlPlane => "i-control-plane",
+            NodeKind::Cli => "i-cli",
+            NodeKind::Credential => "i-credential",
+            NodeKind::Audit => "i-audit",
         }
     }
 
@@ -130,7 +146,8 @@ impl NodeKind {
             | NodeKind::Database
             | NodeKind::Api
             | NodeKind::Kubernetes
-            | NodeKind::Cloud => Tone::Structure,
+            | NodeKind::Cloud
+            | NodeKind::ControlPlane => Tone::Structure,
             NodeKind::Gateway | NodeKind::Firewall | NodeKind::Internet => Tone::Edge,
             NodeKind::Session | NodeKind::Allow => Tone::Active,
             NodeKind::Deny => Tone::Deny,
@@ -159,6 +176,10 @@ impl NodeKind {
             NodeKind::Internet => "Internet",
             NodeKind::Allow => "Allow",
             NodeKind::Deny => "Deny",
+            NodeKind::ControlPlane => "Control plane",
+            NodeKind::Cli => "CLI",
+            NodeKind::Credential => "Credential",
+            NodeKind::Audit => "Audit log",
         }
     }
 }
@@ -210,6 +231,32 @@ impl Component for Node {}
 mod tests {
     use super::*;
     use crate::{Component, Status};
+
+    #[test]
+    fn the_diagram_vocabulary_kinds_exist_with_slugs_labels_and_tones() {
+        for (k, slug, label, icon) in [
+            (
+                NodeKind::ControlPlane,
+                "control-plane",
+                "Control plane",
+                "i-control-plane",
+            ),
+            (NodeKind::Cli, "cli", "CLI", "i-cli"),
+            (
+                NodeKind::Credential,
+                "credential",
+                "Credential",
+                "i-credential",
+            ),
+            (NodeKind::Audit, "audit", "Audit log", "i-audit"),
+        ] {
+            assert_eq!((k.slug(), k.default_label(), k.icon()), (slug, label, icon));
+            assert!(NodeKind::ALL.contains(&k), "{slug} is in ALL");
+        }
+        assert_eq!(NodeKind::ControlPlane.tone(), Tone::Structure);
+        assert_eq!(NodeKind::Cli.tone(), Tone::Neutral);
+        assert_eq!(NodeKind::ALL.len(), 23);
+    }
 
     #[test]
     fn a_node_shows_icon_label_sub_and_status_in_its_tone() {
