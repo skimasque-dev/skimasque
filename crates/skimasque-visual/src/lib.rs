@@ -42,3 +42,9 @@ pub trait Component: askama::Template {
         )
     }
 }
+
+pub mod icons;
+pub mod node;
+
+pub use icons::Icons;
+pub use node::{NodeKind, Tone};
