@@ -4,16 +4,15 @@
 
 /* tokens */
 :root {
-  --alpine-950: #0b1117; --alpine-900: #111a22; --alpine-850: #16212a; --alpine-800: #1d2a34;
-  --alpine-700: #30414d; --alpine-600: #435763; --alpine-500: #61737e; --alpine-400: #81919a;
-  --snow-50: #f7faf9; --snow-100: #edf3f1; --snow-200: #dce7e3; --white: #ffffff;
-  --mint-500: #63d7b1; --mint-400: #7de4c2; --mint-300: #a1efd5; --mint-200: #c9f7e7;
-  --forest-950: #0b1512; --forest-900: #102019; --forest-800: #173026; --forest-700: #234638; --forest-600: #35614d;
-  --forest-300: #7fc4a0; --forest-ink: #2a6a4e;
-  --earth-950: #17120e; --earth-900: #211914; --earth-800: #30221a; --earth-700: #4a3527; --earth-600: #66503d;
-  --earth-300: #d1a884; --earth-ink: #7a5432;
-  --success-500: #63d7b1; --warning-500: #e7c66a; --danger-500: #e87979; --info-500: #79bde8;
-  --mint-ink: #0b7a5b; --danger-ink: #b93b3b; --warning-ink: #8a6300; --info-ink: #1f6fa8;
+  --snow: #F4F3ED; --ice: #E5F2EE; --white: #FFFFFF; --sand: #ECE5DA;
+  --mint: #72C7A5; --mint-300: #9FDCC2; --mint-ink: #1D7156;
+  --pine: #183C35; --pine-900: #11241F; --pine-950: #0C1A17;
+  --forest: #28584C; --forest-300: #8CC2AE; --forest-fill: #14302A;
+  --earth: #795C43; --earth-ink: #6D5139; --earth-300: #D2B391; --earth-fill: #2A2118;
+  --slate: #66736F; --slate-ink: #56625E; --slate-300: #A9B5B1;
+  --deny: #B03A2E; --deny-300: #F0958A;
+  --warning-ink: #7D5A00; --warning-300: #E8C874;
+  --info-ink: #1D6394; --info-300: #8CC4EA;
   --font: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px;
   --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px;
@@ -21,57 +20,55 @@
 }
 /* end tokens */
 
-/* roles: dark is the default. The same set is declared three times (dark default,
-   light by media query, light by [data-theme]) so a theme can be forced per subtree. */
-:root, [data-theme="dark"] {
-  color-scheme: dark;
-  --bg: var(--alpine-950); --surface: var(--alpine-900); --surface-raised: var(--alpine-850);
-  --input: var(--alpine-800);
-  --text: var(--snow-50); --text-soft: var(--snow-200); --text-muted: var(--alpine-400);
-  --line: rgba(255,255,255,.08); --line-default: rgba(255,255,255,.12); --line-strong: rgba(255,255,255,.18);
-  --hover: rgba(125,228,194,.06);
-  --accent: var(--mint-500); --accent-hover: var(--mint-400); --accent-text: var(--mint-400);
-  --accent-soft: rgba(99,215,177,.12); --on-accent: var(--alpine-950); --focus: var(--mint-400);
-  --success: var(--success-500); --warning: var(--warning-500); --danger: var(--danger-500); --info: var(--info-500);
-  --shadow: 0 12px 32px rgba(0,0,0,.45);
-  --v-active: var(--mint-500); --v-structure: var(--forest-600); --v-structure-fill: var(--forest-900);
-  --v-edge: var(--earth-600); --v-edge-fill: var(--earth-900);
-  --v-neutral: var(--alpine-500); --v-deny: var(--danger); --v-info: var(--info);
-  --v-structure-text: var(--forest-300); --v-edge-text: var(--earth-300); --v-neutral-text: var(--alpine-400);
-}
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    color-scheme: light;
-    --bg: var(--snow-50); --surface: var(--white); --surface-raised: var(--snow-100);
-    --input: var(--white);
-    --text: var(--alpine-950); --text-soft: var(--alpine-800); --text-muted: var(--alpine-600);
-    --line: rgba(11,17,23,.08); --line-default: rgba(11,17,23,.14); --line-strong: rgba(11,17,23,.22);
-    --hover: rgba(15,138,103,.06);
-    --accent: var(--mint-500); --accent-hover: var(--mint-400); --accent-text: var(--mint-ink);
-    --accent-soft: rgba(99,215,177,.18); --on-accent: var(--alpine-950); --focus: var(--mint-ink);
-    --success: var(--mint-ink); --warning: var(--warning-ink); --danger: var(--danger-ink); --info: var(--info-ink);
-    --shadow: 0 12px 32px rgba(11,17,23,.14);
-    --v-active: var(--mint-ink); --v-structure: var(--forest-600); --v-structure-fill: var(--snow-100);
-    --v-edge: var(--earth-600); --v-edge-fill: var(--snow-100);
-    --v-neutral: var(--alpine-500); --v-deny: var(--danger); --v-info: var(--info);
-    --v-structure-text: var(--forest-ink); --v-edge-text: var(--earth-ink); --v-neutral-text: var(--alpine-600);
-  }
-}
-[data-theme="light"] {
+/* roles. With no data-theme the OS decides (light when there is no preference); data-theme="light" or
+   "dark" on any element forces a theme. The same role set is declared three times (light, dark, OS-dark):
+   tests/css.rs fails if the sets drift apart or a text role drops under 4.5:1. */
+:root, [data-theme="light"] {
   color-scheme: light;
-  --bg: var(--snow-50); --surface: var(--white); --surface-raised: var(--snow-100);
-  --input: var(--white);
-  --text: var(--alpine-950); --text-soft: var(--alpine-800); --text-muted: var(--alpine-600);
-  --line: rgba(11,17,23,.08); --line-default: rgba(11,17,23,.14); --line-strong: rgba(11,17,23,.22);
-  --hover: rgba(15,138,103,.06);
-  --accent: var(--mint-500); --accent-hover: var(--mint-400); --accent-text: var(--mint-ink);
-  --accent-soft: rgba(99,215,177,.18); --on-accent: var(--alpine-950); --focus: var(--mint-ink);
-  --success: var(--mint-ink); --warning: var(--warning-ink); --danger: var(--danger-ink); --info: var(--info-ink);
-  --shadow: 0 12px 32px rgba(11,17,23,.14);
-  --v-active: var(--mint-ink); --v-structure: var(--forest-600); --v-structure-fill: var(--snow-100);
-  --v-edge: var(--earth-600); --v-edge-fill: var(--snow-100);
-  --v-neutral: var(--alpine-500); --v-deny: var(--danger); --v-info: var(--info);
-  --v-structure-text: var(--forest-ink); --v-edge-text: var(--earth-ink); --v-neutral-text: var(--alpine-600);
+  --bg: var(--snow); --surface: var(--white); --surface-raised: var(--ice); --input: var(--white);
+  --text: var(--pine); --text-soft: var(--forest); --text-muted: var(--slate-ink);
+  --line: rgba(24,60,53,.10); --line-default: rgba(24,60,53,.16); --line-strong: rgba(24,60,53,.28);
+  --hover: rgba(114,199,165,.14);
+  --accent: var(--mint); --accent-hover: var(--mint-300); --accent-text: var(--mint-ink);
+  --accent-soft: rgba(114,199,165,.20); --on-accent: var(--pine); --focus: var(--mint-ink);
+  --success: var(--mint-ink); --warning: var(--warning-ink); --danger: var(--deny); --info: var(--info-ink);
+  --shadow: 0 12px 32px rgba(24,60,53,.14);
+  --v-active: var(--mint-ink); --v-structure: var(--forest); --v-structure-fill: var(--ice);
+  --v-edge: var(--earth); --v-edge-fill: var(--sand);
+  --v-neutral: var(--slate); --v-deny: var(--deny); --v-info: var(--info-ink); --v-warning: var(--warning-ink);
+  --v-structure-text: var(--forest); --v-edge-text: var(--earth-ink); --v-neutral-text: var(--slate-ink);
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: var(--pine-950); --surface: var(--pine-900); --surface-raised: var(--pine); --input: var(--forest-fill);
+  --text: var(--snow); --text-soft: var(--ice); --text-muted: var(--slate-300);
+  --line: rgba(244,243,237,.08); --line-default: rgba(244,243,237,.14); --line-strong: rgba(244,243,237,.22);
+  --hover: rgba(114,199,165,.08);
+  --accent: var(--mint); --accent-hover: var(--mint-300); --accent-text: var(--mint);
+  --accent-soft: rgba(114,199,165,.14); --on-accent: var(--pine); --focus: var(--mint);
+  --success: var(--mint); --warning: var(--warning-300); --danger: var(--deny-300); --info: var(--info-300);
+  --shadow: 0 12px 32px rgba(0,0,0,.45);
+  --v-active: var(--mint); --v-structure: var(--forest); --v-structure-fill: var(--forest-fill);
+  --v-edge: var(--earth); --v-edge-fill: var(--earth-fill);
+  --v-neutral: var(--slate); --v-deny: var(--deny-300); --v-info: var(--info-300); --v-warning: var(--warning-300);
+  --v-structure-text: var(--forest-300); --v-edge-text: var(--earth-300); --v-neutral-text: var(--slate-300);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: var(--pine-950); --surface: var(--pine-900); --surface-raised: var(--pine); --input: var(--forest-fill);
+    --text: var(--snow); --text-soft: var(--ice); --text-muted: var(--slate-300);
+    --line: rgba(244,243,237,.08); --line-default: rgba(244,243,237,.14); --line-strong: rgba(244,243,237,.22);
+    --hover: rgba(114,199,165,.08);
+    --accent: var(--mint); --accent-hover: var(--mint-300); --accent-text: var(--mint);
+    --accent-soft: rgba(114,199,165,.14); --on-accent: var(--pine); --focus: var(--mint);
+    --success: var(--mint); --warning: var(--warning-300); --danger: var(--deny-300); --info: var(--info-300);
+    --shadow: 0 12px 32px rgba(0,0,0,.45);
+    --v-active: var(--mint); --v-structure: var(--forest); --v-structure-fill: var(--forest-fill);
+    --v-edge: var(--earth); --v-edge-fill: var(--earth-fill);
+    --v-neutral: var(--slate); --v-deny: var(--deny-300); --v-info: var(--info-300); --v-warning: var(--warning-300);
+    --v-structure-text: var(--forest-300); --v-edge-text: var(--earth-300); --v-neutral-text: var(--slate-300);
+  }
 }
 
 /* base utilities */
@@ -83,8 +80,9 @@
 .v-tone-neutral   { --v-tone: var(--v-neutral); }
 .v-tone-deny      { --v-tone: var(--v-deny); }
 .v-tone-info      { --v-tone: var(--v-info); }
+.v-tone-warning   { --v-tone: var(--v-warning); }
 /* text drawn in a tone uses --v-tone-text (contrast-safe); lines and borders use --v-tone */
-.v-tone-active, .v-tone-deny, .v-tone-info { --v-tone-text: var(--v-tone); }
+.v-tone-active, .v-tone-deny, .v-tone-info, .v-tone-warning { --v-tone-text: var(--v-tone); }
 .v-tone-structure { --v-tone-text: var(--v-structure-text); }
 .v-tone-edge      { --v-tone-text: var(--v-edge-text); }
 .v-tone-neutral   { --v-tone-text: var(--v-neutral-text); }
@@ -117,6 +115,7 @@
 .v-conn-line { grid-row: 2; justify-self: stretch; align-self: center; min-width: 32px; height: 0;
   border-top: 2px solid var(--v-neutral); position: relative; }
 .v-conn-line::after { content: "▸"; position: absolute; right: -6px; top: -9px; font-size: 12px; color: inherit; }
+/* label text takes the connection's colour via currentColor on .v-conn-*; --v-active/--v-deny are text-safe */
 .v-conn-label { grid-row: 1; align-self: end; white-space: nowrap; padding: 0 4px 4px; }
 .v-conn-control .v-conn-line { border-top-style: dashed; }
 .v-conn-potential .v-conn-line { border-top-style: dotted; opacity: .55; }
@@ -132,7 +131,7 @@
 /* flow: vertical by default, horizontal once the flow's own width allows it.
    .v-flow-wrap is the inline-size container, so give it the width to measure
    (a block, or a flex item with flex-basis 100%). */
-.v-flow-wrap { margin: 0; container-type: inline-size; }
+.v-flow-wrap { margin: 0; width: 100%; min-width: 0; container-type: inline-size; }
 .v-flow { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: flex-start; }
 .v-flow-step { display: flex; flex-direction: column; align-items: flex-start; }
 .v-flow .v-node { min-width: 120px; flex-shrink: 0; }
@@ -144,7 +143,8 @@
 .v-flow .v-conn-active .v-conn-line { border-left: 3px solid var(--v-active); }
 .v-flow .v-conn-denied .v-conn-line { border-left: 2px dashed var(--v-deny); }
 .v-flow .v-conn-label { padding: 0; margin-left: 14px; align-self: center; }
-@container (min-width: 980px) {
+/* 7-node "access" flow needs ≈987px in row layout; threshold measured in plan 2 */
+@container (min-width: 1040px) {
   .v-flow { flex-direction: row; align-items: center; flex-wrap: nowrap; }
   .v-flow-step { flex-direction: row; align-items: center; }
   .v-flow .v-node { flex-shrink: 1; }
@@ -170,3 +170,105 @@
   height: 10px; margin: 0 0 14px; position: relative; }
 .v-firewall-rule .v-boundary-label { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   padding: 0 8px; white-space: nowrap; background: var(--bg); color: var(--v-edge-text); }
+
+/* content */
+.v-planned { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border: 1px dashed var(--v-neutral);
+  border-radius: var(--radius-sm); font: 600 10px/1.6 var(--font); letter-spacing: .1em; color: var(--v-neutral-text); white-space: nowrap; }
+.v-btn { display: inline-block; padding: 8px 16px; border-radius: var(--radius-md); background: var(--accent); color: var(--on-accent);
+  font: 600 13px/1.4 var(--font); text-decoration: none; }
+.v-btn:hover { background: var(--accent-hover); }
+.v-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.v-empty { display: grid; justify-items: start; gap: 8px; padding: 24px; border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-lg); background: var(--surface); color: var(--text); font: 13px/1.6 var(--font); max-width: 100%; box-sizing: border-box; }
+.v-empty-title { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.v-empty-body { margin: 0; color: var(--text-muted); overflow-wrap: anywhere; }
+.v-empty-body span { display: block; }
+/* code blocks are Pine in both themes, so they use palette tokens, not roles */
+.v-code { margin: 0; border-radius: var(--radius-lg); background: var(--pine-950); color: var(--snow); font: 13px/1.6 var(--font); overflow: hidden; max-width: 100%; }
+.v-code-label { padding: 8px 16px; color: var(--slate-300); font-size: 11px; letter-spacing: .08em; border-bottom: 1px solid color-mix(in srgb, var(--snow) 12%, transparent); }
+.v-code-body { margin: 0; padding: 12px 16px; overflow-x: auto; white-space: pre; }
+.v-code-prompt { color: var(--mint); }
+.v-code-cmd { color: var(--snow); }
+.v-code-comment { color: var(--slate-300); }
+.v-code-out { color: var(--ice); }
+
+/* cards */
+.v-card, .v-summary, .v-explorer, .v-diff { box-sizing: border-box; max-width: 100%; font: 13px/1.5 var(--font); color: var(--text); }
+.v-card { min-width: 0; padding: 16px; border: 1px solid var(--line-default); border-radius: var(--radius-lg); background: var(--surface); display: grid; gap: 12px; }
+.v-card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.v-card-title { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.v-card-title a { color: var(--text); text-decoration-color: var(--v-active); text-underline-offset: 3px; }
+.v-card-title a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.v-card-meta { margin: 0; color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+
+/* policy summary */
+.v-summary { margin: 0; display: grid; gap: 6px; }
+.v-summary > div { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; }
+.v-summary dt { color: var(--text-muted); font-size: 11px; font-weight: 600; letter-spacing: .1em; padding-top: 2px; }
+.v-summary dd { margin: 0; overflow-wrap: anywhere; }
+
+/* policy explorer */
+.v-explorer { display: grid; justify-items: start; gap: 2px; min-width: 0; }
+.v-layer { width: 100%; box-sizing: border-box; padding: 10px 14px; border: 1px solid var(--line-default); border-left: 3px solid var(--v-structure);
+  border-radius: var(--radius-md); background: var(--surface); }
+.v-layer-title { margin: 0 0 4px; color: var(--v-structure-text); font-size: 11px; font-weight: 600; letter-spacing: .1em; }
+.v-layer-lines { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.v-layer-lines li, .v-layer-line { overflow-wrap: anywhere; }
+.v-layer-line { margin: 4px 0 0; }
+.v-layer-any { color: var(--text-muted); font-style: italic; margin: 0; }
+.v-layer-link { margin-left: 20px; color: var(--v-neutral-text); line-height: 1; }
+.v-explorer-result { border-left-color: var(--accent); background: var(--surface-raised); }
+
+/* policy diff */
+.v-diff { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.v-diff li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 4px 10px; border-left: 3px solid var(--v-tone); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.v-diff-added { --v-tone: var(--v-active); background: var(--accent-soft); }
+.v-diff-removed { --v-tone: var(--v-deny); }
+.v-diff-changed { --v-tone: var(--v-warning); }
+.v-diff-glyph { font-weight: 700; color: var(--v-tone); }
+.v-diff-field { color: var(--text-muted); }
+.v-diff-added .v-diff-field { color: var(--text-soft); }
+.v-diff-before { text-decoration: line-through; color: var(--text-muted); }
+.v-diff-empty { margin: 0; color: var(--text-muted); }
+
+/* decisions */
+.v-explain, .v-audit-event { box-sizing: border-box; max-width: 100%; min-width: 0; font: 13px/1.5 var(--font); color: var(--text); }
+.v-checks { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 4px; }
+.v-check { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 4px 10px; border-left: 3px solid var(--v-tone); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.v-check-pass { --v-tone: var(--v-active); }
+.v-check-fail { --v-tone: var(--v-deny); background: color-mix(in srgb, var(--v-deny) 8%, transparent); }
+.v-check-glyph { font-weight: 700; color: var(--v-tone); }
+.v-check-label { font-weight: 600; }
+.v-check-word { color: var(--text-muted); }
+.v-check-detail { flex: 1 1 100%; color: var(--text-muted); font-size: 12px; }
+.v-explain-result { display: grid; gap: 6px; justify-items: start; }
+.v-explain-reason { margin: 0; overflow-wrap: anywhere; }
+.v-decision-line { margin: 0; overflow-wrap: anywhere; }
+.v-decision-who { font-weight: 600; }
+.v-audit-event { padding: 16px; border: 1px solid var(--line-default); border-radius: var(--radius-lg); background: var(--surface); display: grid; gap: 8px; }
+.v-audit-event > .v-card { border: 0; padding: 0; background: none; }
+.v-audit-reason { margin: 0; color: var(--text-soft); overflow-wrap: anywhere; }
+.v-audit-why summary { cursor: pointer; color: var(--accent-text); }
+.v-audit-why summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.v-audit-why[open] summary { margin-bottom: 8px; }
+
+/* access */
+.v-session-route { margin: 0; overflow-wrap: anywhere; }
+.v-session-time { display: grid; gap: 4px; }
+.v-bar { height: 6px; border-radius: 3px; background: var(--line-default); overflow: hidden; }
+.v-bar-fill { display: block; height: 100%; background: var(--accent); }
+.v-gateway-card { border-color: color-mix(in srgb, var(--v-edge) 55%, transparent); }
+.v-facts { margin: 0; display: grid; gap: 4px; }
+.v-facts > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; }
+.v-facts dt { color: var(--text-muted); font-size: 12px; }
+.v-facts dd { margin: 0; overflow-wrap: anywhere; }
+.v-timeline { margin: 0; padding: 0; list-style: none; display: grid; }
+.v-timeline-event { position: relative; display: grid; grid-template-columns: 16px 88px minmax(0, 1fr); gap: 4px 10px; align-items: baseline;
+  padding: 0 0 14px; font: 13px/1.5 var(--font); color: var(--text); }
+.v-timeline-event::before { content: ""; position: absolute; left: 5px; top: 14px; bottom: 0; border-left: 2px solid var(--line-strong); }
+.v-timeline-event:last-child::before { display: none; }
+.v-timeline-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--v-tone); align-self: center; box-sizing: border-box; }
+.v-timeline-time { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.v-timeline-label { overflow-wrap: anywhere; font-weight: 600; }
+.v-timeline-empty { margin: 0; color: var(--text-muted); font: 13px/1.5 var(--font); }
+@media (max-width: 480px) { .v-facts > div, .v-summary > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }

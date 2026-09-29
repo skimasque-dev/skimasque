@@ -1,0 +1,1 @@
+<article class="v-card v-identity-card"><header class="v-card-head"><h3 class="v-card-title">{{ name }}</h3><span class="v-card-meta">{{ source }}</span></header><p class="v-card-meta">{% if let Some(w) = last_seen %}last seen {{ w }}{% else %}never seen{% endif %} · {{ self.policy_count() }}</p></article>

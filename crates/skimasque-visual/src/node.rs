@@ -12,6 +12,7 @@ pub enum Tone {
     Neutral,
     Deny,
     Info,
+    Warning,
 }
 
 impl Tone {
@@ -23,6 +24,7 @@ impl Tone {
             Tone::Neutral => "neutral",
             Tone::Deny => "deny",
             Tone::Info => "info",
+            Tone::Warning => "warning",
         }
     }
 }
