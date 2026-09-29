@@ -30,7 +30,7 @@
 - Empty inputs: `gateway_topology(&[])`, a `Layers` with no rows, a `Sequence` with no messages, `Compare` with one side: render a sensible result, no broken markup (Tasks 2, 7).
 - Diagrams in a narrow column: vertical, no horizontal scroll, connectors still readable; wide: horizontal without overflow (Tasks 2, 8 browser check).
 - Reduced motion: every animation has a static equivalent that still shows the state (Task 4 test).
-- Owner-review item: the deployment run cards (Task 6) present "SkiMasque Cloud" (Green Run) as Planned because hosted service is not built today; confirm before plan 4 publishes the deployment page.
+- Owner decision (2026-10-01): Green Run (SkiMasque Cloud) is live with a free tier; billing is not in place, so the Green card shows the free tier and marks **paid plans** Planned (Task 6). The Blue/Black run descriptions are still owner-review before plan 4 publishes the deployment page.
 
 ## File Structure
 
@@ -1109,13 +1109,14 @@ mod tests {
     }
 
     #[test]
-    fn deployment_models_always_show_the_technical_name_and_mark_unbuilt_hosting_planned() {
+    fn deployment_models_always_show_the_technical_name_and_mark_unbuilt_paid_plans_planned() {
         let s = html(&deployment_models());
         for (run, tech) in [("Green Run", "SkiMasque Cloud"), ("Blue Run", "Your Gateway"), ("Black Run", "Self-hosted")] {
             assert!(s.contains(run) && s.contains(tech), "{run}/{tech}");
         }
-        assert!(s.contains("PLANNED"), "hosted SkiMasque Cloud is not built today");
-        assert_eq!(s.matches("PLANNED").count(), 1, "only the hosted run is planned");
+        assert!(s.contains("Free tier"), "the hosted run is live with a free tier");
+        assert_eq!(s.matches("PLANNED").count(), 1, "only paid plans are planned (billing is not in place)");
+        assert!(s.contains("paid plans"));
     }
 
     #[test]
@@ -1265,7 +1266,7 @@ pub fn audit_flow() -> Flow {
 }
 
 pub fn deployment_models() -> Compare {
-    let green = RunCard::new(Run::Green, "SkiMasque Cloud", &["Hosted control plane and gateway"]).planned("hosted service");
+    let green = RunCard::new(Run::Green, "SkiMasque Cloud", &["Hosted control plane and gateway", "Free tier"]).planned("paid plans");
     let blue = RunCard::new(Run::Blue, "Your Gateway", &["SkiMasque control plane", "Gateway runs in your network"]);
     let black = RunCard::new(Run::Black, "Self-hosted", &["Control plane and gateway run in your infrastructure"]);
     Compare::new("Three ways to run SkiMasque: hosted, with your own gateway, or fully self-hosted. Each is named by run and by what it is.")
@@ -1450,4 +1451,4 @@ pub fn org_topology(org: &str, identities: u32, policies: u32, gateways: u32) ->
 - **Spec coverage:** public set §61 → identity→policy→access, WHO→LIMITS (`policy_model`), traditional vs SkiMasque, access lifecycle, policy decision, GitHub Actions, developer CLI (+ same command/different policy), gateway, customer VPC (Tasks 5); deployment models (run markers, technical name always shown), security layers, control/data plane, MASQUE stack (+ CONNECT-UDP sequence), multiple gateways, audit flow, plus no-standing-access, compartmentalisation, CI lifecycle, architecture (Task 6). Control-plane set §62: identity flow, session flow, gateway topology, organisation topology, data-driven, interactive inspection Planned (Task 7). Alpine motifs: contour, mountain, route lines, trail/elevation markers (Task 3). Motion: active-session flow, authorization reveal, expiry fade, all reduced-motion guarded (Task 4). Site chrome and the ~20 public pages are plan 4.
 - **Placeholders:** none; the two "if askama rejects…" notes give a concrete fallback rule, not a gap.
 - **Type consistency:** `Layers/Compare/Branch/Sequence` (Task 2) are used verbatim in Tasks 5–7; `Reveal` (Task 4) in `policy_decision` (Task 5); `RunCard/Run` (Task 3) in `deployment_models` (Task 6); `NodeKind::{ControlPlane, Cli, Credential, Audit}` (Task 1) in Tasks 5–7; `Status::{Granted, Denied, Healthy, Offline, Degraded}` come from plan 2; `Planned` from plan 2 in Tasks 3 and 7.
-- **Owner-review items:** Green Run / "SkiMasque Cloud" is marked Planned; confirm the three run descriptions before plan 4 publishes them. `Compare` with an empty side title is used for the run cards.
+- **Owner-review items:** Green Run is live with a free tier, paid plans Planned (owner decision); confirm the Blue and Black run descriptions before plan 4 publishes them. `Compare` with an empty side title is used for the run cards.
