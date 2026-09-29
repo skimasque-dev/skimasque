@@ -202,9 +202,6 @@ mod tests {
     /// last page task) deletes this constant, the two tests below that use
     /// it, and its use in `every_relative_link_resolves`.
     const PENDING_ROUTES: &[&str] = &[
-        "policies/index.html",
-        "ci-cd/index.html",
-        "developers/index.html",
         "security/index.html",
         "deployment/index.html",
         "compare/index.html",
