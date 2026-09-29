@@ -30,8 +30,8 @@ pub fn security_layers() -> Layers {
         .row_sub("IDENTITY", "who is asking")
         .row_sub("POLICY", "what they may reach")
         .row_sub("SESSION", "for how long")
-        .row_sub("GATEWAY", "the only path in")
-        .row_sub("NETWORK", "private, not exposed")
+        .row_sub("GATEWAY", "the path in")
+        .row_sub("NETWORK", "your private network")
 }
 
 pub fn no_standing_access() -> Compare {
@@ -57,7 +57,7 @@ pub fn no_standing_access() -> Compare {
             .label("Session")
             .status(Status::Expired),
     );
-    Compare::new("A stored credential is always able to reach the network; a SkiMasque session exists only while it is needed.")
+    Compare::new("A stored credential can keep working until it is revoked; a SkiMasque session expires.")
         .side("Standing access", Tone::Neutral, &standing)
         .side("No standing access", Tone::Active, &temporary)
 }
@@ -74,7 +74,7 @@ pub fn compartmentalisation() -> Compare {
             &Node::new(NodeKind::Deny).sub("DENY"),
         )
     };
-    Compare::new("Each job is allowed exactly one destination, so a compromised job cannot reach the others.")
+    Compare::new("Each job is allowed exactly one destination; anything else is denied by policy.")
         .side("Job A", Tone::Active, &job("Job A", NodeKind::Database, "db.prod:5432"))
         .side("Job B", Tone::Active, &job("Job B", NodeKind::Api, "api.internal:443"))
 }
@@ -147,7 +147,7 @@ pub fn multiple_gateways() -> Branch {
 
 pub fn audit_flow() -> Flow {
     Flow::new(
-        "Every decision, granted or denied, is written to the audit log, where it can be reviewed.",
+        "Access decisions, granted or denied, are recorded in the audit log, where they can be reviewed.",
     )
     .then(&Node::new(NodeKind::Workload).label("Request"))
     .via(control("evaluated"), &Node::new(NodeKind::Policy))
