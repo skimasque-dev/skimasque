@@ -490,3 +490,18 @@ fn a_branch_has_definite_tracks_so_a_long_flow_root_cannot_starve_its_arms() {
     );
     assert!(norm.contains(".v-branch-arm .v-flow-wrap { width: auto; flex: 1 1 0; min-width: 0; }"));
 }
+
+#[test]
+fn footer_palette_pairs_meet_4_5_to_1() {
+    // The footer is Pine in both themes, so it uses palette tokens. The
+    // mountain silhouette (--pine-950) is decorative and not a text pair.
+    let rules = rules(skimasque_visual::CSS);
+    let t = rule(&rules, ":root");
+    let get = |n: &str| t.decls.iter().find(|(k, _)| k == n).unwrap().1.clone();
+    for fg in ["--snow", "--ice", "--slate-300", "--mint"] {
+        assert!(
+            contrast(&get(fg), &get("--pine")) >= 4.5,
+            "{fg} on the footer ground"
+        );
+    }
+}

@@ -63,6 +63,7 @@ pub mod node;
 pub mod policy;
 #[cfg(feature = "site")]
 pub mod site;
+pub mod site_chrome;
 pub mod status;
 
 pub use access::{
@@ -83,4 +84,5 @@ pub use motif::{Contour, Mountain, Route, Run, RunCard, Shape, TrailMarker};
 pub use motion::{Expire, Reveal};
 pub use node::{Node, NodeKind, Tone};
 pub use policy::{Change, ChangeKind, PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary};
+pub use site_chrome::{SiteFooter, SiteNav, SitePage, NAV_GROUPS};
 pub use status::{DecisionBadge, Status, StatusBadge};

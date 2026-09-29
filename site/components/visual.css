@@ -390,3 +390,46 @@
 .v-tier-includes { margin: 0; padding-left: 18px; color: var(--text-soft); display: grid; gap: 2px; }
 .v-planned-block { padding: 16px; border: 1px dashed var(--v-neutral); border-radius: var(--radius-lg); display: grid; gap: 8px; max-width: 100%; box-sizing: border-box; }
 .v-planned-note { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--text-soft); }
+/* site chrome */
+.v-site { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+.v-skip { position: absolute; left: -9999px; top: 8px; padding: 8px 12px; background: var(--accent); color: var(--on-accent); border-radius: var(--radius-sm); z-index: 10; }
+.v-skip:focus { left: 8px; }
+.v-site-header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line-default); font: 14px/1.4 var(--font); }
+.v-site-bar { display: flex; align-items: center; gap: 20px; min-height: 56px; }
+.v-brand { font-weight: 600; letter-spacing: .04em; color: var(--text); text-decoration: none; }
+.v-brand[aria-current="page"] { color: var(--accent-text); }
+.v-site-nav { display: none; align-items: center; gap: 4px; margin-left: 8px; }
+.v-nav-group { position: relative; }
+.v-nav-group summary, .v-nav-top { display: block; padding: 8px 10px; border-radius: var(--radius-sm); color: var(--text); cursor: pointer; list-style: none; text-decoration: none; }
+.v-nav-group summary::-webkit-details-marker { display: none; }
+.v-nav-group summary:hover, .v-nav-top:hover { background: var(--hover); }
+.v-nav-group summary:focus-visible, .v-nav-top:focus-visible, .v-menu summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.v-nav-group ul { position: absolute; top: 100%; left: 0; z-index: 6; margin: 0; padding: 6px; list-style: none; min-width: 200px; background: var(--surface); border: 1px solid var(--line-default); border-radius: var(--radius-md); box-shadow: var(--shadow); }
+.v-nav-group a, .v-menu-panel a:not(.v-btn) { display: block; padding: 6px 10px; color: var(--text); text-decoration: none; border-radius: var(--radius-sm); }
+.v-nav-group a:hover, .v-menu-panel a:not(.v-btn):hover { background: var(--hover); }
+.v-site-nav a[aria-current="page"], .v-menu-panel a[aria-current="page"] { color: var(--accent-text); font-weight: 600; }
+.v-site-actions { display: none; margin-left: auto; gap: 8px; }
+.v-menu { margin-left: auto; position: relative; }
+.v-menu summary { list-style: none; cursor: pointer; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); }
+.v-menu summary::-webkit-details-marker { display: none; }
+.v-menu-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(320px, 90vw); max-height: 80vh; overflow: auto; box-sizing: border-box; padding: 12px; background: var(--surface); border: 1px solid var(--line-default); border-radius: var(--radius-md); box-shadow: var(--shadow); display: grid; gap: 4px; }
+.v-menu-panel ul { margin: 0 0 4px; padding: 0; list-style: none; }
+.v-menu-title { margin: 8px 0 0; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+@media (min-width: 980px) { .v-site-nav, .v-site-actions { display: flex; } .v-menu { display: none; } }
+/* the footer is Pine in both themes, so it uses palette tokens, not roles */
+.v-site-footer { position: relative; overflow: hidden; margin-top: 0; padding: 48px 0 24px; background: var(--pine); color: var(--slate-300); font: 14px/1.6 var(--font); }
+.v-footer-art { position: absolute; inset: 0; pointer-events: none; color: var(--forest); }
+.v-footer-art .v-contour { position: absolute; inset: 0; height: 100%; opacity: .5; color: var(--forest); }
+.v-footer-art .v-mountain { position: absolute; left: 0; right: 0; bottom: 0; height: 90px; color: var(--pine-950); }
+.v-footer-grid { position: relative; display: grid; gap: 32px; }
+.v-footer-grid nav { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.v-footer-name { margin: 0 0 8px; font-size: 16px; font-weight: 600; color: var(--snow); }
+.v-footer-brand p { margin: 0; }
+.v-footer-title { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ice); }
+.v-footer-col ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.v-site-footer a { color: var(--mint); text-decoration: none; }
+.v-site-footer a:hover { text-decoration: underline; }
+.v-site-footer a:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.v-site-footer .v-planned { color: var(--slate-300); border-color: var(--slate-300); }
+.v-footer-legal { position: relative; margin: 32px auto 0; font-size: 12px; }
+@media (min-width: 900px) { .v-footer-grid { grid-template-columns: minmax(200px, 1fr) minmax(0, 3fr); } }
