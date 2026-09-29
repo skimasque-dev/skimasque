@@ -49,6 +49,7 @@ pub trait Component: askama::Template {
 
 pub mod access;
 pub mod boundary;
+pub mod chrome;
 pub mod connection;
 pub mod content;
 pub mod decision;
@@ -56,18 +57,23 @@ pub mod diagrams;
 pub mod flow;
 pub mod icons;
 pub mod layout;
-pub mod motion;
 pub mod motif;
+pub mod motion;
 pub mod node;
 pub mod policy;
 #[cfg(feature = "site")]
 pub mod site;
+pub mod site_chrome;
 pub mod status;
 
 pub use access::{
     GatewayCard, HealthCard, IdentityCard, SessionCard, SessionTimeline, TimelineEvent,
 };
 pub use boundary::{Boundary, BoundaryKind};
+pub use chrome::{
+    Block, ComparisonTable, Cta, CtaBand, Faq, Feature, FeatureGrid, Hero, PlannedBlock, Prose,
+    Section, TierCard, TierGrid,
+};
 pub use connection::{ConnKind, Connection};
 pub use content::{CodeExample, EmptyState, Planned};
 pub use decision::{AuditEventCard, Check, DecisionCard, DecisionExplainer, DIMENSIONS};
@@ -78,4 +84,5 @@ pub use motif::{Contour, Mountain, Route, Run, RunCard, Shape, TrailMarker};
 pub use motion::{Expire, Reveal};
 pub use node::{Node, NodeKind, Tone};
 pub use policy::{Change, ChangeKind, PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary};
+pub use site_chrome::{SiteFooter, SiteNav, SitePage, NAV_GROUPS};
 pub use status::{DecisionBadge, Status, StatusBadge};

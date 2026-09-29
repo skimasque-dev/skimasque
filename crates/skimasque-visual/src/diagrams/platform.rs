@@ -175,18 +175,31 @@ pub fn deployment_models() -> Compare {
     let green = RunCard::new(
         Run::Green,
         "SkiMasque Cloud",
-        &["Hosted control plane and gateway", "Free tier"],
+        &[
+            "Control plane: SkiMasque",
+            "Gateway: SkiMasque",
+            "Operations: minimal",
+            "Free tier",
+        ],
     )
     .planned("paid plans");
     let blue = RunCard::new(
         Run::Blue,
         "Your Gateway",
-        &["SkiMasque control plane", "Gateway runs in your network"],
+        &[
+            "Control plane: SkiMasque",
+            "Gateway: Customer",
+            "The gateway lives inside your network",
+        ],
     );
     let black = RunCard::new(
         Run::Black,
         "Self-hosted",
-        &["Control plane and gateway run in your infrastructure"],
+        &[
+            "Control plane: Customer",
+            "Gateway: Customer",
+            "Operations: Customer",
+        ],
     );
     Compare::new("Three ways to run SkiMasque: hosted, with your own gateway, or fully self-hosted. Each is named by run and by what it is.")
         .side("", Tone::Active, &green)
@@ -277,6 +290,17 @@ mod tests {
             ("Black Run", "Self-hosted"),
         ] {
             assert!(s.contains(run) && s.contains(tech), "{run}/{tech}");
+        }
+        for line in [
+            "Control plane: SkiMasque",
+            "Gateway: SkiMasque",
+            "Operations: minimal",
+            "Gateway: Customer",
+            "The gateway lives inside your network",
+            "Control plane: Customer",
+            "Operations: Customer",
+        ] {
+            assert!(s.contains(line), "{line}");
         }
         assert!(
             s.contains("Free tier"),

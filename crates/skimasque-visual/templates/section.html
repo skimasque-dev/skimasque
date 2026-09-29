@@ -1,0 +1,1 @@
+<section class="v-section{% if alt %} v-section-alt{% endif %}"{% if let Some(i) = id %} id="{{ i }}"{% endif %}><div class="v-wrap">{% if let Some(e) = eyebrow %}<p class="v-eyebrow">{{ e }}</p>{% endif %}<h2>{{ title }}</h2>{% for b in bodies %}{{ b|safe }}{% endfor %}</div></section>

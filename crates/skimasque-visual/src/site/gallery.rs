@@ -4,18 +4,15 @@
 
 use askama::Template;
 
+use super::Page;
 use crate::{
-    AuditEventCard, Boundary, Change, Check, CodeExample, Component, ConnKind, Connection, Contour,
-    DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Expire, Flow, GatewayCard,
-    HealthCard, Html, Icons, IdentityCard, Mountain, Node, NodeKind, Planned, PolicyCard,
-    PolicyDiff, PolicyExplorer, PolicySummary, Reveal, Route, Run, RunCard, SessionCard,
-    SessionTimeline, Shape, Status, StatusBadge, TimelineEvent, Tone, TrailMarker, DIMENSIONS,
+    AuditEventCard, Boundary, Change, Check, CodeExample, ComparisonTable, Component, ConnKind,
+    Connection, Contour, Cta, CtaBand, DecisionBadge, DecisionCard, DecisionExplainer, EmptyState,
+    Expire, Faq, FeatureGrid, Flow, GatewayCard, HealthCard, Hero, Html, Icons, IdentityCard,
+    Mountain, Node, NodeKind, Planned, PlannedBlock, PolicyCard, PolicyDiff, PolicyExplorer,
+    PolicySummary, Prose, Reveal, Route, Run, RunCard, Section, SessionCard, SessionTimeline,
+    Shape, Status, StatusBadge, TierCard, TimelineEvent, Tone, TrailMarker, DIMENSIONS,
 };
-
-pub struct Page {
-    pub path: &'static str,
-    pub contents: String,
-}
 
 struct Item {
     caption: String,
@@ -422,7 +419,11 @@ listening on 127.0.0.1:5432",
                     &RunCard::new(
                         Run::Blue,
                         "Your Gateway",
-                        &["SkiMasque control plane", "Gateway runs in your network"],
+                        &[
+                            "Control plane: SkiMasque",
+                            "Gateway: Customer",
+                            "The gateway lives inside your network",
+                        ],
                     ),
                 ),
             ],
@@ -447,6 +448,87 @@ listening on 127.0.0.1:5432",
             ],
         },
         Group {
+            title: "Site content",
+            wide: true,
+            items: vec![
+                item(
+                    "hero",
+                    &Hero::new("Give every workload exactly the network access it needs.")
+                        .eyebrow("Identity-aware network access")
+                        .lead("Short-lived network access, granted by policy.")
+                        .cta(Cta::primary("Get Started", "#"))
+                        .cta(Cta::secondary("See How It Works", "#"))
+                        .aside(&Node::new(NodeKind::Gateway)),
+                ),
+                item(
+                    "section",
+                    &Section::new("Product model")
+                        .eyebrow("Concepts")
+                        .alt()
+                        .push(
+                            &Prose::new()
+                                .lead("A workload asks; policy decides.")
+                                .p("Access is granted per session and expires.")
+                                .sub("Destinations")
+                                .list(&["A destination is a name", "A gateway reaches it"])
+                                .quote("Network access should be temporary.")
+                                .kv("WHO", "acme/widget"),
+                        ),
+                ),
+                item(
+                    "feature grid",
+                    &FeatureGrid::new()
+                        .feature("Identity-aware", "Know who is asking for access.")
+                        .planned(
+                            "Command wrapper",
+                            "Run a command with access.",
+                            "command wrapper (planned)",
+                        ),
+                ),
+                item(
+                    "comparison table",
+                    &ComparisonTable::new(&["Approach", "Model"])
+                        .row(&["Network tunnel", "Network"])
+                        .row(&["SkiMasque", "Capability"])
+                        .highlight_last(),
+                ),
+                item(
+                    "faq",
+                    &Faq::new().item(
+                        "What does a policy decide?",
+                        &["Who may reach which destination.", "And for how long."],
+                    ),
+                ),
+                item(
+                    "tier cards",
+                    &Section::new("Plans")
+                        .push(
+                            &TierCard::new("Free", "$0", "For evaluation.")
+                                .include("Core policies")
+                                .live(),
+                        )
+                        .push(
+                            &TierCard::new("Team", "$49 / month", "Small teams.")
+                                .include("More gateways")
+                                .planned("paid plans"),
+                        ),
+                ),
+                item(
+                    "cta band",
+                    &CtaBand::new("Network access should be temporary.")
+                        .line("Give it to them, then take it back.")
+                        .cta(Cta::primary("Create Your First Policy", "#")),
+                ),
+                item(
+                    "planned block",
+                    &PlannedBlock::new(
+                        "command wrapper (planned)",
+                        &Prose::new().p("Run a command with short-lived access."),
+                    ),
+                ),
+            ],
+        },
+        Group {
             title: "Public diagrams",
             wide: true,
             items: entry_items(crate::diagrams::public_set()),
@@ -466,7 +548,7 @@ listening on 127.0.0.1:5432",
     ]
 }
 
-pub fn pages() -> Vec<Page> {
+pub(super) fn pages() -> Vec<Page> {
     let gallery = Gallery {
         sprite: Icons.html(),
         groups: groups(),
@@ -482,43 +564,6 @@ pub fn pages() -> Vec<Page> {
             contents: crate::CSS.to_owned(),
         },
     ]
-}
-
-/// Paths under `root` that are stale: a generated file that is missing or
-/// differs from a fresh render, or an orphan under `components/` that `pages()`
-/// no longer produces. Line endings are normalised so a CRLF checkout is not
-/// reported.
-pub fn stale(root: &std::path::Path) -> Vec<String> {
-    let pages = pages();
-    let mut out: Vec<String> = pages
-        .iter()
-        .filter(|p| match std::fs::read_to_string(root.join(p.path)) {
-            Ok(on_disk) => on_disk.replace("\r\n", "\n") != p.contents.replace("\r\n", "\n"),
-            Err(_) => true,
-        })
-        .map(|p| p.path.to_owned())
-        .collect();
-    let mut orphans = Vec::new();
-    collect_files(&root.join("components"), "components", &mut orphans);
-    orphans.retain(|rel| !pages.iter().any(|p| p.path == rel));
-    orphans.sort();
-    out.extend(orphans);
-    out
-}
-
-/// Every file below `dir`, as `/`-separated paths starting with `prefix`.
-fn collect_files(dir: &std::path::Path, prefix: &str, out: &mut Vec<String>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let rel = format!("{prefix}/{}", entry.file_name().to_string_lossy());
-        if entry.path().is_dir() {
-            collect_files(&entry.path(), &rel, out);
-        } else {
-            out.push(rel);
-        }
-    }
 }
 
 #[cfg(test)]
@@ -584,8 +629,28 @@ mod tests {
             "sprite emitted once"
         );
         assert_eq!(page.matches(r#"<svg class="v-sprite""#).count(), 1);
-        assert_eq!(page.matches("<h1").count(), 1, "one page-level h1");
-        assert_eq!(page.matches("<h2").count(), 2, "one h2 per theme");
+        // only public pages must have exactly one h1; the gallery shows a demo hero per theme
+        assert_eq!(
+            page.matches("<h1").count(),
+            3,
+            "page h1 plus one demo hero per theme"
+        );
+        assert_eq!(
+            page.matches("<h2").count(),
+            8,
+            "theme h2 plus demo section, plans section and cta band per theme"
+        );
+        for s in [
+            "v-hero",
+            "v-features",
+            "v-table",
+            "v-faq",
+            "v-tier",
+            "v-cta-band",
+            "v-planned-block",
+        ] {
+            assert!(page.contains(s), "{s}");
+        }
         assert!(page.contains(r#"data-theme="dark""#) && page.contains(r#"data-theme="light""#));
         for kind in crate::NodeKind::ALL {
             assert!(
@@ -622,30 +687,5 @@ mod tests {
             "hostile strings are escaped"
         );
         assert!(!page.contains("exec"), "honesty rule: no `skimasque exec`");
-    }
-
-    #[test]
-    fn stale_ignores_crlf_and_reports_missing_or_changed_files() {
-        let dir = std::env::temp_dir().join(format!("sitegen-test-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        for p in pages() {
-            let path = dir.join(p.path);
-            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-            std::fs::write(&path, p.contents.replace('\n', "\r\n")).unwrap();
-        }
-        assert!(stale(&dir).is_empty(), "CRLF checkout is not stale");
-        std::fs::write(dir.join("components/visual.css"), "changed").unwrap();
-        assert_eq!(stale(&dir), vec!["components/visual.css"]);
-        std::fs::remove_file(dir.join("components/index.html")).unwrap();
-        assert_eq!(stale(&dir).len(), 2);
-        std::fs::write(dir.join("components/visual.css"), crate::CSS).unwrap();
-        std::fs::create_dir_all(dir.join("components/old")).unwrap();
-        std::fs::write(dir.join("components/old/gone.html"), "orphan").unwrap();
-        let stale_now = stale(&dir);
-        assert!(
-            stale_now.contains(&"components/old/gone.html".to_owned()),
-            "orphans are reported: {stale_now:?}"
-        );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }
