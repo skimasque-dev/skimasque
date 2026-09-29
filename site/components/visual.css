@@ -191,3 +191,41 @@
 .v-code-cmd { color: var(--snow); }
 .v-code-comment { color: var(--slate-300); }
 .v-code-out { color: var(--ice); }
+
+/* cards */
+.v-card, .v-summary, .v-explorer, .v-diff { box-sizing: border-box; max-width: 100%; font: 13px/1.5 var(--font); color: var(--text); }
+.v-card { min-width: 0; padding: 16px; border: 1px solid var(--line-default); border-radius: var(--radius-lg); background: var(--surface); display: grid; gap: 12px; }
+.v-card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.v-card-title { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.v-card-title a { color: var(--text); text-decoration-color: var(--v-active); text-underline-offset: 3px; }
+.v-card-title a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.v-card-meta { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+
+/* policy summary */
+.v-summary { margin: 0; display: grid; gap: 6px; }
+.v-summary > div { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; }
+.v-summary dt { color: var(--text-muted); font-size: 11px; font-weight: 600; letter-spacing: .1em; padding-top: 2px; }
+.v-summary dd { margin: 0; overflow-wrap: anywhere; }
+
+/* policy explorer */
+.v-explorer { display: grid; justify-items: start; gap: 2px; min-width: 0; }
+.v-layer { width: 100%; box-sizing: border-box; padding: 10px 14px; border: 1px solid var(--line-default); border-left: 3px solid var(--v-structure);
+  border-radius: var(--radius-md); background: var(--surface); }
+.v-layer-title { margin: 0 0 4px; color: var(--v-structure-text); font-size: 11px; font-weight: 600; letter-spacing: .1em; }
+.v-layer-lines { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.v-layer-lines li, .v-layer-line { overflow-wrap: anywhere; }
+.v-layer-line { margin: 4px 0 0; }
+.v-layer-any { color: var(--text-muted); font-style: italic; margin: 0; }
+.v-layer-link { margin-left: 20px; color: var(--v-neutral-text); line-height: 1; }
+.v-explorer-result { border-left-color: var(--accent); background: var(--surface-raised); }
+
+/* policy diff */
+.v-diff { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.v-diff li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 4px 10px; border-left: 3px solid var(--v-tone); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.v-diff-added { --v-tone: var(--v-active); background: var(--accent-soft); }
+.v-diff-removed { --v-tone: var(--v-deny); }
+.v-diff-changed { --v-tone: var(--v-warning); }
+.v-diff-glyph { font-weight: 700; color: var(--v-tone); }
+.v-diff-field { color: var(--text-muted); }
+.v-diff-before { text-decoration: line-through; color: var(--text-muted); }
+.v-diff-empty { margin: 0; color: var(--text-muted); }

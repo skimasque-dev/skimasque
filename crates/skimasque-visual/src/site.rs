@@ -5,8 +5,9 @@
 use askama::Template;
 
 use crate::{
-    Boundary, CodeExample, Component, ConnKind, Connection, DecisionBadge, EmptyState, Flow, Html,
-    Icons, Node, NodeKind, Planned, Status, StatusBadge,
+    Boundary, Change, CodeExample, Component, ConnKind, Connection, DecisionBadge, EmptyState,
+    Flow, Html, Icons, Node, NodeKind, Planned, PolicyCard, PolicyDiff, PolicyExplorer,
+    PolicySummary, Status, StatusBadge,
 };
 
 pub struct Page {
@@ -129,6 +130,44 @@ fn groups() -> Vec<Group> {
         .child(&Node::new(NodeKind::Database).sub("db.prod:5432"))
         .child(&Node::new(NodeKind::Api).sub("api.internal:443"));
     let firewall = Boundary::firewall("YOUR FIREWALL").child(&Node::new(NodeKind::Network));
+    let summary = || PolicySummary::new("acme/widget", "terraform", "db.prod:5432", "20 min");
+    let policies = vec![
+        item("summary", &summary()),
+        item(
+            "card · active",
+            &PolicyCard::new("production-deploy", Status::Active, summary())
+                .meta("updated 2h ago")
+                .href("#"),
+        ),
+        item(
+            "card · pending",
+            &PolicyCard::new("staging-access", Status::Pending, summary()),
+        ),
+        item(
+            "explorer · granted",
+            &PolicyExplorer::new(
+                &["acme/widget"],
+                &["terraform"],
+                &["db.prod:5432"],
+                &["20 min"],
+                true,
+                "policy production-deploy matches",
+            ),
+        ),
+        item(
+            "explorer · denied",
+            &PolicyExplorer::new(&[], &[], &[], &[], false, "no matching allow rule"),
+        ),
+        item(
+            "diff",
+            &PolicyDiff::new(vec![
+                Change::added("limit", "TCP only"),
+                Change::removed("target", "db.old:5432"),
+                Change::changed("duration", "20 min", "10 min"),
+            ]),
+        ),
+        item("diff · empty", &PolicyDiff::new(vec![])),
+    ];
     vec![
         Group {
             title: "Nodes",
@@ -158,6 +197,11 @@ fn groups() -> Vec<Group> {
             title: "Boundaries",
             wide: false,
             items: vec![item("region", &region), item("firewall", &firewall)],
+        },
+        Group {
+            title: "Policies",
+            wide: false,
+            items: policies,
         },
         Group {
             title: "Content",
@@ -258,7 +302,14 @@ mod tests {
             .find(|p| p.path == "components/index.html")
             .unwrap()
             .contents;
-        for s in ["PLANNED", "No policies yet.", "v-code-prompt"] {
+        for s in [
+            "PLANNED",
+            "No policies yet.",
+            "v-code-prompt",
+            "data-layer=\"who\"",
+            "v-diff-changed",
+            "No changes",
+        ] {
             assert!(page.contains(s), "{s}");
         }
         assert!(

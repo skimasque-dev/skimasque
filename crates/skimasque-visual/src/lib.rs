@@ -53,6 +53,7 @@ pub mod content;
 pub mod flow;
 pub mod icons;
 pub mod node;
+pub mod policy;
 #[cfg(feature = "site")]
 pub mod site;
 pub mod status;
@@ -63,4 +64,5 @@ pub use content::{CodeExample, EmptyState, Planned};
 pub use flow::{Flow, Step};
 pub use icons::Icons;
 pub use node::{Node, NodeKind, Tone};
+pub use policy::{Change, ChangeKind, PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary};
 pub use status::{DecisionBadge, Status, StatusBadge};
