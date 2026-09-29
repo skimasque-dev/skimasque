@@ -1,4 +1,4 @@
-//! Dself.explainer.clone().map(|e| if self.technical { e.technical() } else { e }.html())cision components: why access was granted or denied.
+//! Decision components: why access was granted or denied.
 
 use askama::Template;
 
