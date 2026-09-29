@@ -518,6 +518,18 @@ listening on 127.0.0.1:5432",
             wide: true,
             items: entry_items(crate::diagrams::public_set()),
         },
+        Group {
+            title: "Control-plane diagrams (example data)",
+            wide: true,
+            items: {
+                let mut items = entry_items(crate::diagrams::control_set());
+                items.push(item(
+                    "interactive inspection",
+                    &Planned::new().note("interactive inspection of these diagrams"),
+                ));
+                items
+            },
+        },
     ]
 }
 
@@ -620,6 +632,9 @@ mod tests {
             "v-route",
             "v-trail",
             "v-run-card",
+            "gw-us-west",
+            "4 identities",
+            "interactive inspection",
         ] {
             assert!(page.contains(s), "{s}");
         }

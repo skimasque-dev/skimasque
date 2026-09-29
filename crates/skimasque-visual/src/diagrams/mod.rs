@@ -2,7 +2,7 @@
 //! components; the registries list them for the gallery and the site
 //! generator. Control-plane diagrams take real data as arguments.
 
-use crate::{Component, Html};
+use crate::{Component, Html, Status};
 
 pub mod control;
 pub mod platform;
@@ -110,7 +110,41 @@ pub fn public_set() -> Vec<Entry> {
 /// Control-plane diagrams rendered with example data (the dashboard calls
 /// the `control` functions with real data).
 pub fn control_set() -> Vec<Entry> {
-    Vec::new()
+    // Example data; the dashboard calls the `control` functions with real data.
+    let gateways = [
+        control::GatewayRef {
+            name: "gw-us-west",
+            region: "us-west-2",
+            status: Status::Healthy,
+        },
+        control::GatewayRef {
+            name: "gw-eu-west",
+            region: "eu-west-1",
+            status: Status::Degraded,
+        },
+    ];
+    vec![
+        entry(
+            "identity-flow",
+            "Identity flow",
+            &control::identity_flow("GitHub Actions", "acme/widget", Some("production-deploy")),
+        ),
+        entry(
+            "session-flow",
+            "Session flow",
+            &control::session_flow("acme/widget", "db.prod:5432", "gw-us-west", Status::Active),
+        ),
+        entry(
+            "gateway-topology",
+            "Gateway topology",
+            &control::gateway_topology(&gateways),
+        ),
+        entry(
+            "org-topology",
+            "Organisation topology",
+            &control::org_topology("Acme", 4, 3, 2),
+        ),
+    ]
 }
 
 #[cfg(test)]
