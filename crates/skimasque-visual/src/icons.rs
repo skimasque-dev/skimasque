@@ -3,7 +3,7 @@
 
 use askama::Template;
 
-#[derive(Template)]
+#[derive(Template, Debug, Clone)]
 #[template(path = "icons.html")]
 pub struct Icons;
 

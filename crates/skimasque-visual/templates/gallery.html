@@ -19,7 +19,8 @@
     border-bottom: 1px solid var(--line); padding-bottom: 6px; margin: 32px 0 16px; }
   .g-items { display: flex; flex-wrap: wrap; gap: 20px 28px; align-items: flex-start; }
   .g-item { display: grid; gap: 6px; min-width: 0; max-width: 100%; }
-  .g-item > span { font-size: 11px; color: var(--text-muted); }
+  .g-cap { font-size: 11px; color: var(--text-muted); }
+  .g-items-wide > .g-item { flex: 1 1 100%; }
   @media (max-width: 719px) { .g-page { padding: 24px 16px 0; } .g-theme { padding: 24px 16px 40px; } }
 </style>
 </head>
@@ -34,8 +35,8 @@
   {% for g in groups %}
   <section class="g-group">
     <h3>{{ g.title }}</h3>
-    <div class="g-items">
-      {% for i in g.items %}<div class="g-item"><span>{{ i.caption }}</span>{{ i.html|safe }}</div>{% endfor %}
+    <div class="g-items{% if g.wide %} g-items-wide{% endif %}">
+      {% for i in g.items %}<div class="g-item"><span class="g-cap">{{ i.caption }}</span>{{ i.html|safe }}</div>{% endfor %}
     </div>
   </section>
   {% endfor %}

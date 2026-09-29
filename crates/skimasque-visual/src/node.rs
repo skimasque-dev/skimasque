@@ -162,6 +162,9 @@ impl NodeKind {
 }
 
 /// One thing in a diagram: a workload, a policy, a gateway, a database…
+///
+/// A node draws its icon from the sprite, so the page must emit [`crate::Icons`]
+/// once (anywhere in the body) for icons to show.
 #[derive(Template, Debug, Clone)]
 #[template(path = "node.html")]
 pub struct Node {

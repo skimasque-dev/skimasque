@@ -62,12 +62,12 @@ mod tests {
         let s = h.as_str();
         assert!(
             s.starts_with(
-                r#"<section class="v-boundary v-boundary-region" aria-label="YOUR VPC">"#
+                r#"<div class="v-boundary v-boundary-region" role="group" aria-label="YOUR VPC">"#
             ),
             "{s}"
         );
         assert!(
-            s.contains(r#"<span class="v-boundary-label">YOUR VPC</span>"#),
+            s.contains(r#"<span class="v-boundary-label" aria-hidden="true">YOUR VPC</span>"#),
             "{s}"
         );
         assert_eq!(s.matches(r#"class="v-node "#).count(), 2, "{s}");
@@ -81,9 +81,10 @@ mod tests {
             .as_str()
             .to_owned();
         assert!(
-            s.contains(r#"class="v-boundary v-boundary-firewall""#),
+            s.contains(r#"class="v-boundary v-boundary-firewall" role="group""#),
             "{s}"
         );
+        assert!(!s.contains("<section"), "a group, not a landmark: {s}");
         let rule = s.find("v-firewall-rule").unwrap();
         let node = s.find("v-node").unwrap();
         assert!(rule < node, "rule before the protected side: {s}");

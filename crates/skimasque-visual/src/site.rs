@@ -20,6 +20,8 @@ struct Item {
 }
 struct Group {
     title: &'static str,
+    /// Items that need the full row (flows measure their own width).
+    wide: bool,
     items: Vec<Item>,
 }
 
@@ -73,31 +75,42 @@ fn groups() -> Vec<Group> {
         "A GitHub Actions job proves its identity with OIDC, SkiMasque evaluates the policy, \
          and an active session carries its traffic through the gateway to the private database.",
     )
-    .then(Node::new(NodeKind::GitHub).sub("acme/widget"))
+    .then(&Node::new(NodeKind::GitHub).sub("acme/widget"))
     .via(
         Connection::new(ConnKind::Control).label("OIDC"),
-        Node::new(NodeKind::Identity),
+        &Node::new(NodeKind::Identity),
     )
     .via(
         Connection::new(ConnKind::Control).label("policy"),
-        Node::new(NodeKind::Policy).status(Status::Allow),
+        &Node::new(NodeKind::Policy).status(Status::Allow),
     )
-    .then(Node::new(NodeKind::Session).sub("20 min"))
+    .then(&Node::new(NodeKind::Session).sub("20 min"))
     .via(
         Connection::new(ConnKind::Active),
-        Node::new(NodeKind::Gateway).sub("us-west"),
+        &Node::new(NodeKind::Gateway).sub("us-west"),
     )
     .via(
         Connection::new(ConnKind::Active),
-        Node::new(NodeKind::Database).sub("db.prod:5432"),
+        &Node::new(NodeKind::Database).sub("db.prod:5432"),
     );
     let denied = Flow::new("A request with no matching allow rule is denied at the policy.")
-        .then(Node::new(NodeKind::CiJob).sub("curl"))
-        .then(Node::new(NodeKind::Policy))
+        .then(&Node::new(NodeKind::CiJob).sub("curl"))
+        .then(&Node::new(NodeKind::Policy))
         .via(
             Connection::new(ConnKind::Denied),
-            Node::new(NodeKind::Deny).label("No matching allow rule"),
+            &Node::new(NodeKind::Deny).label("No matching allow rule"),
         );
+    let boundary_flow = Flow::new(
+        "A developer's request crosses the firewall into the VPC, where the gateway \
+         forwards it to the database.",
+    )
+    .then(&Node::new(NodeKind::Developer))
+    .via(
+        Connection::new(ConnKind::Active),
+        &Boundary::region("YOUR VPC")
+            .child(&Node::new(NodeKind::Gateway))
+            .child(&Node::new(NodeKind::Database)),
+    );
     let region = Boundary::region("YOUR VPC")
         .child(&Node::new(NodeKind::Gateway))
         .child(&Node::new(NodeKind::Database).sub("db.prod:5432"))
@@ -106,22 +119,31 @@ fn groups() -> Vec<Group> {
     vec![
         Group {
             title: "Nodes",
+            wide: false,
             items: nodes,
         },
         Group {
             title: "Connections",
+            wide: false,
             items: conns,
         },
         Group {
             title: "Statuses",
+            wide: false,
             items: statuses,
         },
         Group {
             title: "Flows",
-            items: vec![item("access", &flow), item("denied", &denied)],
+            wide: true,
+            items: vec![
+                item("access", &flow),
+                item("denied", &denied),
+                item("a boundary as a step", &boundary_flow),
+            ],
         },
         Group {
             title: "Boundaries",
+            wide: false,
             items: vec![item("region", &region), item("firewall", &firewall)],
         },
     ]
@@ -145,18 +167,43 @@ pub fn pages() -> Vec<Page> {
     ]
 }
 
-/// Paths under `root` whose file is missing or differs from a fresh render.
-/// Line endings are normalised so a CRLF checkout is not reported.
-pub fn stale(root: &std::path::Path) -> Vec<&'static str> {
-    pages()
-        .into_iter()
+/// Paths under `root` that are stale: a generated file that is missing or
+/// differs from a fresh render, or an orphan under `components/` that `pages()`
+/// no longer produces. Line endings are normalised so a CRLF checkout is not
+/// reported.
+pub fn stale(root: &std::path::Path) -> Vec<String> {
+    let pages = pages();
+    let mut out: Vec<String> = pages
+        .iter()
         .filter(|p| match std::fs::read_to_string(root.join(p.path)) {
             Ok(on_disk) => on_disk.replace("\r\n", "\n") != p.contents.replace("\r\n", "\n"),
             Err(_) => true,
         })
-        .map(|p| p.path)
-        .collect()
+        .map(|p| p.path.to_owned())
+        .collect();
+    let mut orphans = Vec::new();
+    collect_files(&root.join("components"), "components", &mut orphans);
+    orphans.retain(|rel| !pages.iter().any(|p| p.path == rel));
+    orphans.sort();
+    out.extend(orphans);
+    out
 }
+
+/// Every file below `dir`, as `/`-separated paths starting with `prefix`.
+fn collect_files(dir: &std::path::Path, prefix: &str, out: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let rel = format!("{prefix}/{}", entry.file_name().to_string_lossy());
+        if entry.path().is_dir() {
+            collect_files(&entry.path(), &rel, out);
+        } else {
+            out.push(rel);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -213,6 +260,7 @@ mod tests {
                 && page.contains("v-boundary-region")
                 && page.contains("v-boundary-firewall")
         );
+        assert!(page.contains(r#"class="g-cap""#), "captions carry g-cap");
         assert!(!page.contains("exec"), "honesty rule: no `skimasque exec`");
     }
 
@@ -230,6 +278,14 @@ mod tests {
         assert_eq!(stale(&dir), vec!["components/visual.css"]);
         std::fs::remove_file(dir.join("components/index.html")).unwrap();
         assert_eq!(stale(&dir).len(), 2);
+        std::fs::write(dir.join("components/visual.css"), crate::CSS).unwrap();
+        std::fs::create_dir_all(dir.join("components/old")).unwrap();
+        std::fs::write(dir.join("components/old/gone.html"), "orphan").unwrap();
+        let stale_now = stale(&dir);
+        assert!(
+            stale_now.contains(&"components/old/gone.html".to_owned()),
+            "orphans are reported: {stale_now:?}"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

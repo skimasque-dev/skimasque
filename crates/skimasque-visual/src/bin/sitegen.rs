@@ -33,9 +33,9 @@ fn main() -> ExitCode {
             return ExitCode::SUCCESS;
         }
         for path in stale {
-            eprintln!("stale: {}", out.join(path).display());
+            eprintln!("stale: {}", out.join(&path).display());
         }
-        eprintln!("run `cargo run -p skimasque-visual --bin sitegen` and commit the result");
+        eprintln!("run `cargo run -p skimasque-visual --features site --bin sitegen` and commit the result");
         return ExitCode::from(1);
     }
 

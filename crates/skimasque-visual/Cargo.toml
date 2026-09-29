@@ -10,3 +10,13 @@ publish = false
 
 [dependencies]
 askama.workspace = true
+
+[features]
+# The website generator (gallery pages). Off by default: the dashboard only
+# needs the components and the stylesheet.
+site = []
+
+[[bin]]
+name = "sitegen"
+path = "src/bin/sitegen.rs"
+required-features = ["site"]

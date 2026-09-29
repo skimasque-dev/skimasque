@@ -35,14 +35,14 @@ impl Status {
     }
 }
 
-#[derive(Template)]
+#[derive(Template, Debug, Clone)]
 #[template(path = "status.html")]
 pub struct StatusBadge {
     pub status: Status,
 }
 impl crate::Component for StatusBadge {}
 
-#[derive(Template)]
+#[derive(Template, Debug, Clone)]
 #[template(path = "decision_badge.html")]
 pub struct DecisionBadge {
     pub allow: bool,

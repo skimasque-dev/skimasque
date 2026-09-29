@@ -50,7 +50,9 @@ fn the_palette_matches_the_design_guide() {
         "--forest-800: #173026",
         "--earth-700: #4a3527",
         "--snow-50: #f7faf9",
-        "--danger: #e87979",
+        "--danger-500: #e87979",
+        "--forest-ink: #2a6a4e",
+        "--mint-ink: #0b7a5b",
     ] {
         assert!(skimasque_visual::CSS.contains(decl), "missing {decl}");
     }
