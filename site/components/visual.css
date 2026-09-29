@@ -249,3 +249,24 @@
 .v-audit-why summary { cursor: pointer; color: var(--accent-text); }
 .v-audit-why summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .v-audit-why[open] summary { margin-bottom: 8px; }
+
+/* access */
+.v-session-route { margin: 0; overflow-wrap: anywhere; }
+.v-session-time { display: grid; gap: 4px; }
+.v-bar { height: 6px; border-radius: 3px; background: var(--line-default); overflow: hidden; }
+.v-bar-fill { display: block; height: 100%; background: var(--accent); }
+.v-gateway-card { border-color: color-mix(in srgb, var(--v-edge) 55%, transparent); }
+.v-facts { margin: 0; display: grid; gap: 4px; }
+.v-facts > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; }
+.v-facts dt { color: var(--text-muted); font-size: 12px; }
+.v-facts dd { margin: 0; overflow-wrap: anywhere; }
+.v-timeline { margin: 0; padding: 0; list-style: none; display: grid; }
+.v-timeline-event { position: relative; display: grid; grid-template-columns: 16px 88px minmax(0, 1fr); gap: 4px 10px; align-items: baseline;
+  padding: 0 0 14px; font: 13px/1.5 var(--font); color: var(--text); }
+.v-timeline-event::before { content: ""; position: absolute; left: 5px; top: 14px; bottom: 0; border-left: 2px solid var(--line-strong); }
+.v-timeline-event:last-child::before { display: none; }
+.v-timeline-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--v-tone); align-self: center; box-sizing: border-box; }
+.v-timeline-time { color: var(--text-muted); font-size: 12px; }
+.v-timeline-label { overflow-wrap: anywhere; font-weight: 600; }
+.v-timeline-empty { margin: 0; color: var(--text-muted); font: 13px/1.5 var(--font); }
+@media (max-width: 480px) { .v-facts > div, .v-summary > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }

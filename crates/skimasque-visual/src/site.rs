@@ -6,8 +6,9 @@ use askama::Template;
 
 use crate::{
     AuditEventCard, Boundary, Change, Check, CodeExample, Component, ConnKind, Connection,
-    DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Flow, Html, Icons, Node, NodeKind,
-    Planned, PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary, Status, StatusBadge,
+    DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Flow, GatewayCard, HealthCard,
+    Html, Icons, IdentityCard, Node, NodeKind, Planned, PolicyCard, PolicyDiff, PolicyExplorer,
+    PolicySummary, SessionCard, SessionTimeline, Status, StatusBadge, TimelineEvent, Tone,
     DIMENSIONS,
 };
 
@@ -234,6 +235,86 @@ fn groups() -> Vec<Group> {
             .technical(),
         ),
     ];
+    let long = "x".repeat(200);
+    let access = vec![
+        item(
+            "session · active 40%",
+            &SessionCard::new(
+                "acme/widget",
+                "db.prod:5432",
+                "us-west",
+                Status::Active,
+                40,
+                "12 min left",
+            ),
+        ),
+        item(
+            "session · expired",
+            &SessionCard::new(
+                "acme/widget",
+                "db.prod:5432",
+                "us-west",
+                Status::Expired,
+                0,
+                "expired",
+            ),
+        ),
+        item(
+            "timeline",
+            &SessionTimeline::new(vec![
+                TimelineEvent::new("14:02:01", "Requested", Tone::Neutral),
+                TimelineEvent::new("14:02:01", "Authorized", Tone::Active),
+                TimelineEvent::new("14:02:02", "Session started", Tone::Active),
+                TimelineEvent::new("14:22:01", "Expires", Tone::Neutral),
+            ]),
+        ),
+        item(
+            "gateway · healthy (egress planned)",
+            &GatewayCard::new("gw-us-west", "us-west-2", Status::Healthy, "12 s ago", 3),
+        ),
+        item(
+            "gateway · degraded (egress known)",
+            &GatewayCard::new(
+                "gw-eu-central",
+                "eu-central-1",
+                Status::Degraded,
+                "9 min ago",
+                0,
+            )
+            .egress_ip("203.0.113.7"),
+        ),
+        item(
+            "health · healthy",
+            &HealthCard::new("Control plane", Status::Healthy, "all checks passing"),
+        ),
+        item(
+            "health · offline",
+            &HealthCard::new("Control plane", Status::Offline, "no heartbeat for 10 min"),
+        ),
+        item(
+            "identity",
+            &IdentityCard::new("acme/widget", "GitHub Actions", 2).last_seen("2 h ago"),
+        ),
+        item(
+            "identity · never seen",
+            &IdentityCard::new("acme/new-repo", "GitHub Actions", 0),
+        ),
+    ];
+    let hostile = vec![
+        item(
+            "policy card",
+            &PolicyCard::new(
+                "<script>alert(1)</script>",
+                Status::Active,
+                PolicySummary::new(long.as_str(), "terraform", "db.prod:5432", "20 min"),
+            ),
+        ),
+        item(
+            "identity",
+            &IdentityCard::new("<script>alert(1)</script>", long.as_str(), 1)
+                .last_seen(long.as_str()),
+        ),
+    ];
     vec![
         Group {
             title: "Nodes",
@@ -273,6 +354,16 @@ fn groups() -> Vec<Group> {
             title: "Decisions",
             wide: false,
             items: decisions,
+        },
+        Group {
+            title: "Access",
+            wide: false,
+            items: access,
+        },
+        Group {
+            title: "Hostile input",
+            wide: false,
+            items: hostile,
         },
         Group {
             title: "Content",
@@ -382,6 +473,10 @@ mod tests {
             "No changes",
             "v-check-fail",
             "<details class=\"v-audit-why\">",
+            "role=\"progressbar\"",
+            "v-timeline",
+            "Egress IP",
+            "never seen",
         ] {
             assert!(page.contains(s), "{s}");
         }
@@ -427,6 +522,10 @@ mod tests {
                 && page.contains("v-boundary-firewall")
         );
         assert!(page.contains(r#"class="g-cap""#), "captions carry g-cap");
+        assert!(
+            !page.contains("<script>alert"),
+            "hostile strings are escaped"
+        );
         assert!(!page.contains("exec"), "honesty rule: no `skimasque exec`");
     }
 
