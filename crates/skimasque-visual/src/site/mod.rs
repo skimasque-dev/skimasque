@@ -23,6 +23,12 @@ pub fn pages() -> Vec<Page> {
         contents: crate::CSS.to_owned(),
     });
     v.extend(pages::all());
+    // No sitemap.xml and no `Sitemap:` line: both need an absolute base URL,
+    // which a project site does not have.
+    v.push(Page {
+        path: "robots.txt",
+        contents: "User-agent: *\nAllow: /\n".to_owned(),
+    });
     v
 }
 
@@ -274,6 +280,44 @@ mod tests {
                 format!("{r}/index.html")
             };
             assert!(paths.contains(&want.as_str()), "missing route /{r}");
+        }
+    }
+
+    #[test]
+    fn robots_txt_allows_everything_and_names_no_sitemap() {
+        let robots = pages()
+            .into_iter()
+            .find(|p| p.path == "robots.txt")
+            .expect("robots.txt")
+            .contents;
+        assert_eq!(robots, "User-agent: *\nAllow: /\n");
+        assert!(!robots.contains("Sitemap:"));
+        assert!(!pages().iter().any(|p| p.path == "sitemap.xml"));
+    }
+
+    #[test]
+    fn every_public_page_is_reachable_from_the_homepage_by_relative_links() {
+        let all = html_pages();
+        let mut seen = vec!["index.html".to_owned()];
+        let mut queue = vec!["index.html".to_owned()];
+        while let Some(cur) = queue.pop() {
+            let page = all
+                .iter()
+                .find(|p| p.path == cur)
+                .unwrap_or_else(|| panic!("no page {cur}"));
+            for url in relative_urls(&page.contents) {
+                let Some(t) = resolve(&cur, &url) else {
+                    continue;
+                };
+                if t.ends_with(".html") && !t.starts_with("components/") && !seen.contains(&t) {
+                    seen.push(t.clone());
+                    queue.push(t);
+                }
+            }
+        }
+        assert_eq!(all.len(), 21);
+        for p in &all {
+            assert!(seen.contains(&p.path.to_owned()), "unreachable: {}", p.path);
         }
     }
 

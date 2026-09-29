@@ -488,7 +488,10 @@ fn a_branch_has_definite_tracks_so_a_long_flow_root_cannot_starve_its_arms() {
         !norm.contains("width: max-content"),
         "no max-content override on a branch root"
     );
-    assert!(norm.contains(".v-branch-arm .v-flow-wrap { width: auto; flex: 1 1 0; min-width: 0; }"));
+    // 128px basis: a nested flow (nodes are 120px wide when stacked) wraps below its connector on a phone instead of overflowing.
+    assert!(
+        norm.contains(".v-branch-arm .v-flow-wrap { width: auto; flex: 1 1 128px; min-width: 0; }")
+    );
 }
 
 #[test]
@@ -503,5 +506,25 @@ fn footer_palette_pairs_meet_4_5_to_1() {
             contrast(&get(fg), &get("--pine")) >= 4.5,
             "{fg} on the footer ground"
         );
+    }
+}
+
+#[test]
+fn chrome_hover_tints_keep_text_at_4_5_to_1_in_both_themes() {
+    // .v-btn-quiet:hover and the nav links/summaries tint --hover over the
+    // header or a menu surface; the text on top is --text or --accent-text.
+    let rules = rules(skimasque_visual::CSS);
+    let tokens = rule(&rules, ":root");
+    for (theme_name, sel) in [("light", LIGHT), ("dark", DARK)] {
+        let theme = rule(&rules, sel);
+        let get = |n: &str| resolve(n, theme, tokens).unwrap_or_else(|| panic!("{n} unresolved"));
+        let (hover, hover_a) = parse_rgba(&get("--hover"));
+        for g in ["--bg", "--surface", "--surface-raised"] {
+            let tinted = blend(hover, hover_a, &get(g));
+            for t in ["--text", "--accent-text"] {
+                let r = contrast(&get(t), &tinted);
+                assert!(r >= 4.5, "{theme_name}: {t} on hover over {g} = {r:.2}");
+            }
+        }
     }
 }
