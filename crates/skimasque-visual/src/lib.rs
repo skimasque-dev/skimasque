@@ -44,11 +44,13 @@ pub trait Component: askama::Template {
 }
 
 pub mod connection;
+pub mod flow;
 pub mod icons;
 pub mod node;
 pub mod status;
 
 pub use connection::{ConnKind, Connection};
+pub use flow::{Flow, Step};
 pub use icons::Icons;
 pub use node::{Node, NodeKind, Tone};
 pub use status::{DecisionBadge, Status, StatusBadge};

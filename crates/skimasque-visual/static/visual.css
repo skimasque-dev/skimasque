@@ -98,3 +98,28 @@
   font-size: 16px; font-weight: 700; color: var(--v-deny); background: var(--bg); padding: 0 2px; }
 @keyframes v-glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .v-conn-active .v-conn-line { animation: none; } }
+
+/* flow: vertical by default, horizontal from 720px */
+.v-flow-wrap { margin: 0; }
+.v-flow { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.v-flow-step { display: flex; flex-direction: column; align-items: flex-start; }
+.v-flow .v-conn { min-height: 36px; min-width: 0; margin-left: 20px; flex-direction: column; }
+.v-flow .v-conn-line { min-width: 0; min-height: 28px; width: 0; height: auto; border-top: 0; border-left: 2px solid var(--v-neutral); }
+.v-flow .v-conn-line::after { content: "▾"; right: auto; left: -6px; top: auto; bottom: -12px; }
+.v-flow .v-conn-control .v-conn-line { border-left-style: dashed; }
+.v-flow .v-conn-potential .v-conn-line { border-left-style: dotted; }
+.v-flow .v-conn-active .v-conn-line { border-left: 3px solid var(--v-active); }
+.v-flow .v-conn-denied .v-conn-line { border-left: 2px dashed var(--v-deny); }
+.v-flow .v-conn-label { position: static; transform: none; background: none; padding: 0; margin-left: 10px; align-self: center; }
+@media (min-width: 720px) {
+  .v-flow { flex-direction: row; align-items: center; flex-wrap: nowrap; }
+  .v-flow-step { flex-direction: row; align-items: center; }
+  .v-flow .v-conn { flex-direction: row; min-height: 28px; min-width: 64px; margin: 0 4px; }
+  .v-flow .v-conn-line { min-height: 0; min-width: 48px; height: 0; width: auto; border-left: 0; border-top: 2px solid var(--v-neutral); }
+  .v-flow .v-conn-line::after { content: "▸"; left: auto; right: -6px; bottom: auto; top: -9px; }
+  .v-flow .v-conn-control .v-conn-line { border-top-style: dashed; }
+  .v-flow .v-conn-potential .v-conn-line { border-top-style: dotted; }
+  .v-flow .v-conn-active .v-conn-line { border-top: 3px solid var(--v-active); }
+  .v-flow .v-conn-denied .v-conn-line { border-top: 2px dashed var(--v-deny); }
+  .v-flow .v-conn-label { position: absolute; top: -2px; left: 50%; transform: translate(-50%, -100%); margin: 0; background: var(--bg); padding: 0 4px; }
+}
