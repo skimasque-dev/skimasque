@@ -45,4 +45,18 @@ mod tests {
         assert_eq!(NodeKind::CiJob.slug(), "ci-job");
         assert_eq!(NodeKind::Session.icon(), "i-clock");
     }
+
+    #[test]
+    fn icon_ids_are_unique() {
+        let sprite = Icons.html().as_str().to_owned();
+        let mut ids: Vec<&str> = sprite
+            .split(r#"<symbol id=""#)
+            .skip(1)
+            .filter_map(|s| s.split('"').next())
+            .collect();
+        let total = ids.len();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), total, "duplicate <symbol id>");
+    }
 }

@@ -153,7 +153,7 @@ pub fn pages() -> Vec<Page> {
     let gallery = Gallery {
         sprite: Icons.html(),
         groups: groups(),
-        themes: ["dark", "light"],
+        themes: ["light", "dark"],
     };
     vec![
         Page {
