@@ -13,6 +13,8 @@ pub struct SessionCard {
     pub status: Status,
     pub remaining_pct: u32,
     pub remaining_label: String,
+    pub level: u8,
+    pub href: Option<String>,
 }
 impl SessionCard {
     pub fn new(
@@ -30,8 +32,23 @@ impl SessionCard {
             status,
             remaining_pct,
             remaining_label: remaining_label.into(),
+            level: 3,
+            href: None,
         }
     }
+    /// The heading level of the card title, `2..=6` (default 3). Pick the level
+    /// that follows the page's own headings so levels never skip.
+    pub fn level(mut self, n: u8) -> Self {
+        self.level = n.clamp(2, 6);
+        self
+    }
+    /// Makes the title a link. Must be an app-built path: it is HTML-escaped but
+    /// not scheme-checked; never pass user input.
+    pub fn href(mut self, href: impl Into<String>) -> Self {
+        self.href = Some(href.into());
+        self
+    }
+
     fn pct(&self) -> u32 {
         self.remaining_pct.min(100)
     }
@@ -81,6 +98,8 @@ pub struct GatewayCard {
     pub last_heartbeat: String,
     pub sessions: u32,
     pub egress_ip: Option<String>,
+    pub level: u8,
+    pub href: Option<String>,
 }
 impl GatewayCard {
     pub fn new(
@@ -97,8 +116,23 @@ impl GatewayCard {
             last_heartbeat: last_heartbeat.into(),
             sessions,
             egress_ip: None,
+            level: 3,
+            href: None,
         }
     }
+    /// The heading level of the card title, `2..=6` (default 3). Pick the level
+    /// that follows the page's own headings so levels never skip.
+    pub fn level(mut self, n: u8) -> Self {
+        self.level = n.clamp(2, 6);
+        self
+    }
+    /// Makes the title a link. Must be an app-built path: it is HTML-escaped but
+    /// not scheme-checked; never pass user input.
+    pub fn href(mut self, href: impl Into<String>) -> Self {
+        self.href = Some(href.into());
+        self
+    }
+
     pub fn egress_ip(mut self, ip: impl Into<String>) -> Self {
         self.egress_ip = Some(ip.into());
         self
@@ -123,6 +157,7 @@ pub struct HealthCard {
     pub title: String,
     pub status: Status,
     pub detail: String,
+    pub level: u8,
 }
 impl HealthCard {
     pub fn new(title: impl Into<String>, status: Status, detail: impl Into<String>) -> Self {
@@ -130,8 +165,16 @@ impl HealthCard {
             title: title.into(),
             status,
             detail: detail.into(),
+            level: 3,
         }
     }
+    /// The heading level of the card title, `2..=6` (default 3). Pick the level
+    /// that follows the page's own headings so levels never skip.
+    pub fn level(mut self, n: u8) -> Self {
+        self.level = n.clamp(2, 6);
+        self
+    }
+
     fn status_html(&self) -> Html {
         StatusBadge {
             status: self.status,
@@ -148,6 +191,8 @@ pub struct IdentityCard {
     pub source: String,
     pub last_seen: Option<String>,
     pub policies: u32,
+    pub level: u8,
+    pub href: Option<String>,
 }
 impl IdentityCard {
     pub fn new(name: impl Into<String>, source: impl Into<String>, policies: u32) -> Self {
@@ -156,8 +201,23 @@ impl IdentityCard {
             source: source.into(),
             last_seen: None,
             policies,
+            level: 3,
+            href: None,
         }
     }
+    /// The heading level of the card title, `2..=6` (default 3). Pick the level
+    /// that follows the page's own headings so levels never skip.
+    pub fn level(mut self, n: u8) -> Self {
+        self.level = n.clamp(2, 6);
+        self
+    }
+    /// Makes the title a link. Must be an app-built path: it is HTML-escaped but
+    /// not scheme-checked; never pass user input.
+    pub fn href(mut self, href: impl Into<String>) -> Self {
+        self.href = Some(href.into());
+        self
+    }
+
     pub fn last_seen(mut self, when: impl Into<String>) -> Self {
         self.last_seen = Some(when.into());
         self
@@ -280,5 +340,66 @@ mod tests {
             .as_str()
             .to_owned();
         assert!(!e.contains("<script>") && !e.contains("<b>"));
+    }
+
+    #[test]
+    fn cards_default_to_h3_and_take_a_level() {
+        let s = SessionCard::new(
+            "acme/widget",
+            "db:5432",
+            "gw-1",
+            Status::Active,
+            60,
+            "10m left",
+        );
+        assert!(s.html().as_str().contains("<h3 class=\"v-card-title\">"));
+        let s = s.level(2);
+        let h = s.html();
+        assert!(
+            h.as_str().contains("<h2 class=\"v-card-title\">"),
+            "{}",
+            h.as_str()
+        );
+        assert!(h.as_str().contains("</h2>"));
+        assert!(!h.as_str().contains("<h3"));
+    }
+
+    #[test]
+    fn the_level_is_clamped_to_two_through_six() {
+        for (asked, want) in [(0u8, 2u8), (1, 2), (2, 2), (6, 6), (9, 6)] {
+            let g = GatewayCard::new("gw", "us-west", Status::Healthy, "now", 0).level(asked);
+            assert_eq!(g.level, want);
+            let h = g.html();
+            assert!(h.as_str().contains(&format!("<h{want} ")), "{}", h.as_str());
+            assert!(!h.as_str().contains("<h1"));
+        }
+    }
+
+    #[test]
+    fn a_card_title_can_link_and_escapes_text_and_href() {
+        let g = GatewayCard::new("<b>gw</b>", "us", Status::Healthy, "now", 0)
+            .href("/app/gateways/a\"b");
+        let h = g.html();
+        let s = h.as_str();
+        assert!(
+            s.contains("&lt;b&gt;gw&lt;/b&gt;") || s.contains("&#60;b&#62;gw&#60;/b&#62;"),
+            "{s}"
+        );
+        assert!(!s.contains("<b>gw</b>"), "{s}");
+        assert!(
+            s.contains("href=\"/app/gateways/a&quot;b\"")
+                || s.contains("href=\"/app/gateways/a&#34;b\""),
+            "{s}"
+        );
+        let i = IdentityCard::new("acme/widget", "GitHub Actions", 2).href("/app/identities/x");
+        assert!(i
+            .html()
+            .as_str()
+            .contains("<a href=\"/app/identities/x\">acme/widget</a>"));
+        let n = SessionCard::new("a", "b", "c", Status::Active, 1, "x").href("/app/sessions/g.1");
+        assert!(n
+            .html()
+            .as_str()
+            .contains("<a href=\"/app/sessions/g.1\">a</a>"));
     }
 }

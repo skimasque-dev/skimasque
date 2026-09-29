@@ -39,6 +39,7 @@ pub struct PolicyCard {
     /// Must be an app-built path. It is HTML-escaped but not scheme-checked;
     /// never pass user input.
     pub href: Option<String>,
+    pub level: u8,
 }
 impl PolicyCard {
     pub fn new(name: impl Into<String>, status: Status, summary: PolicySummary) -> Self {
@@ -48,8 +49,16 @@ impl PolicyCard {
             summary,
             meta: None,
             href: None,
+            level: 3,
         }
     }
+    /// The heading level of the card title, `2..=6` (default 3). Pick the level
+    /// that follows the page's own headings so levels never skip.
+    pub fn level(mut self, n: u8) -> Self {
+        self.level = n.clamp(2, 6);
+        self
+    }
+
     pub fn meta(mut self, meta: impl Into<String>) -> Self {
         self.meta = Some(meta.into());
         self
@@ -329,5 +338,24 @@ mod tests {
         assert!(!s.as_str().contains("<script>") && s.as_str().contains("&lt;script&gt;"));
         let d = PolicyDiff::new(vec![Change::added("<i>", "\"q\"")]).html();
         assert!(!d.as_str().contains("<i>"));
+    }
+
+    #[test]
+    fn a_policy_card_takes_a_heading_level() {
+        let c = PolicyCard::new(
+            "prod",
+            Status::Active,
+            PolicySummary::new("a", "b", "c", "d"),
+        )
+        .href("/app/policies/prod")
+        .level(2);
+        let h = c.html();
+        assert!(
+            h.as_str().contains(
+                "<h2 class=\"v-card-title\"><a href=\"/app/policies/prod\">prod</a></h2>"
+            ),
+            "{}",
+            h.as_str()
+        );
     }
 }

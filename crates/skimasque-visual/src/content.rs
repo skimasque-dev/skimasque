@@ -27,6 +27,7 @@ pub struct EmptyState {
     /// (label, href). The href must be an app-built path: it is HTML-escaped but
     /// not scheme-checked; never pass user input.
     pub action: Option<(String, String)>,
+    pub level: u8,
 }
 impl EmptyState {
     pub fn new(title: impl Into<String>, lines: &[&str]) -> Self {
@@ -34,8 +35,16 @@ impl EmptyState {
             title: title.into(),
             lines: lines.iter().map(|l| (*l).to_owned()).collect(),
             action: None,
+            level: 3,
         }
     }
+    /// The heading level of the card title, `2..=6` (default 3). Pick the level
+    /// that follows the page's own headings so levels never skip.
+    pub fn level(mut self, n: u8) -> Self {
+        self.level = n.clamp(2, 6);
+        self
+    }
+
     pub fn action(mut self, label: impl Into<String>, href: impl Into<String>) -> Self {
         self.action = Some((label.into(), href.into()));
         self
@@ -217,5 +226,15 @@ mod tests {
     fn code_example_without_commands_has_no_data_copy() {
         let c = CodeExample::new("policy", "# yaml\nname: x\nmax: 20m").html();
         assert!(!c.as_str().contains("data-copy"));
+    }
+
+    #[test]
+    fn an_empty_state_takes_a_heading_level() {
+        let e = EmptyState::no_sessions().level(2);
+        assert!(e.html().as_str().contains("<h2 class=\"v-empty-title\">"));
+        assert!(EmptyState::no_sessions()
+            .html()
+            .as_str()
+            .contains("<h3 class=\"v-empty-title\">"));
     }
 }
