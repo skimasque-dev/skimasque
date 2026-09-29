@@ -335,53 +335,143 @@ fn translucent_tints_keep_their_text_at_4_5_to_1_on_every_ground() {
     }
 }
 
-#[test]
-fn every_animation_is_switched_off_under_reduced_motion() {
-    let css = skimasque_visual::CSS;
-    let (main, rm): (Vec<&str>, Vec<&str>) = {
-        // split the stylesheet into the reduced-motion blocks and the rest
-        let mut main = Vec::new();
-        let mut rm = Vec::new();
-        let mut depth = 0i32;
-        let mut in_rm = false;
-        for line in css.lines() {
-            if !in_rm && line.contains("prefers-reduced-motion") {
-                in_rm = true;
-                depth = 0;
+struct StyleRule {
+    selectors: Vec<String>,
+    body: String,
+    reduced: bool,
+}
+
+fn strip_comments(css: &str) -> String {
+    let mut out = String::new();
+    let mut rest = css;
+    while let Some(i) = rest.find("/*") {
+        out.push_str(&rest[..i]);
+        rest = match rest[i..].find("*/") {
+            Some(j) => &rest[i + j + 2..],
+            None => "",
+        };
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Style rules by brace depth. `@media` (and other conditional groups) are
+/// transparent; a `prefers-reduced-motion: reduce` condition marks its rules.
+/// `@keyframes` and `@font-face` bodies are skipped.
+fn parse_rules(css: &str) -> Vec<StyleRule> {
+    fn block_end(b: &[u8], mut i: usize) -> usize {
+        // `i` is just past an opening brace; returns the index after its match.
+        let mut depth = 1;
+        while i < b.len() && depth > 0 {
+            match b[i] {
+                b'{' => depth += 1,
+                b'}' => depth -= 1,
+                _ => {}
             }
-            if in_rm {
-                depth += line.matches('{').count() as i32 - line.matches('}').count() as i32;
-                rm.push(line);
-                if depth <= 0 {
-                    in_rm = false;
-                }
-            } else {
-                main.push(line);
-            }
+            i += 1;
         }
-        (main, rm)
-    };
-    let rm_text = rm.join("\n");
-    let mut seen = 0;
-    for line in main {
-        if let Some(open) = line.find('{') {
-            let (sel, body) = line.split_at(open);
-            if body.contains("animation:")
-                && !body.contains("animation: none")
-                && !sel.trim_start().starts_with("@keyframes")
-            {
-                seen += 1;
-                let sel = sel.trim();
-                assert!(
-                    rm_text.contains(sel),
-                    "no reduced-motion override for `{sel}`"
-                );
+        i
+    }
+    fn walk(css: &str, reduced: bool, out: &mut Vec<StyleRule>) {
+        let b = css.as_bytes();
+        let mut i = 0;
+        let mut start = 0;
+        while i < b.len() {
+            match b[i] {
+                b'{' => {
+                    let prelude = css[start..i].trim();
+                    let end = block_end(b, i + 1);
+                    let inner = &css[i + 1..end - 1];
+                    if let Some(at) = prelude.strip_prefix('@') {
+                        let norm: String = at.split_whitespace().collect::<Vec<_>>().join(" ");
+                        if norm.starts_with("keyframes") || norm.starts_with("font-face") {
+                            // out of scope
+                        } else {
+                            let is_reduce = norm
+                                .replace(" :", ":")
+                                .contains("prefers-reduced-motion: reduce");
+                            walk(inner, reduced || is_reduce, out);
+                        }
+                    } else {
+                        out.push(StyleRule {
+                            selectors: prelude.split(',').map(|s| s.trim().to_string()).collect(),
+                            body: inner.to_string(),
+                            reduced,
+                        });
+                    }
+                    i = end;
+                    start = end;
+                }
+                _ => i += 1,
             }
         }
     }
-    assert!(rm_text.contains("animation: none"));
-    assert!(
-        seen >= 1,
-        "the guard found the existing .v-conn-active animation"
-    );
+    let mut out = Vec::new();
+    walk(&strip_comments(css), false, &mut out);
+    out
+}
+
+/// Animation declarations in a body as (property, value).
+fn animation_decls(body: &str) -> Vec<(String, String)> {
+    body.split(';')
+        .filter_map(|d| d.split_once(':'))
+        .map(|(p, v)| (p.trim().to_ascii_lowercase(), v.trim().to_string()))
+        .filter(|(p, _)| {
+            matches!(
+                p.as_str(),
+                "animation" | "animation-name" | "-webkit-animation" | "-webkit-animation-name"
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn every_animation_is_switched_off_under_reduced_motion() {
+    let rules = parse_rules(skimasque_visual::CSS);
+    let mut seen = 0;
+    for rule in rules.iter().filter(|r| !r.reduced) {
+        let animated = animation_decls(&rule.body).iter().any(|(_, v)| v != "none");
+        if !animated {
+            continue;
+        }
+        seen += 1;
+        for sel in &rule.selectors {
+            let switched_off = rules.iter().any(|o| {
+                o.reduced
+                    && o.selectors.contains(sel)
+                    && animation_decls(&o.body).iter().any(|(_, v)| v == "none")
+            });
+            assert!(switched_off, "no reduced-motion override for `{sel}`");
+        }
+    }
+    assert!(seen >= 4, "the guard found the animated rules (saw {seen})");
+}
+
+#[test]
+fn expiry_never_fades_text() {
+    let rules = parse_rules(skimasque_visual::CSS);
+    let mut seen = 0;
+    for rule in &rules {
+        let expire = rule.selectors.iter().any(|s| s.contains(".v-expire"));
+        if !expire {
+            continue;
+        }
+        seen += 1;
+        if body_sets_opacity(&rule.body) {
+            assert!(
+                rule.selectors
+                    .iter()
+                    .all(|s| s.trim_end().ends_with(".v-icon")),
+                "`{}` sets opacity; only .v-icon may fade under .v-expire",
+                rule.selectors.join(", ")
+            );
+        }
+    }
+    assert!(seen >= 2, "found the .v-expire rules");
+}
+
+fn body_sets_opacity(body: &str) -> bool {
+    body.split(';')
+        .filter_map(|d| d.split_once(':'))
+        .any(|(p, _)| p.trim().eq_ignore_ascii_case("opacity"))
 }
