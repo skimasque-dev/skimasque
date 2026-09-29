@@ -63,12 +63,25 @@ fn groups() -> Vec<Group> {
             Status::Expired,
             Status::Pending,
             Status::Blocked,
+            Status::Granted,
+            Status::Denied,
+            Status::Healthy,
+            Status::Degraded,
+            Status::Offline,
         ]
         .into_iter()
         .map(|s| item(s.word(), &StatusBadge { status: s }))
         .collect();
-        v.push(item("granted", &DecisionBadge { allow: true }));
-        v.push(item("denied", &DecisionBadge { allow: false }));
+        v.push(item("granted", &DecisionBadge::new(true)));
+        v.push(item("denied", &DecisionBadge::new(false)));
+        v.push(item(
+            "technical allow",
+            &DecisionBadge::new(true).technical(),
+        ));
+        v.push(item(
+            "technical deny",
+            &DecisionBadge::new(false).technical(),
+        ));
         v
     };
     let flow = Flow::new(
@@ -250,6 +263,9 @@ mod tests {
             "EXPIRED",
             "PENDING",
             "BLOCKED",
+            "HEALTHY",
+            "DEGRADED",
+            "OFFLINE",
             "ACCESS GRANTED",
             "ACCESS DENIED",
         ] {
