@@ -56,9 +56,7 @@ pub fn page() -> Page {
             &managed_egress,
         ));
 
-    let multiple = Section::new("Multiple gateways")
-        .push(&platform::multiple_gateways())
-        .push(&Prose::new().p("Policy can include an egress region."));
+    let multiple = Section::new("Multiple gateways").push(&platform::multiple_gateways());
 
     Page {
         path: "gateways/index.html",
@@ -96,7 +94,6 @@ mod tests {
             "Customer-operated gateway",
             "permit the gateway's traffic",
             "customer's own network address",
-            "Policy can include an egress region.",
             "us-west",
         ] {
             assert!(main.contains(want), "missing {want:?}");

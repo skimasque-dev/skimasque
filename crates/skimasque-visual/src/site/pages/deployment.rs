@@ -1,12 +1,27 @@
 //! Deployment (`/deployment`): canonical spec §18. The run colours describe who
 //! operates what; they say nothing about quality.
 
+use askama::Template;
+
+use super::doc;
 use crate::diagrams::platform;
 use crate::site::Page;
 use crate::{
     Component, ConnKind, Connection, Flow, Hero, Node, NodeKind, Prose, Run, Section, SitePage,
     TrailMarker,
 };
+
+/// A single documentation link.
+#[derive(Template)]
+#[template(
+    source = r#"<p class="v-cta-row"><a class="v-btn" href="{{ href }}">{{ label }}</a></p>"#,
+    ext = "html"
+)]
+struct DocLink {
+    label: String,
+    href: String,
+}
+impl Component for DocLink {}
 
 fn flow(caption: &str, nodes: [(NodeKind, &str); 4]) -> Flow {
     let mut it = nodes.into_iter();
@@ -101,7 +116,17 @@ pub fn page() -> Page {
                 (NodeKind::Network, "CUSTOMER NETWORK"),
             ],
         ))
-        .push(&Prose::new().p("Suitable for customers requiring full infrastructure ownership."));
+        .push(&Prose::new().p("Suitable for customers requiring full infrastructure ownership."))
+        .push(
+            &Prose::new()
+                .p(
+                    "There is no open-source control plane. To self-host, you implement the documented control protocol or license SkiMasque's control-plane distribution; expect real engineering work, not a config switch.",
+                )
+        )
+        .push(&DocLink {
+            label: "Read the self-hosting guide".into(),
+            href: doc("self-hosting.md"),
+        });
 
     let positioning = Section::new("Important positioning").push(
         &Prose::new()
@@ -151,6 +176,10 @@ mod tests {
             "Self-hosted",
             "customer-owned egress IP",
             "operational responsibility, not product quality",
+            "There is no open-source control plane.",
+            "license SkiMasque's control-plane distribution",
+            "not a config switch",
+            "docs/self-hosting.md",
             "CUSTOMER CONTROL PLANE",
             "YOUR VPC",
         ] {
