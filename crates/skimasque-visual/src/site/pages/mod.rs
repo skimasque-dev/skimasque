@@ -3,7 +3,10 @@
 use super::{Page, DOCS_BASE};
 
 mod ci_cd;
+mod compare;
+mod deployment;
 mod developers;
+mod gateways;
 mod home;
 mod how_it_works;
 mod identities;
@@ -17,6 +20,9 @@ pub fn all() -> Vec<Page> {
         policies::page(),
         ci_cd::page(),
         developers::page(),
+        compare::page(),
+        deployment::page(),
+        gateways::page(),
     ]
 }
 

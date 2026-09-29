@@ -203,8 +203,6 @@ mod tests {
     /// it, and its use in `every_relative_link_resolves`.
     const PENDING_ROUTES: &[&str] = &[
         "security/index.html",
-        "deployment/index.html",
-        "compare/index.html",
         "architecture/index.html",
         "technology/masque/index.html",
         "docs/index.html",
