@@ -1,6 +1,6 @@
 # SkiMasque product surface — spec amendment
 
-Status: draft, pending approval
+Status: approved 2026-09-29; plan 2 (palette, product components) implemented
 Amends: `2026-09-29-visual-library-design.md` (visual library) and, in
 `skimasque-dev/control`, `2026-09-28-alpine-dashboard-design.md` (dashboard).
 Source: "SkiMasque — Complete Public Website & Control Plane Specification"
