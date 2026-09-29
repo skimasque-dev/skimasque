@@ -5,11 +5,11 @@
 use askama::Template;
 
 use crate::{
-    AuditEventCard, Boundary, Change, Check, CodeExample, Component, ConnKind, Connection,
-    DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Flow, GatewayCard, HealthCard,
-    Html, Icons, IdentityCard, Node, NodeKind, Planned, PolicyCard, PolicyDiff, PolicyExplorer,
-    PolicySummary, SessionCard, SessionTimeline, Status, StatusBadge, TimelineEvent, Tone,
-    DIMENSIONS,
+    AuditEventCard, Boundary, Change, Check, CodeExample, Component, ConnKind, Connection, Contour,
+    DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Expire, Flow, GatewayCard,
+    HealthCard, Html, Icons, IdentityCard, Mountain, Node, NodeKind, Planned, PolicyCard,
+    PolicyDiff, PolicyExplorer, PolicySummary, Reveal, Route, Run, RunCard, SessionCard,
+    SessionTimeline, Shape, Status, StatusBadge, TimelineEvent, Tone, TrailMarker, DIMENSIONS,
 };
 
 pub struct Page {
@@ -41,6 +41,15 @@ fn item(caption: impl Into<String>, c: &impl Component) -> Item {
         caption: caption.into(),
         html: c.html(),
     }
+}
+
+fn entry_items(v: Vec<crate::diagrams::Entry>) -> Vec<Item> {
+    v.into_iter()
+        .map(|e| Item {
+            caption: e.title.to_owned(),
+            html: e.html,
+        })
+        .collect()
 }
 
 fn groups() -> Vec<Group> {
@@ -388,6 +397,72 @@ listening on 127.0.0.1:5432",
                 ),
             ],
         },
+        Group {
+            title: "Motifs",
+            wide: false,
+            items: vec![
+                item("contour", &Contour),
+                item("mountain", &Mountain),
+                item("route", &Route::new()),
+                item("route · flowing", &Route::new().flowing()),
+                item(
+                    "trail marker · circle",
+                    &TrailMarker::new(Shape::Circle, Tone::Active, "trailhead"),
+                ),
+                item(
+                    "trail marker · square",
+                    &TrailMarker::new(Shape::Square, Tone::Info, "checkpoint"),
+                ),
+                item(
+                    "trail marker · diamond",
+                    &TrailMarker::new(Shape::Diamond, Tone::Neutral, "summit"),
+                ),
+                item(
+                    "run · Blue",
+                    &RunCard::new(
+                        Run::Blue,
+                        "Your Gateway",
+                        &["SkiMasque control plane", "Gateway runs in your network"],
+                    ),
+                ),
+            ],
+        },
+        Group {
+            title: "Motion",
+            wide: true,
+            items: vec![
+                item(
+                    "expired session",
+                    &Expire::new(&Node::new(NodeKind::Session).status(Status::Expired)),
+                ),
+                item(
+                    "reveal",
+                    &Reveal::new(
+                        &Flow::new("Request, policy, decision.")
+                            .then(&Node::new(NodeKind::Workload))
+                            .then(&Node::new(NodeKind::Policy))
+                            .then(&Node::new(NodeKind::Allow)),
+                    ),
+                ),
+            ],
+        },
+        Group {
+            title: "Public diagrams",
+            wide: true,
+            items: entry_items(crate::diagrams::public_set()),
+        },
+        Group {
+            title: "Control-plane diagrams (example data)",
+            wide: true,
+            items: {
+                let mut items = entry_items(crate::diagrams::control_set());
+                items.push(item(
+                    "interactive inspection",
+                    &Planned::new().note("interactive inspection of these diagrams"),
+                ));
+                items
+            },
+        },
     ]
 }
 
@@ -477,6 +552,26 @@ mod tests {
             "v-timeline",
             "Egress IP",
             "never seen",
+            "v-layers",
+            "v-compare",
+            "v-branch",
+            "v-seq",
+            "v-contour",
+            "v-reveal",
+            "v-compare-side",
+            "skimasque connect",
+            "YOUR VPC",
+            "v-mountain",
+            "v-route",
+            "v-trail",
+            "v-run-card",
+            "gw-eu-west",
+            "4 identities",
+            "interactive inspection",
+            "Public diagrams",
+            "Control-plane diagrams",
+            "Motifs",
+            "Motion",
         ] {
             assert!(page.contains(s), "{s}");
         }

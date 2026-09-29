@@ -28,10 +28,12 @@ impl Flow {
         }
     }
 
+    /// Nest containers only inside `Compare` sides and `Branch` arms, which have a definite width: a `Flow`, `Branch` or `Compare` placed in a content-sized slot (a `Flow` step body, a `Branch` root) may collapse.
     pub fn then(self, c: &impl Component) -> Self {
         self.push(None, c)
     }
 
+    /// Nest containers only inside `Compare` sides and `Branch` arms, which have a definite width: a `Flow`, `Branch` or `Compare` placed in a content-sized slot (a `Flow` step body, a `Branch` root) may collapse.
     pub fn via(self, conn: Connection, c: &impl Component) -> Self {
         self.push(Some(conn), c)
     }
