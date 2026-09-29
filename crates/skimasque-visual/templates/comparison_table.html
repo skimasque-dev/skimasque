@@ -1,0 +1,1 @@
+<div class="v-table-wrap"><table class="v-table"><thead><tr>{% for h in head %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead><tbody>{% for r in rows %}<tr{% if self.is_last(loop.index0) %} class="v-row-highlight"{% endif %}>{% for c in r %}{% if loop.first %}<th scope="row">{{ c }}</th>{% else %}<td>{{ c }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody></table></div>

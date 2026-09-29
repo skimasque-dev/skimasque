@@ -341,3 +341,52 @@
   .v-reveal .v-flow-step, .v-reveal .v-branch-root, .v-reveal .v-branch-arm { animation: none; }
   .v-expire .v-icon { animation: none; }
 }
+
+/* site content */
+.v-wrap { box-sizing: border-box; width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+.v-prose { display: grid; gap: 12px; max-width: 68ch; font: 15px/1.7 var(--font); color: var(--text); }
+.v-prose > * { margin: 0; overflow-wrap: anywhere; }
+.v-prose h3 { font-size: 15px; font-weight: 600; margin-top: 8px; }
+.v-prose ul { padding-left: 20px; display: grid; gap: 4px; }
+.v-prose blockquote { padding: 8px 16px; border-left: 3px solid var(--v-active); background: var(--accent-soft); font-weight: 600; }
+.v-lead { font-size: 17px; line-height: 1.6; color: var(--text-soft); margin: 0; }
+.v-kv { margin: 0; display: grid; gap: 2px; }
+.v-kv dt { color: var(--text-muted); font-size: 11px; font-weight: 600; letter-spacing: .1em; }
+.v-kv dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.v-eyebrow { margin: 0 0 8px; font: 600 11px/1.4 var(--font); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-text); }
+.v-hero { padding: 56px 0 40px; background: var(--bg); color: var(--text); font-family: var(--font); }
+.v-hero-grid { display: grid; gap: 32px; align-items: center; }
+.v-hero h1 { margin: 0 0 16px; font-size: clamp(26px, 5vw, 40px); line-height: 1.2; font-weight: 600; overflow-wrap: anywhere; }
+.v-hero-copy { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.v-hero-aside { min-width: 0; }
+@media (min-width: 900px) { .v-hero-grid { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }
+.v-cta-row { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 12px; }
+.v-btn-quiet { background: transparent; color: var(--text); border: 1px solid var(--line-strong); }
+.v-btn-quiet:hover { background: var(--hover); }
+.v-section { padding: 48px 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+.v-section-alt { background: var(--surface-raised); }
+.v-section > .v-wrap { display: grid; gap: 20px; }
+.v-section h2 { margin: 0; font-size: clamp(20px, 3.5vw, 28px); line-height: 1.3; font-weight: 600; overflow-wrap: anywhere; }
+.v-features { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.v-feature { min-width: 0; padding: 16px; border: 1px solid var(--line-default); border-radius: var(--radius-lg); background: var(--surface); display: grid; gap: 8px; align-content: start; }
+.v-feature h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.v-feature p { margin: 0; color: var(--text-soft); overflow-wrap: anywhere; }
+.v-cta-band { padding: 48px 0; background: var(--surface-raised); color: var(--text); font-family: var(--font); }
+.v-cta-band .v-wrap { display: grid; gap: 8px; justify-items: start; }
+.v-cta-band h2 { margin: 0; font-size: clamp(20px, 3.5vw, 28px); font-weight: 600; }
+.v-cta-band p { margin: 0; color: var(--text-soft); }
+.v-table-wrap { overflow-x: auto; max-width: 100%; }
+.v-table { border-collapse: collapse; width: 100%; min-width: 480px; font: 14px/1.5 var(--font); color: var(--text); }
+.v-table th, .v-table td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line-default); overflow-wrap: anywhere; }
+.v-table thead th { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.v-row-highlight th, .v-row-highlight td { background: var(--accent-soft); font-weight: 600; }
+.v-faq { display: grid; gap: 8px; max-width: 72ch; font: 15px/1.7 var(--font); color: var(--text); }
+.v-faq-item { border: 1px solid var(--line-default); border-radius: var(--radius-md); background: var(--surface); padding: 0 16px; }
+.v-faq-item summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+.v-faq-item summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.v-faq-item p { margin: 0 0 12px; color: var(--text-soft); }
+.v-tier-price { margin: 0; font-size: 22px; font-weight: 600; }
+.v-tier-live { color: var(--accent-text); font-size: 12px; font-weight: 600; }
+.v-tier-includes { margin: 0; padding-left: 18px; color: var(--text-soft); display: grid; gap: 2px; }
+.v-planned-block { padding: 16px; border: 1px dashed var(--v-neutral); border-radius: var(--radius-lg); display: grid; gap: 8px; max-width: 100%; box-sizing: border-box; }
+.v-planned-note { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--text-soft); }

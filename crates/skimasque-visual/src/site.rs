@@ -5,11 +5,12 @@
 use askama::Template;
 
 use crate::{
-    AuditEventCard, Boundary, Change, Check, CodeExample, Component, ConnKind, Connection, Contour,
-    DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Expire, Flow, GatewayCard,
-    HealthCard, Html, Icons, IdentityCard, Mountain, Node, NodeKind, Planned, PolicyCard,
-    PolicyDiff, PolicyExplorer, PolicySummary, Reveal, Route, Run, RunCard, SessionCard,
-    SessionTimeline, Shape, Status, StatusBadge, TimelineEvent, Tone, TrailMarker, DIMENSIONS,
+    AuditEventCard, Boundary, Change, Check, CodeExample, ComparisonTable, Component, ConnKind,
+    Connection, Contour, Cta, CtaBand, DecisionBadge, DecisionCard, DecisionExplainer, EmptyState,
+    Expire, Faq, FeatureGrid, Flow, GatewayCard, HealthCard, Hero, Html, Icons, IdentityCard,
+    Mountain, Node, NodeKind, Planned, PlannedBlock, PolicyCard, PolicyDiff, PolicyExplorer,
+    PolicySummary, Prose, Reveal, Route, Run, RunCard, Section, SessionCard, SessionTimeline,
+    Shape, Status, StatusBadge, TierCard, TimelineEvent, Tone, TrailMarker, DIMENSIONS,
 };
 
 pub struct Page {
@@ -447,6 +448,88 @@ listening on 127.0.0.1:5432",
             ],
         },
         Group {
+            title: "Site content",
+            wide: true,
+            items: vec![
+                item(
+                    "hero",
+                    &Hero::new("Give every workload exactly the network access it needs.")
+                        .eyebrow("Identity-aware network access")
+                        .lead("Short-lived network access, granted by policy.")
+                        .cta(Cta::primary("Get Started", "#"))
+                        .cta(Cta::secondary("See How It Works", "#"))
+                        .aside(&Node::new(NodeKind::Gateway)),
+                ),
+                item(
+                    "section",
+                    &Section::new("Product model")
+                        .id("model")
+                        .eyebrow("Concepts")
+                        .alt()
+                        .push(
+                            &Prose::new()
+                                .lead("A workload asks; policy decides.")
+                                .p("Access is granted per session and expires.")
+                                .sub("Destinations")
+                                .list(&["A destination is a name", "A gateway reaches it"])
+                                .quote("Network access should be temporary.")
+                                .kv("WHO", "acme/widget"),
+                        ),
+                ),
+                item(
+                    "feature grid",
+                    &FeatureGrid::new()
+                        .feature("Identity-aware", "Know who is asking for access.")
+                        .planned(
+                            "Command wrapper",
+                            "Run a command with access.",
+                            "command wrapper (planned)",
+                        ),
+                ),
+                item(
+                    "comparison table",
+                    &ComparisonTable::new(&["Approach", "Model"])
+                        .row(&["Network tunnel", "Network"])
+                        .row(&["SkiMasque", "Capability"])
+                        .highlight_last(),
+                ),
+                item(
+                    "faq",
+                    &Faq::new().item(
+                        "What does a policy decide?",
+                        &["Who may reach which destination.", "And for how long."],
+                    ),
+                ),
+                item(
+                    "tier cards",
+                    &Section::new("Plans")
+                        .push(
+                            &TierCard::new("Free", "$0", "For evaluation.")
+                                .include("Core policies")
+                                .live(),
+                        )
+                        .push(
+                            &TierCard::new("Team", "$49 / month", "Small teams.")
+                                .include("More gateways")
+                                .planned("paid plans"),
+                        ),
+                ),
+                item(
+                    "cta band",
+                    &CtaBand::new("Network access should be temporary.")
+                        .line("Give it to them, then take it back.")
+                        .cta(Cta::primary("Create Your First Policy", "#")),
+                ),
+                item(
+                    "planned block",
+                    &PlannedBlock::new(
+                        "command wrapper (planned)",
+                        &Prose::new().p("Run a command with short-lived access."),
+                    ),
+                ),
+            ],
+        },
+        Group {
             title: "Public diagrams",
             wide: true,
             items: entry_items(crate::diagrams::public_set()),
@@ -584,8 +667,27 @@ mod tests {
             "sprite emitted once"
         );
         assert_eq!(page.matches(r#"<svg class="v-sprite""#).count(), 1);
-        assert_eq!(page.matches("<h1").count(), 1, "one page-level h1");
-        assert_eq!(page.matches("<h2").count(), 2, "one h2 per theme");
+        assert_eq!(
+            page.matches("<h1").count(),
+            3,
+            "page h1 plus one demo hero per theme"
+        );
+        assert_eq!(
+            page.matches("<h2").count(),
+            8,
+            "theme h2 plus demo section, plans section and cta band per theme"
+        );
+        for s in [
+            "v-hero",
+            "v-features",
+            "v-table",
+            "v-faq",
+            "v-tier",
+            "v-cta-band",
+            "v-planned-block",
+        ] {
+            assert!(page.contains(s), "{s}");
+        }
         assert!(page.contains(r#"data-theme="dark""#) && page.contains(r#"data-theme="light""#));
         for kind in crate::NodeKind::ALL {
             assert!(

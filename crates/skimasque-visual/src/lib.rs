@@ -49,6 +49,7 @@ pub trait Component: askama::Template {
 
 pub mod access;
 pub mod boundary;
+pub mod chrome;
 pub mod connection;
 pub mod content;
 pub mod decision;
@@ -68,6 +69,10 @@ pub use access::{
     GatewayCard, HealthCard, IdentityCard, SessionCard, SessionTimeline, TimelineEvent,
 };
 pub use boundary::{Boundary, BoundaryKind};
+pub use chrome::{
+    Block, ComparisonTable, Cta, CtaBand, Faq, Feature, FeatureGrid, Hero, PlannedBlock, Prose,
+    Section, TierCard,
+};
 pub use connection::{ConnKind, Connection};
 pub use content::{CodeExample, EmptyState, Planned};
 pub use decision::{AuditEventCard, Check, DecisionCard, DecisionExplainer, DIMENSIONS};
