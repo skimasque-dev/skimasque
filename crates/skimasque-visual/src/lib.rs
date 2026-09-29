@@ -43,12 +43,14 @@ pub trait Component: askama::Template {
     }
 }
 
+pub mod boundary;
 pub mod connection;
 pub mod flow;
 pub mod icons;
 pub mod node;
 pub mod status;
 
+pub use boundary::{Boundary, BoundaryKind};
 pub use connection::{ConnKind, Connection};
 pub use flow::{Flow, Step};
 pub use icons::Icons;

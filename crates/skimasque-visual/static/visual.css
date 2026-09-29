@@ -123,3 +123,16 @@
   .v-flow .v-conn-denied .v-conn-line { border-top: 2px dashed var(--v-deny); }
   .v-flow .v-conn-label { position: absolute; top: -2px; left: 50%; transform: translate(-50%, -100%); margin: 0; background: var(--bg); padding: 0 4px; }
 }
+
+/* boundary */
+.v-boundary { position: relative; font: 12px/1.4 var(--font); }
+.v-boundary-label { font-weight: 600; letter-spacing: .1em; color: var(--v-structure); }
+.v-boundary-body { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.v-boundary-region { border: 1px dashed var(--v-structure); border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--v-structure-fill) 60%, transparent); padding: 22px 16px 16px; }
+.v-boundary-region > .v-boundary-label { position: absolute; top: -9px; left: 14px; padding: 0 6px; background: var(--bg); }
+.v-boundary-firewall { padding-top: 4px; }
+.v-firewall-rule { border-top: 3px double var(--v-edge); border-bottom: 3px double var(--v-edge);
+  height: 10px; margin: 0 0 14px; position: relative; }
+.v-firewall-rule .v-boundary-label { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  padding: 0 8px; background: var(--bg); color: var(--v-edge); }
