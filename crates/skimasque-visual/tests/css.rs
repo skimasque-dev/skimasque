@@ -475,3 +475,16 @@ fn body_sets_opacity(body: &str) -> bool {
         .filter_map(|d| d.split_once(':'))
         .any(|(p, _)| p.trim().eq_ignore_ascii_case("opacity"))
 }
+
+#[test]
+fn a_flow_as_a_branch_root_sizes_to_its_content() {
+    let css = strip_comments(include_str!("../static/visual.css"));
+    let norm: String = css.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(
+        norm.contains(
+            ".v-branch-root .v-flow-wrap { container-type: normal; width: max-content; }"
+        ),
+        "a Flow root must not be an inline-size container in the auto grid column"
+    );
+    assert!(norm.contains(".v-branch-arm .v-flow-wrap { width: auto; flex: 1 1 0; min-width: 0; }"));
+}

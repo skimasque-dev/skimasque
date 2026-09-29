@@ -289,9 +289,12 @@
 .v-branch-root { min-width: 0; }
 .v-branch-arms { list-style: none; margin: 0; padding: 0 0 0 20px; display: grid; gap: 12px; min-width: 0; }
 .v-branch-arm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.v-branch-arm .v-flow-wrap { width: auto; flex: 1 1 0; min-width: 0; }
 @container (min-width: 560px) {
   .v-branch { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; }
   .v-branch-arms { padding-left: 0; }
+  /* A Flow root sizes to its content; its own container query then resolves against the branch. */
+  .v-branch-root .v-flow-wrap { container-type: normal; width: max-content; }
 }
 .v-seq { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 0; padding: 0 0 4px;
   background: linear-gradient(var(--line-strong), var(--line-strong)) 25% 0 / 2px 100% no-repeat,
