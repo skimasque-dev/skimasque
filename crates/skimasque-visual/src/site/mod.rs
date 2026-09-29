@@ -9,7 +9,7 @@ pub const DOCS_BASE: &str = "https://github.com/skimasque-dev/skimasque/blob/mai
 pub const ISSUES_URL: &str = "https://github.com/skimasque-dev/skimasque/issues";
 
 /// Files under `site/` that are written by hand and never reported as orphans.
-pub(crate) const KEEP: &[&str] = &["favicon.svg", "index.html"];
+pub(crate) const KEEP: &[&str] = &["favicon.svg"];
 
 pub struct Page {
     pub path: &'static str,
@@ -78,6 +78,19 @@ mod tests {
             .into_iter()
             .filter(|p| p.path.ends_with(".html") && !p.path.starts_with("components/"))
             .collect()
+    }
+
+    #[test]
+    fn the_public_pages_are_registered() {
+        let paths: Vec<&str> = html_pages().iter().map(|p| p.path).collect();
+        assert!(!paths.is_empty());
+        for want in [
+            "index.html",
+            "how-it-works/index.html",
+            "identities/index.html",
+        ] {
+            assert!(paths.contains(&want), "missing page {want}");
+        }
     }
 
     #[test]
@@ -184,8 +197,45 @@ mod tests {
         assert!(resolve("index.html", "../x").is_none());
     }
 
+    /// Routes the navigation already links to that later page tasks still
+    /// owe. Each page task removes its routes from this list; the list must
+    /// be empty when the last public page lands.
+    const PENDING_ROUTES: &[&str] = &[
+        "policies/index.html",
+        "ci-cd/index.html",
+        "developers/index.html",
+        "security/index.html",
+        "deployment/index.html",
+        "compare/index.html",
+        "architecture/index.html",
+        "technology/masque/index.html",
+        "docs/index.html",
+        "use-cases/index.html",
+        "open-source/index.html",
+        "faq/index.html",
+        "pricing/index.html",
+        "about/index.html",
+        "contact/index.html",
+        "status/index.html",
+        "trust/index.html",
+        "gateways/index.html",
+        "technology/index.html",
+    ];
+
+    #[test]
+    fn pending_routes_are_not_yet_generated() {
+        let owned = pages();
+        for r in PENDING_ROUTES {
+            assert!(
+                !owned.iter().any(|p| p.path == *r),
+                "{r} exists now: remove it from PENDING_ROUTES"
+            );
+        }
+    }
+
     /// Every relative href/src on a generated public page resolves to a
-    /// generated page or asset, or to a hand-written file in KEEP.
+    /// generated page or asset, or to a hand-written file in KEEP (or is a
+    /// route still pending).
     #[test]
     fn every_relative_link_resolves() {
         let owned = pages();
@@ -195,7 +245,7 @@ mod tests {
                 let target = resolve(p.path, &url)
                     .unwrap_or_else(|| panic!("{}: link {url:?} leaves the site", p.path));
                 assert!(
-                    resolves(&all, &target),
+                    resolves(&all, &target) || PENDING_ROUTES.contains(&target.as_str()),
                     "{}: broken link {url:?} -> {target:?}",
                     p.path
                 );
@@ -248,7 +298,6 @@ mod tests {
             std::fs::write(&path, p.contents.replace('\n', "\r\n")).unwrap();
         }
         std::fs::write(dir.join("favicon.svg"), "<svg/>").unwrap();
-        std::fs::write(dir.join("index.html"), "<p>hand-written</p>").unwrap();
         assert!(stale(&dir).is_empty(), "{:?}", stale(&dir));
         std::fs::write(dir.join("components/visual.css"), "changed").unwrap();
         assert_eq!(stale(&dir), vec!["components/visual.css"]);
