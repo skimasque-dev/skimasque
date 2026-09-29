@@ -385,6 +385,7 @@
 .v-faq-item summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
 .v-faq-item summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .v-faq-item p { margin: 0 0 12px; color: var(--text-soft); }
+.v-tiers { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .v-tier-price { margin: 0; font-size: 22px; font-weight: 600; }
 .v-tier-live { color: var(--accent-text); font-size: 12px; font-weight: 600; }
 .v-tier-includes { margin: 0; padding-left: 18px; color: var(--text-soft); display: grid; gap: 2px; }

@@ -10,13 +10,18 @@ mod ci_cd;
 mod compare;
 mod deployment;
 mod developers;
+mod docs;
+mod faq;
 mod gateways;
 mod home;
 mod how_it_works;
 mod identities;
 mod masque;
+mod open_source;
 mod policies;
+mod pricing;
 mod security;
+mod trust;
 mod use_cases;
 
 pub fn all() -> Vec<Page> {
@@ -34,6 +39,11 @@ pub fn all() -> Vec<Page> {
         architecture::page(),
         masque::page(),
         use_cases::page(),
+        open_source::page(),
+        pricing::page(),
+        docs::page(),
+        faq::page(),
+        trust::page(),
     ]
 }
 

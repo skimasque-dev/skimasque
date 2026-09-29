@@ -57,8 +57,8 @@ pub mod diagrams;
 pub mod flow;
 pub mod icons;
 pub mod layout;
-pub mod motion;
 pub mod motif;
+pub mod motion;
 pub mod node;
 pub mod policy;
 #[cfg(feature = "site")]
@@ -72,7 +72,7 @@ pub use access::{
 pub use boundary::{Boundary, BoundaryKind};
 pub use chrome::{
     Block, ComparisonTable, Cta, CtaBand, Faq, Feature, FeatureGrid, Hero, PlannedBlock, Prose,
-    Section, TierCard,
+    Section, TierCard, TierGrid,
 };
 pub use connection::{ConnKind, Connection};
 pub use content::{CodeExample, EmptyState, Planned};

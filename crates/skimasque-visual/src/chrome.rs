@@ -324,6 +324,23 @@ impl TierCard {
 }
 impl Component for TierCard {}
 
+/// A responsive grid of [`TierCard`]s.
+#[derive(Template, Debug, Clone, Default)]
+#[template(path = "tier_grid.html")]
+pub struct TierGrid {
+    pub cards: Vec<Html>,
+}
+impl TierGrid {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn card(mut self, c: &TierCard) -> Self {
+        self.cards.push(c.html());
+        self
+    }
+}
+impl Component for TierGrid {}
+
 /// A block of content the product does not deliver yet. Do not nest one inside another.
 #[derive(Template, Debug, Clone)]
 #[template(path = "planned_block.html")]
@@ -471,6 +488,18 @@ mod tests {
             team.find("v-sr").is_none_or(|sr| note < sr),
             "the note is visible, not only in sr-only text"
         );
+    }
+
+    #[test]
+    fn a_tier_grid_renders_its_cards_in_order() {
+        let g = TierGrid::new()
+            .card(&TierCard::new("Free", "$0", "a"))
+            .card(&TierCard::new("Team", "$49 / month", "b"))
+            .html();
+        let g = g.as_str();
+        assert!(g.starts_with("<div class=\"v-tiers\">"));
+        assert!(g.find("Free").unwrap() < g.find("Team").unwrap());
+        assert_eq!(g.matches("<article").count(), 2);
     }
 
     #[test]
