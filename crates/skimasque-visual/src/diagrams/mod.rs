@@ -65,6 +65,45 @@ pub fn public_set() -> Vec<Entry> {
         ),
         entry("gateway", "Gateway", &public::gateway()),
         entry("customer-vpc", "Customer VPC", &public::customer_vpc()),
+        entry("ci-lifecycle", "CI/CD lifecycle", &platform::ci_lifecycle()),
+        entry(
+            "security-layers",
+            "Security layers",
+            &platform::security_layers(),
+        ),
+        entry(
+            "no-standing-access",
+            "No standing access",
+            &platform::no_standing_access(),
+        ),
+        entry(
+            "compartmentalisation",
+            "Compartmentalisation",
+            &platform::compartmentalisation(),
+        ),
+        entry(
+            "control-data-plane",
+            "Control plane and data plane",
+            &platform::control_data_plane(),
+        ),
+        entry("architecture", "Architecture", &platform::architecture()),
+        entry("masque-stack", "MASQUE stack", &platform::masque_stack()),
+        entry(
+            "connect-udp-sequence",
+            "CONNECT-UDP sequence",
+            &platform::connect_udp_sequence(),
+        ),
+        entry(
+            "multiple-gateways",
+            "Multiple gateways",
+            &platform::multiple_gateways(),
+        ),
+        entry("audit-flow", "Audit flow", &platform::audit_flow()),
+        entry(
+            "deployment-models",
+            "Deployment models",
+            &platform::deployment_models(),
+        ),
     ]
 }
 
@@ -157,6 +196,17 @@ mod tests {
             "same-command-different-policy",
             "gateway",
             "customer-vpc",
+            "ci-lifecycle",
+            "security-layers",
+            "no-standing-access",
+            "compartmentalisation",
+            "control-data-plane",
+            "architecture",
+            "masque-stack",
+            "connect-udp-sequence",
+            "multiple-gateways",
+            "audit-flow",
+            "deployment-models",
         ] {
             assert!(slugs.contains(&want), "{want}");
         }
