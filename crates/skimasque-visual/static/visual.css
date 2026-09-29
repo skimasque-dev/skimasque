@@ -67,3 +67,14 @@
 .v-status, .v-decision { display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1.4 var(--font);
   letter-spacing: .08em; color: var(--v-tone); white-space: nowrap; }
 .v-decision { font-size: 12px; padding: 4px 10px; border: 1px solid var(--v-tone); border-radius: var(--radius-sm); }
+
+/* node */
+.v-node { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%;
+  padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--v-tone) 55%, transparent);
+  border-radius: var(--radius-md); background: var(--surface); color: var(--text); font: 13px/1.35 var(--font); }
+.v-node.v-tone-structure { background: var(--v-structure-fill); }
+.v-node.v-tone-edge { background: var(--v-edge-fill); }
+.v-node-text { display: grid; min-width: 0; }
+.v-node-label { font-weight: 600; overflow-wrap: anywhere; }
+.v-node-sub { color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.v-node .v-status { margin-left: auto; }

@@ -48,5 +48,5 @@ pub mod node;
 pub mod status;
 
 pub use icons::Icons;
-pub use node::{NodeKind, Tone};
-pub use status::{Status, StatusBadge, DecisionBadge};
+pub use node::{Node, NodeKind, Tone};
+pub use status::{DecisionBadge, Status, StatusBadge};
