@@ -1,0 +1,1 @@
+<figure class="v-compare-wrap"><div class="v-compare">{% for s in sides %}<section class="v-compare-side v-tone-{{ s.tone.class() }}">{% if !s.title.is_empty() %}<h4 class="v-compare-title">{{ s.title }}</h4>{% endif %}{{ s.body|safe }}</section>{% endfor %}</div><figcaption class="v-sr">{{ caption }}</figcaption></figure>
