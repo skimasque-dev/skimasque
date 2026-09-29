@@ -22,11 +22,12 @@ amendment wins.
    present tense and never offered as a working control. Working examples
    use real commands (`skimasque connect`, the `skimasque-dev/connect`
    Action); `skimasque exec` appears only in Planned contexts.
-   - Planned today: `skimasque exec`, pricing tiers, per-gateway egress IP,
+   - Planned today: `skimasque exec`, paid pricing tiers, per-gateway egress IP,
      disabling a policy, revoking a session, team roles beyond the current
      owner/member, SSO, CONNECT-IP transport, live policy tests in the
      dashboard, interactive topology, onboarding "Create Example Policy" if
      it needs an API the control plane lacks.
+   - Owner ruling 2026-10-01: SkiMasque Cloud (Green Run) is live with a free tier; billing/paid plans are Planned.
 4. **Control-plane URLs move to `/app/...`** for the current organisation
    (organisation chosen by switcher and cookie). Every old
    `/dashboard/orgs/{org}/...` URL redirects (308, query kept). Navigation

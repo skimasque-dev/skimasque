@@ -2,17 +2,26 @@
 //! components; the registries list them for the gallery and the site
 //! generator. Control-plane diagrams take real data as arguments.
 
-use crate::{Component, Html, Status};
+use crate::{Component, ConnKind, Connection, Html, Status};
 
 pub mod control;
 pub mod platform;
 pub mod public;
 
 /// A named diagram, rendered.
+#[derive(Debug, Clone)]
 pub struct Entry {
     pub slug: &'static str,
     pub title: &'static str,
     pub html: Html,
+}
+
+pub(super) fn active() -> Connection {
+    Connection::new(ConnKind::Active)
+}
+
+pub(super) fn control(label: &str) -> Connection {
+    Connection::new(ConnKind::Control).label(label)
 }
 
 fn entry(slug: &'static str, title: &'static str, c: &impl Component) -> Entry {
@@ -110,7 +119,6 @@ pub fn public_set() -> Vec<Entry> {
 /// Control-plane diagrams rendered with example data (the dashboard calls
 /// the `control` functions with real data).
 pub fn control_set() -> Vec<Entry> {
-    // Example data; the dashboard calls the `control` functions with real data.
     let gateways = [
         control::GatewayRef {
             name: "gw-us-west",

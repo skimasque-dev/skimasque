@@ -477,14 +477,16 @@ fn body_sets_opacity(body: &str) -> bool {
 }
 
 #[test]
-fn a_flow_as_a_branch_root_sizes_to_its_content() {
+fn a_branch_has_definite_tracks_so_a_long_flow_root_cannot_starve_its_arms() {
     let css = strip_comments(include_str!("../static/visual.css"));
     let norm: String = css.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(
-        norm.contains(
-            ".v-branch-root .v-flow-wrap { container-type: normal; width: max-content; }"
-        ),
-        "a Flow root must not be an inline-size container in the auto grid column"
+        norm.contains(".v-branch { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);"),
+        "wide branches use definite tracks"
+    );
+    assert!(
+        !norm.contains("width: max-content"),
+        "no max-content override on a branch root"
     );
     assert!(norm.contains(".v-branch-arm .v-flow-wrap { width: auto; flex: 1 1 0; min-width: 0; }"));
 }

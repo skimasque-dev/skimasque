@@ -422,7 +422,7 @@ listening on 127.0.0.1:5432",
                     &RunCard::new(
                         Run::Blue,
                         "Your Gateway",
-                        &["Cloud control plane", "Gateway in your network"],
+                        &["SkiMasque control plane", "Gateway runs in your network"],
                     ),
                 ),
             ],

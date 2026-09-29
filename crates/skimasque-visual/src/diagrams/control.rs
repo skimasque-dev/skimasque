@@ -9,6 +9,7 @@ fn plural(n: u32, one: &str, many: &str) -> String {
     format!("{n} {}", if n == 1 { one } else { many })
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct GatewayRef<'a> {
     pub name: &'a str,
     pub region: &'a str,
@@ -81,9 +82,9 @@ pub fn gateway_topology(gateways: &[GatewayRef]) -> Branch {
         )
     };
     let root = Node::new(NodeKind::ControlPlane).sub(if gateways.is_empty() {
-        "No gateways connected"
+        "No gateways connected".to_owned()
     } else {
-        "gateways connected"
+        plural(gateways.len() as u32, "gateway", "gateways")
     });
     gateways.iter().fold(Branch::new(caption, &root), |b, g| {
         b.arm(

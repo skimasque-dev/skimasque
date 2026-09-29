@@ -274,7 +274,8 @@
 @media (max-width: 480px) { .v-facts > div, .v-summary > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }
 
 /* layout containers */
-.v-layers-wrap, .v-compare-wrap, .v-branch-wrap, .v-seq-wrap { margin: 0; width: 100%; min-width: 0; box-sizing: border-box; container-type: inline-size; font: 13px/1.5 var(--font); color: var(--text); }
+.v-layers-wrap, .v-compare-wrap, .v-branch-wrap, .v-seq-wrap { margin: 0; width: 100%; min-width: 0; box-sizing: border-box; font: 13px/1.5 var(--font); color: var(--text); }
+.v-compare-wrap, .v-branch-wrap { container-type: inline-size; }
 .v-layers { list-style: none; margin: 0; padding: 0; display: grid; justify-items: start; gap: 2px; }
 .v-layer-row { box-sizing: border-box; width: min(100%, 360px); display: grid; gap: 2px; padding: 10px 14px; border: 1px solid var(--line-default);
   border-left: 3px solid var(--v-structure); border-radius: var(--radius-md); background: var(--surface); }
@@ -291,10 +292,8 @@
 .v-branch-arm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 .v-branch-arm .v-flow-wrap { width: auto; flex: 1 1 0; min-width: 0; }
 @container (min-width: 560px) {
-  .v-branch { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; }
+  .v-branch { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); align-items: center; gap: 16px; }
   .v-branch-arms { padding-left: 0; }
-  /* A Flow root sizes to its content; its own container query then resolves against the branch. */
-  .v-branch-root .v-flow-wrap { container-type: normal; width: max-content; }
 }
 .v-seq { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 0; padding: 0 0 4px;
   background: linear-gradient(var(--line-strong), var(--line-strong)) 25% 0 / 2px 100% no-repeat,
@@ -319,15 +318,21 @@
 .v-run-card .v-card-title { display: flex; }
 .v-run-tech { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .v-run-lines { margin: 0; padding-left: 18px; color: var(--text-soft); }
+.v-run-planned { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--text-soft); }
+.v-compare-side > .v-card { border: 0; padding: 0; background: none; }
 
 /* motion: state only */
 @keyframes v-route-flow { to { stroke-dashoffset: -28; } }
 .v-route-flowing .v-route-line { stroke-dasharray: 4 10; animation: v-route-flow 1.6s linear infinite; }
 @keyframes v-reveal-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .v-reveal .v-flow-step, .v-reveal .v-branch-root, .v-reveal .v-branch-arm { animation: v-reveal-in .5s ease-out both; }
-.v-reveal .v-flow-step:nth-child(2), .v-reveal .v-branch-arm:nth-child(1) { animation-delay: .25s; }
-.v-reveal .v-flow-step:nth-child(3), .v-reveal .v-branch-arm:nth-child(2) { animation-delay: .5s; }
-.v-reveal .v-flow-step:nth-child(4), .v-reveal .v-branch-arm:nth-child(3) { animation-delay: .75s; }
+.v-reveal .v-flow-step:nth-child(2) { animation-delay: .25s; }
+.v-reveal .v-flow-step:nth-child(3) { animation-delay: .5s; }
+.v-reveal .v-flow-step:nth-child(4) { animation-delay: .75s; }
+.v-reveal .v-flow-step:nth-child(n+5) { animation-delay: 1s; }
+.v-reveal .v-branch-arm:nth-child(1) { animation-delay: .5s; }
+.v-reveal .v-branch-arm:nth-child(2) { animation-delay: .75s; }
+.v-reveal .v-branch-arm:nth-child(3) { animation-delay: 1s; }
 @keyframes v-expire-out { from { opacity: 1; } to { opacity: .45; } }
 .v-expire .v-node { border-style: dashed; border-color: color-mix(in srgb, var(--v-tone) 35%, transparent); }
 .v-expire .v-icon { opacity: .45; animation: v-expire-out 1.2s ease-out 1s both; }

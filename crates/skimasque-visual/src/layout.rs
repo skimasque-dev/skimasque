@@ -69,6 +69,7 @@ impl Compare {
             sides: Vec::new(),
         }
     }
+    /// Nest containers only inside `Compare` sides and `Branch` arms, which have a definite width: a `Flow`, `Branch` or `Compare` placed in a content-sized slot (a `Flow` step body, a `Branch` root) may collapse.
     pub fn side(mut self, title: impl Into<String>, tone: Tone, body: &impl Component) -> Self {
         self.sides.push(Side {
             title: title.into(),
@@ -94,6 +95,7 @@ pub struct Branch {
     pub arms: Vec<Arm>,
 }
 impl Branch {
+    /// Nest containers only inside `Compare` sides and `Branch` arms, which have a definite width: a `Flow`, `Branch` or `Compare` placed in a content-sized slot (a `Flow` step body, a `Branch` root) may collapse.
     pub fn new(caption: impl Into<String>, root: &impl Component) -> Self {
         Self {
             caption: caption.into(),
@@ -101,6 +103,7 @@ impl Branch {
             arms: Vec::new(),
         }
     }
+    /// Nest containers only inside `Compare` sides and `Branch` arms, which have a definite width: a `Flow`, `Branch` or `Compare` placed in a content-sized slot (a `Flow` step body, a `Branch` root) may collapse.
     pub fn arm(mut self, conn: Connection, body: &impl Component) -> Self {
         self.arms.push(Arm {
             conn: conn.html(),
@@ -204,10 +207,14 @@ mod tests {
         let s = s.as_str();
         assert_eq!(s.matches("v-compare-side").count(), 2);
         assert!(s.contains("v-tone-neutral") && s.contains("v-tone-active"));
+        assert!(
+            s.contains("Traditional") && !s.contains("<h4") && !s.contains("<h3"),
+            "titles are text, not headings"
+        );
         assert_eq!(
-            s.matches("<h4").count(),
+            s.matches("v-compare-title").count(),
             1,
-            "an empty title renders no heading"
+            "an empty title renders no title"
         );
         assert!(Compare::new("x")
             .side("only", Tone::Neutral, &a)

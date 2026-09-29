@@ -120,10 +120,8 @@ impl RunCard {
     fn marker_html(&self) -> Html {
         TrailMarker::new(self.run.shape(), self.run.tone(), self.run.name()).html()
     }
-    fn planned_html(&self) -> Option<Html> {
-        self.planned
-            .as_ref()
-            .map(|n| Planned::new().note(n.clone()).html())
+    fn planned_marker(&self) -> Html {
+        Planned::new().html()
     }
 }
 impl Component for RunCard {}
@@ -201,7 +199,12 @@ mod tests {
             .html()
             .as_str()
             .to_owned();
-        assert!(p.contains("PLANNED") && p.contains("hosted gateway"));
+        assert_eq!(p.matches("PLANNED").count(), 1);
+        assert!(p.contains("hosted gateway"));
+        assert!(
+            !p.contains(r#"class="v-sr"> — hosted"#),
+            "the note is visible, not screen-reader-only"
+        );
     }
 
     #[test]

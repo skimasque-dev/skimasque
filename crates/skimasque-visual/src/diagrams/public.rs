@@ -5,12 +5,7 @@ use crate::{
     Boundary, Branch, Compare, ConnKind, Connection, Flow, Node, NodeKind, Reveal, Status, Tone,
 };
 
-fn active() -> Connection {
-    Connection::new(ConnKind::Active)
-}
-fn control(label: &str) -> Connection {
-    Connection::new(ConnKind::Control).label(label)
-}
+use super::{active, control};
 
 pub fn identity_policy_access() -> Flow {
     Flow::new(
@@ -90,15 +85,15 @@ pub fn traditional_vs_skimasque() -> Compare {
     .via(control("checked"), &Node::new(NodeKind::Policy))
     .via(
         active(),
-        &Node::new(NodeKind::Service)
-            .label("One destination")
-            .sub("db.prod:5432"),
-    )
-    .via(
-        active(),
         &Node::new(NodeKind::Session)
             .sub("expires")
             .status(Status::Active),
+    )
+    .via(
+        active(),
+        &Node::new(NodeKind::Service)
+            .label("One destination")
+            .sub("db.prod:5432"),
     );
     Compare::new("Traditional access reaches a whole network; SkiMasque reaches one destination for a limited time.")
         .side("Traditional access", Tone::Neutral, &traditional)

@@ -57,9 +57,11 @@ pub fn no_standing_access() -> Compare {
             .label("Session")
             .status(Status::Expired),
     );
-    Compare::new("A stored credential can keep working until it is revoked; a SkiMasque session expires.")
-        .side("Standing access", Tone::Neutral, &standing)
-        .side("No standing access", Tone::Active, &temporary)
+    Compare::new(
+        "A stored credential can keep working until it is revoked; a SkiMasque session expires.",
+    )
+    .side("Standing access", Tone::Neutral, &standing)
+    .side("No standing access", Tone::Active, &temporary)
 }
 
 pub fn compartmentalisation() -> Compare {
@@ -74,9 +76,17 @@ pub fn compartmentalisation() -> Compare {
             &Node::new(NodeKind::Deny).sub("DENY"),
         )
     };
-    Compare::new("Each job is allowed exactly one destination; anything else is denied by policy.")
-        .side("Job A", Tone::Active, &job("Job A", NodeKind::Database, "db.prod:5432"))
-        .side("Job B", Tone::Active, &job("Job B", NodeKind::Api, "api.internal:443"))
+    Compare::new("Each job is allowed one destination; anything else is denied by policy.")
+        .side(
+            "Job A",
+            Tone::Active,
+            &job("Job A", NodeKind::Database, "db.prod:5432"),
+        )
+        .side(
+            "Job B",
+            Tone::Active,
+            &job("Job B", NodeKind::Api, "api.internal:443"),
+        )
 }
 
 pub fn control_data_plane() -> Flow {
@@ -277,7 +287,10 @@ mod tests {
             1,
             "only paid plans are planned (billing is not in place)"
         );
-        assert!(s.contains("paid plans"));
+        assert!(
+            s.contains("paid plans <span class=\"v-planned\">") && !s.contains("v-sr\"> — paid"),
+            "the note is visible beside the marker"
+        );
     }
 
     #[test]
