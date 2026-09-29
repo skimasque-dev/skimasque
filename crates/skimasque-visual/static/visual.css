@@ -229,3 +229,23 @@
 .v-diff-field { color: var(--text-muted); }
 .v-diff-before { text-decoration: line-through; color: var(--text-muted); }
 .v-diff-empty { margin: 0; color: var(--text-muted); }
+
+/* decisions */
+.v-explain, .v-audit-event { box-sizing: border-box; max-width: 100%; min-width: 0; font: 13px/1.5 var(--font); color: var(--text); }
+.v-checks { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 4px; }
+.v-check { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 4px 10px; border-left: 3px solid var(--v-tone); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.v-check-pass { --v-tone: var(--v-active); }
+.v-check-fail { --v-tone: var(--v-deny); background: color-mix(in srgb, var(--v-deny) 8%, transparent); }
+.v-check-glyph { font-weight: 700; color: var(--v-tone); }
+.v-check-label { font-weight: 600; }
+.v-check-word { color: var(--text-muted); }
+.v-check-detail { flex: 1 1 100%; color: var(--text-muted); font-size: 12px; }
+.v-explain-result { display: grid; gap: 6px; justify-items: start; }
+.v-explain-reason { margin: 0; overflow-wrap: anywhere; }
+.v-decision-line { margin: 0; overflow-wrap: anywhere; }
+.v-decision-who { font-weight: 600; }
+.v-audit-event { display: grid; gap: 8px; }
+.v-audit-reason { margin: 0; color: var(--text-soft); overflow-wrap: anywhere; }
+.v-audit-why summary { cursor: pointer; color: var(--accent-text); }
+.v-audit-why summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.v-audit-why[open] summary { margin-bottom: 8px; }

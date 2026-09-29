@@ -5,9 +5,10 @@
 use askama::Template;
 
 use crate::{
-    Boundary, Change, CodeExample, Component, ConnKind, Connection, DecisionBadge, EmptyState,
-    Flow, Html, Icons, Node, NodeKind, Planned, PolicyCard, PolicyDiff, PolicyExplorer,
-    PolicySummary, Status, StatusBadge,
+    AuditEventCard, Boundary, Change, Check, CodeExample, Component, ConnKind, Connection,
+    DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Flow, Html, Icons, Node, NodeKind,
+    Planned, PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary, Status, StatusBadge,
+    DIMENSIONS,
 };
 
 pub struct Page {
@@ -168,6 +169,71 @@ fn groups() -> Vec<Group> {
         ),
         item("diff · empty", &PolicyDiff::new(vec![])),
     ];
+    let dims_ok = || {
+        DIMENSIONS
+            .iter()
+            .map(|d| Check::pass(*d))
+            .collect::<Vec<_>>()
+    };
+    let decisions = vec![
+        item(
+            "explainer · granted",
+            &DecisionExplainer::new(
+                dims_ok(),
+                true,
+                "identity, application, destination and limits all match production-deploy",
+            ),
+        ),
+        item(
+            "explainer · denied",
+            &DecisionExplainer::new(
+                vec![
+                    Check::pass("Identity"),
+                    Check::pass("Application"),
+                    Check::fail("Destination").detail("db.staging:5432 is not in this policy"),
+                    Check::pass("Limits"),
+                    Check::pass("Policy active"),
+                ],
+                false,
+                "destination not allowed",
+            ),
+        ),
+        item(
+            "decision card · granted",
+            &DecisionCard::new(true, "acme/widget", "db.prod:5432", "2026-09-29 14:02 UTC")
+                .policy("production-deploy"),
+        ),
+        item(
+            "decision card · denied",
+            &DecisionCard::new(
+                false,
+                "acme/widget",
+                "db.staging:5432",
+                "2026-09-29 14:05 UTC",
+            ),
+        ),
+        item(
+            "audit event · with explanation",
+            &AuditEventCard::new(
+                DecisionCard::new(
+                    false,
+                    "acme/widget",
+                    "db.staging:5432",
+                    "2026-09-29 14:05 UTC",
+                ),
+                "destination not allowed",
+            )
+            .explainer(DecisionExplainer::new(
+                vec![
+                    Check::pass("Identity"),
+                    Check::fail("Destination").detail("db.staging:5432 is not in this policy"),
+                ],
+                false,
+                "destination not allowed",
+            ))
+            .technical(),
+        ),
+    ];
     vec![
         Group {
             title: "Nodes",
@@ -202,6 +268,11 @@ fn groups() -> Vec<Group> {
             title: "Policies",
             wide: false,
             items: policies,
+        },
+        Group {
+            title: "Decisions",
+            wide: false,
+            items: decisions,
         },
         Group {
             title: "Content",
@@ -309,6 +380,8 @@ mod tests {
             "data-layer=\"who\"",
             "v-diff-changed",
             "No changes",
+            "v-check-fail",
+            "<details class=\"v-audit-why\">",
         ] {
             assert!(page.contains(s), "{s}");
         }
