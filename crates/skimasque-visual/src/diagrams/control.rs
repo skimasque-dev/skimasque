@@ -52,7 +52,7 @@ pub fn session_flow(identity: &str, target: &str, gateway: &str, status: Status)
         ConnKind::Potential
     };
     Flow::new(format!(
-        "{identity} has a session {} through {gateway} to {target}.",
+        "{identity}'s session ({}) goes through {gateway} to {target}.",
         status.word().to_lowercase()
     ))
     .then(&Node::new(NodeKind::Identity).label(identity.to_owned()))

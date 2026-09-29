@@ -5,12 +5,11 @@
 use askama::Template;
 
 use crate::{
-    AuditEventCard, Boundary, Branch, Change, Check, CodeExample, Compare, Component, ConnKind,
-    Connection, Contour, DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Expire, Flow,
-    GatewayCard, HealthCard, Html, Icons, IdentityCard, Layers, Mountain, Node, NodeKind, Planned,
-    PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary, Reveal, Route, Run, RunCard, Sequence,
-    SessionCard, SessionTimeline, Shape, Status, StatusBadge, TimelineEvent, Tone, TrailMarker,
-    DIMENSIONS,
+    AuditEventCard, Boundary, Change, Check, CodeExample, Component, ConnKind, Connection, Contour,
+    DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Expire, Flow, GatewayCard,
+    HealthCard, Html, Icons, IdentityCard, Mountain, Node, NodeKind, Planned, PolicyCard,
+    PolicyDiff, PolicyExplorer, PolicySummary, Reveal, Route, Run, RunCard, SessionCard,
+    SessionTimeline, Shape, Status, StatusBadge, TimelineEvent, Tone, TrailMarker, DIMENSIONS,
 };
 
 pub struct Page {
@@ -310,62 +309,6 @@ fn groups() -> Vec<Group> {
             &IdentityCard::new("acme/new-repo", "GitHub Actions", 0),
         ),
     ];
-    let layers = Layers::new(
-        "Five security layers, each resting on the one below: identity, policy, session, gateway and network.",
-    )
-    .upward()
-    .row("IDENTITY")
-    .row_sub("POLICY", "who may reach what")
-    .row("SESSION")
-    .row("GATEWAY")
-    .row("NETWORK");
-    let compare = Compare::new(
-        "A traditional CI job reaches the database through a static VPN credential; \
-         with SkiMasque it uses a short-lived session instead.",
-    )
-    .side(
-        "Traditional",
-        Tone::Neutral,
-        &Flow::new("A CI job connects to the database directly.")
-            .then(&Node::new(NodeKind::CiJob))
-            .via(
-                Connection::new(ConnKind::Normal),
-                &Node::new(NodeKind::Database),
-            ),
-    )
-    .side(
-        "With SkiMasque",
-        Tone::Active,
-        &Flow::new("A CI job connects to the database through a session.")
-            .then(&Node::new(NodeKind::CiJob))
-            .via(
-                Connection::new(ConnKind::Active),
-                &Node::new(NodeKind::Session),
-            )
-            .via(
-                Connection::new(ConnKind::Active),
-                &Node::new(NodeKind::Database),
-            ),
-    );
-    let branch = Branch::new(
-        "A policy either matches the request and allows it, or does not match and denies it.",
-        &Node::new(NodeKind::Policy),
-    )
-    .arm(
-        Connection::new(ConnKind::Active).label("match"),
-        &Node::new(NodeKind::Allow),
-    )
-    .arm(
-        Connection::new(ConnKind::Denied).label("no match"),
-        &Node::new(NodeKind::Deny),
-    );
-    let sequence = Sequence::new(
-        "The client requests a tunnel from the gateway and the gateway confirms it.",
-        "Client",
-        "Gateway",
-    )
-    .to_right("CONNECT-UDP request")
-    .to_left("tunnel established");
     let hostile = vec![
         item(
             "policy card",
@@ -432,16 +375,6 @@ fn groups() -> Vec<Group> {
             items: hostile,
         },
         Group {
-            title: "Layout",
-            wide: true,
-            items: vec![
-                item("layers", &layers),
-                item("compare", &compare),
-                item("branch", &branch),
-                item("sequence", &sequence),
-            ],
-        },
-        Group {
             title: "Content",
             wide: false,
             items: vec![
@@ -496,7 +429,7 @@ listening on 127.0.0.1:5432",
         },
         Group {
             title: "Motion",
-            wide: false,
+            wide: true,
             items: vec![
                 item(
                     "expired session",
@@ -632,9 +565,13 @@ mod tests {
             "v-route",
             "v-trail",
             "v-run-card",
-            "gw-us-west",
+            "gw-eu-west",
             "4 identities",
             "interactive inspection",
+            "Public diagrams",
+            "Control-plane diagrams",
+            "Motifs",
+            "Motion",
         ] {
             assert!(page.contains(s), "{s}");
         }
