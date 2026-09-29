@@ -4,6 +4,7 @@
 
 use askama::Template;
 
+use super::Page;
 use crate::{
     AuditEventCard, Boundary, Change, Check, CodeExample, ComparisonTable, Component, ConnKind,
     Connection, Contour, Cta, CtaBand, DecisionBadge, DecisionCard, DecisionExplainer, EmptyState,
@@ -12,11 +13,6 @@ use crate::{
     PolicySummary, Prose, Reveal, Route, Run, RunCard, Section, SessionCard, SessionTimeline,
     Shape, Status, StatusBadge, TierCard, TimelineEvent, Tone, TrailMarker, DIMENSIONS,
 };
-
-pub struct Page {
-    pub path: &'static str,
-    pub contents: String,
-}
 
 struct Item {
     caption: String,
@@ -463,7 +459,6 @@ listening on 127.0.0.1:5432",
                 item(
                     "section",
                     &Section::new("Product model")
-                        .id("model")
                         .eyebrow("Concepts")
                         .alt()
                         .push(
@@ -549,7 +544,7 @@ listening on 127.0.0.1:5432",
     ]
 }
 
-pub fn pages() -> Vec<Page> {
+pub(super) fn pages() -> Vec<Page> {
     let gallery = Gallery {
         sprite: Icons.html(),
         groups: groups(),
@@ -565,43 +560,6 @@ pub fn pages() -> Vec<Page> {
             contents: crate::CSS.to_owned(),
         },
     ]
-}
-
-/// Paths under `root` that are stale: a generated file that is missing or
-/// differs from a fresh render, or an orphan under `components/` that `pages()`
-/// no longer produces. Line endings are normalised so a CRLF checkout is not
-/// reported.
-pub fn stale(root: &std::path::Path) -> Vec<String> {
-    let pages = pages();
-    let mut out: Vec<String> = pages
-        .iter()
-        .filter(|p| match std::fs::read_to_string(root.join(p.path)) {
-            Ok(on_disk) => on_disk.replace("\r\n", "\n") != p.contents.replace("\r\n", "\n"),
-            Err(_) => true,
-        })
-        .map(|p| p.path.to_owned())
-        .collect();
-    let mut orphans = Vec::new();
-    collect_files(&root.join("components"), "components", &mut orphans);
-    orphans.retain(|rel| !pages.iter().any(|p| p.path == rel));
-    orphans.sort();
-    out.extend(orphans);
-    out
-}
-
-/// Every file below `dir`, as `/`-separated paths starting with `prefix`.
-fn collect_files(dir: &std::path::Path, prefix: &str, out: &mut Vec<String>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let rel = format!("{prefix}/{}", entry.file_name().to_string_lossy());
-        if entry.path().is_dir() {
-            collect_files(&entry.path(), &rel, out);
-        } else {
-            out.push(rel);
-        }
-    }
 }
 
 #[cfg(test)]
@@ -667,6 +625,7 @@ mod tests {
             "sprite emitted once"
         );
         assert_eq!(page.matches(r#"<svg class="v-sprite""#).count(), 1);
+        // only public pages must have exactly one h1; the gallery shows a demo hero per theme
         assert_eq!(
             page.matches("<h1").count(),
             3,
@@ -724,30 +683,5 @@ mod tests {
             "hostile strings are escaped"
         );
         assert!(!page.contains("exec"), "honesty rule: no `skimasque exec`");
-    }
-
-    #[test]
-    fn stale_ignores_crlf_and_reports_missing_or_changed_files() {
-        let dir = std::env::temp_dir().join(format!("sitegen-test-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        for p in pages() {
-            let path = dir.join(p.path);
-            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-            std::fs::write(&path, p.contents.replace('\n', "\r\n")).unwrap();
-        }
-        assert!(stale(&dir).is_empty(), "CRLF checkout is not stale");
-        std::fs::write(dir.join("components/visual.css"), "changed").unwrap();
-        assert_eq!(stale(&dir), vec!["components/visual.css"]);
-        std::fs::remove_file(dir.join("components/index.html")).unwrap();
-        assert_eq!(stale(&dir).len(), 2);
-        std::fs::write(dir.join("components/visual.css"), crate::CSS).unwrap();
-        std::fs::create_dir_all(dir.join("components/old")).unwrap();
-        std::fs::write(dir.join("components/old/gone.html"), "orphan").unwrap();
-        let stale_now = stale(&dir);
-        assert!(
-            stale_now.contains(&"components/old/gone.html".to_owned()),
-            "orphans are reported: {stale_now:?}"
-        );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }
