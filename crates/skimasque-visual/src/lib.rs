@@ -55,6 +55,7 @@ pub mod decision;
 pub mod flow;
 pub mod icons;
 pub mod layout;
+pub mod motif;
 pub mod node;
 pub mod policy;
 #[cfg(feature = "site")]
@@ -71,6 +72,7 @@ pub use decision::{AuditEventCard, Check, DecisionCard, DecisionExplainer, DIMEN
 pub use flow::{Flow, Step};
 pub use icons::Icons;
 pub use layout::{Arm, Branch, Compare, LayerRow, Layers, Message, Sequence, Side};
+pub use motif::{Contour, Mountain, Route, Run, RunCard, Shape, TrailMarker};
 pub use node::{Node, NodeKind, Tone};
 pub use policy::{Change, ChangeKind, PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary};
 pub use status::{DecisionBadge, Status, StatusBadge};

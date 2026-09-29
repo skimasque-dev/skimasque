@@ -1,0 +1,1 @@
+<article class="v-card v-run-card"><header class="v-card-head"><h3 class="v-card-title">{{ self.marker_html()|safe }}</h3></header><p class="v-run-tech">{{ technical }}</p>{% if !lines.is_empty() %}<ul class="v-run-lines">{% for l in lines %}<li>{{ l }}</li>{% endfor %}</ul>{% endif %}{% if let Some(p) = self.planned_html() %}{{ p|safe }}{% endif %}</article>

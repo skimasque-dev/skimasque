@@ -6,10 +6,11 @@ use askama::Template;
 
 use crate::{
     AuditEventCard, Boundary, Branch, Change, Check, CodeExample, Compare, Component, ConnKind,
-    Connection, DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Flow, GatewayCard,
-    HealthCard, Html, Icons, IdentityCard, Layers, Node, NodeKind, Planned, PolicyCard, PolicyDiff,
-    PolicyExplorer, PolicySummary, Sequence, SessionCard, SessionTimeline, Status, StatusBadge,
-    TimelineEvent, Tone, DIMENSIONS,
+    Connection, Contour, DecisionBadge, DecisionCard, DecisionExplainer, EmptyState, Flow,
+    GatewayCard, HealthCard, Html, Icons, IdentityCard, Layers, Mountain, Node, NodeKind, Planned,
+    PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary, Route, Run, RunCard, Sequence,
+    SessionCard, SessionTimeline, Shape, Status, StatusBadge, TimelineEvent, Tone, TrailMarker,
+    DIMENSIONS,
 };
 
 pub struct Page {
@@ -454,6 +455,36 @@ listening on 127.0.0.1:5432",
                 ),
             ],
         },
+        Group {
+            title: "Motifs",
+            wide: false,
+            items: vec![
+                item("contour", &Contour),
+                item("mountain", &Mountain),
+                item("route", &Route::new()),
+                item("route · flowing", &Route::new().flowing()),
+                item(
+                    "trail marker · circle",
+                    &TrailMarker::new(Shape::Circle, Tone::Active, "trailhead"),
+                ),
+                item(
+                    "trail marker · square",
+                    &TrailMarker::new(Shape::Square, Tone::Info, "checkpoint"),
+                ),
+                item(
+                    "trail marker · diamond",
+                    &TrailMarker::new(Shape::Diamond, Tone::Neutral, "summit"),
+                ),
+                item(
+                    "run · Blue",
+                    &RunCard::new(
+                        Run::Blue,
+                        "Your Gateway",
+                        &["Cloud control plane", "Gateway in your network"],
+                    ),
+                ),
+            ],
+        },
     ]
 }
 
@@ -547,6 +578,11 @@ mod tests {
             "v-compare",
             "v-branch",
             "v-seq",
+            "v-contour",
+            "v-mountain",
+            "v-route",
+            "v-trail",
+            "v-run-card",
         ] {
             assert!(page.contains(s), "{s}");
         }
