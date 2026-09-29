@@ -62,3 +62,8 @@
 
 /* icons */
 .v-icon { width: 18px; height: 18px; flex: 0 0 auto; color: var(--v-tone, var(--text-muted)); }
+
+/* status */
+.v-status, .v-decision { display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1.4 var(--font);
+  letter-spacing: .08em; color: var(--v-tone); white-space: nowrap; }
+.v-decision { font-size: 12px; padding: 4px 10px; border: 1px solid var(--v-tone); border-radius: var(--radius-sm); }
