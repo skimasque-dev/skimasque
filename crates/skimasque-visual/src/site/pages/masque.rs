@@ -37,7 +37,7 @@ pub fn page() -> Page {
         .push(&PlannedBlock::new(
             "CONNECT-IP forwarding through a TUN device",
             &Prose::new().p(
-                "Today the gateway carries UDP and TCP tunnels and a SOCKS5 front end. Forwarding whole IP packets is not available yet.",
+                "Today SkiMasque carries UDP and TCP tunnels, with a SOCKS5 front end on the client. Forwarding whole IP packets is not available yet.",
             ),
         ));
 
@@ -45,7 +45,7 @@ pub fn page() -> Page {
         Section::new("Standards status")
             .alt()
             .push(&Prose::new().p(
-                "The transport implements the IETF MASQUE specifications in Rust, on quinn and h3.",
+                "The transport implements the MASQUE specifications listed below in Rust, on quinn and h3.",
             ))
             .push(
                 &ComparisonTable::new(&["Specification", "Status", "Detail"])
@@ -125,6 +125,8 @@ mod tests {
             "RFC 9297",
             "RFC 1928",
             "TUN forwarding not yet wired",
+            "SOCKS5 front end on the client",
+            "MASQUE specifications listed below",
             "identity-aware network access",
             "the network transport underneath it",
         ] {

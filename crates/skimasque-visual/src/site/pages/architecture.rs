@@ -26,7 +26,7 @@ pub fn page() -> Page {
                 "audit records",
                 "organization configuration",
             ])
-            .p("SkiMasque Cloud operates the control plane. It is not on the traffic path."),
+            .p("In SkiMasque Cloud, SkiMasque operates the control plane. Either way it is not on the traffic path."),
     );
 
     let data = Section::new("Data plane").push(
@@ -37,9 +37,11 @@ pub fn page() -> Page {
                 "traffic forwarding",
                 "gateway connectivity",
                 "protocol handling",
+            "In SkiMasque Cloud, SkiMasque operates the control plane",
+            "while the control plane is unreachable",
             ])
             .p(
-                "The gateway enforces policy itself. If the control plane is unreachable it keeps enforcing its cached policy for as long as its cache lease allows.",
+                "The gateway enforces policy itself. If the control plane is unreachable it keeps enforcing its cached policy while the control plane is unreachable.",
             ),
     );
 
@@ -100,6 +102,8 @@ mod tests {
             "Data plane",
             "session issuance",
             "protocol handling",
+            "In SkiMasque Cloud, SkiMasque operates the control plane",
+            "while the control plane is unreachable",
             "Should this session exist?",
             "How does the traffic move?",
             "docs/architecture.md",

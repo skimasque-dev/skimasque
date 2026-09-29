@@ -92,7 +92,7 @@ pub fn page() -> Page {
                 )
                 .feature(
                     "Keeps working during an outage",
-                    "A control-plane outage is designed to degrade management, not enforcement. The gateway keeps enforcing its cached policy while its cache lease allows, and verifies credentials locally.",
+                    "A control-plane outage is designed to degrade management, not enforcement. The gateway keeps enforcing its cached policy while the control plane is unreachable, and verifies credentials locally.",
                 )
                 .feature(
                     "Short-lived credentials",
@@ -132,7 +132,7 @@ pub fn page() -> Page {
                 .kv("WHERE", "the destination")
                 .kv("WHEN", "the time of the decision")
                 .kv("WHICH POLICY", "the policy and rule that decided")
-                .kv("WHICH GATEWAY", "the gateway that enforced it")
+                .kv("WHICH GATEWAY", "the gateway that enforced it (identified by the stream it ships on)")
                 .kv("RESULT", "allow or deny, with a reason"),
         )
         .push(&Prose::new().p(
@@ -187,6 +187,8 @@ mod tests {
             "Compartmentalisation",
             "Auditability",
             "WHICH GATEWAY",
+            "identified by the stream it ships on",
+            "while the control plane is unreachable",
             "How the gateway enforces it",
             "docs/security.md",
             "docs/threat-model.md",
