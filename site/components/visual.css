@@ -170,3 +170,24 @@
   height: 10px; margin: 0 0 14px; position: relative; }
 .v-firewall-rule .v-boundary-label { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   padding: 0 8px; white-space: nowrap; background: var(--bg); color: var(--v-edge-text); }
+
+/* content */
+.v-planned { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border: 1px dashed var(--v-neutral);
+  border-radius: var(--radius-sm); font: 600 10px/1.6 var(--font); letter-spacing: .1em; color: var(--v-neutral-text); white-space: nowrap; }
+.v-btn { display: inline-block; padding: 8px 16px; border-radius: var(--radius-md); background: var(--accent); color: var(--on-accent);
+  font: 600 13px/1.4 var(--font); text-decoration: none; }
+.v-btn:hover { background: var(--accent-hover); }
+.v-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.v-empty { display: grid; justify-items: start; gap: 8px; padding: 24px; border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-lg); background: var(--surface); color: var(--text); font: 13px/1.6 var(--font); max-width: 100%; box-sizing: border-box; }
+.v-empty-title { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.v-empty-body { margin: 0; color: var(--text-muted); overflow-wrap: anywhere; }
+.v-empty-body span { display: block; }
+/* code blocks are Pine in both themes, so they use palette tokens, not roles */
+.v-code { margin: 0; border-radius: var(--radius-lg); background: var(--pine-950); color: var(--snow); font: 13px/1.6 var(--font); overflow: hidden; max-width: 100%; }
+.v-code-label { padding: 8px 16px; color: var(--slate-300); font-size: 11px; letter-spacing: .08em; border-bottom: 1px solid var(--line-default); }
+.v-code-body { margin: 0; padding: 12px 16px; overflow-x: auto; white-space: pre; }
+.v-code-prompt { color: var(--mint); }
+.v-code-cmd { color: var(--snow); }
+.v-code-comment { color: var(--slate-300); }
+.v-code-out { color: var(--ice); }

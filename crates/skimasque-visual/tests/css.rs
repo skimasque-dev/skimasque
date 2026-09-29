@@ -250,3 +250,16 @@ fn templates_hard_code_no_colours() {
         }
     }
 }
+
+#[test]
+fn code_block_palette_pairs_meet_4_5_to_1() {
+    let rules = rules(skimasque_visual::CSS);
+    let t = rule(&rules, ":root");
+    let get = |n: &str| t.decls.iter().find(|(k, _)| k == n).unwrap().1.clone();
+    for fg in ["--snow", "--ice", "--slate-300", "--mint"] {
+        assert!(
+            contrast(&get(fg), &get("--pine-950")) >= 4.5,
+            "{fg} on code bg"
+        );
+    }
+}

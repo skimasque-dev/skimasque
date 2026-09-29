@@ -5,8 +5,8 @@
 use askama::Template;
 
 use crate::{
-    Boundary, Component, ConnKind, Connection, DecisionBadge, Flow, Html, Icons, Node, NodeKind,
-    Status, StatusBadge,
+    Boundary, CodeExample, Component, ConnKind, Connection, DecisionBadge, EmptyState, Flow, Html,
+    Icons, Node, NodeKind, Planned, Status, StatusBadge,
 };
 
 pub struct Page {
@@ -159,6 +159,29 @@ fn groups() -> Vec<Group> {
             wide: false,
             items: vec![item("region", &region), item("firewall", &firewall)],
         },
+        Group {
+            title: "Content",
+            wide: false,
+            items: vec![
+                item("planned", &Planned::new()),
+                item(
+                    "planned with note",
+                    &Planned::new().note("shown, not available"),
+                ),
+                item("empty · policies", &EmptyState::no_policies("#")),
+                item("empty · sessions", &EmptyState::no_sessions()),
+                item("empty · gateways", &EmptyState::no_gateways("#")),
+                item(
+                    "code",
+                    &CodeExample::new(
+                        "connect to a private database",
+                        "# open a session
+$ skimasque connect db.prod:5432
+listening on 127.0.0.1:5432",
+                    ),
+                ),
+            ],
+        },
     ]
 }
 
@@ -235,6 +258,9 @@ mod tests {
             .find(|p| p.path == "components/index.html")
             .unwrap()
             .contents;
+        for s in ["PLANNED", "No policies yet.", "v-code-prompt"] {
+            assert!(page.contains(s), "{s}");
+        }
         assert!(
             page.contains(r#"<link rel="stylesheet" href="visual.css">"#),
             "stylesheet linked relatively"
