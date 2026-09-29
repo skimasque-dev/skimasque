@@ -358,4 +358,26 @@ mod tests {
             h.as_str()
         );
     }
+
+    #[test]
+    fn explorer_groups_are_named_and_carry_no_ids() {
+        let e = PolicyExplorer::new(
+            &["acme/widget"],
+            &["terraform"],
+            &["db:5432"],
+            &["20 min"],
+            true,
+            "ok",
+        );
+        let h = e.html();
+        let s = h.as_str();
+        assert!(!s.contains("<section"), "{s}");
+        for name in ["WHO", "WHAT", "WHERE", "LIMITS", "Decision"] {
+            assert!(
+                s.contains(&format!("role=\"group\" aria-label=\"{name}\"")),
+                "{name}: {s}"
+            );
+        }
+        assert!(!s.contains(" id="), "{s}");
+    }
 }
