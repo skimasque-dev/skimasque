@@ -47,7 +47,7 @@ pub use credential::{
 };
 pub use error::Error;
 pub use jwks::{JwksCache, JwksProvider};
-pub use provider::{ClaimNames, Claims, Provider, GITHUB_ACTIONS_ISSUER};
+pub use provider::{Claims, ClaimNames, Provider, GITHUB_ACTIONS_ISSUER};
 pub use verify::Verifier;
 
 #[cfg(feature = "remote")]
