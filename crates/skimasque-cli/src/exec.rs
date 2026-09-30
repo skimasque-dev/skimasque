@@ -281,6 +281,250 @@ pub fn status_code(status: std::process::ExitStatus) -> i32 {
     EXIT_FAILED
 }
 
+/// Run exec to completion and return the process exit status. Every failure
+/// before the command starts is printed and returns [`EXIT_FAILED`].
+pub async fn run(args: ExecArgs) -> i32 {
+    match run_inner(args).await {
+        Ok(code) => code,
+        Err(Failure(code, message)) => {
+            eprintln!("skimasque exec: {message}");
+            code
+        }
+    }
+}
+
+struct Failure(i32, String);
+
+fn failed(message: impl std::fmt::Display) -> Failure {
+    Failure(EXIT_FAILED, message.to_string())
+}
+
+async fn run_inner(args: ExecArgs) -> Result<i32, Failure> {
+    use std::sync::Arc;
+
+    use http::{HeaderMap, HeaderValue};
+    use tokio::net::TcpListener;
+
+    let login = crate::account::load().map_err(|e| failed(format!("{e:#}")))?;
+    let control_plane = resolve_control_plane(args.control_plane.as_deref(), login.as_ref());
+    let gateway = resolve_gateway(args.gateway.as_deref(), &control_plane).map_err(failed)?;
+    let program = args.command[0].clone();
+    let app = args.app.clone().unwrap_or_else(|| default_app(&program));
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        skimasque::APPLICATION_HEADER,
+        HeaderValue::from_str(&app)
+            .map_err(|_| failed("the application name contains characters a header cannot carry"))?,
+    );
+    if let Some(pin) = &args.policy {
+        headers.insert(
+            skimasque::POLICY_HEADER,
+            HeaderValue::from_str(pin)
+                .map_err(|_| failed("the policy name contains characters a header cannot carry"))?,
+        );
+    }
+
+    let connected = crate::session::open_session(&gateway, &args.tls, &args.auth, headers)
+        .await
+        .map_err(|e| failed(format!("{e:#}")))?;
+    let identity = connected
+        .credential
+        .as_deref()
+        .and_then(|token| skimasque_identity::peek_identity(token).ok());
+    let who = identity_label(identity.as_ref());
+
+    // Preflight: only with a login session on this control plane.
+    let mut checked: Option<Checked> = None;
+    if let Some(login) = connected
+        .login
+        .as_ref()
+        .filter(|l| crate::normalize_base_url(&l.creds.control_plane) == control_plane)
+    {
+        let destinations: Vec<String> = if args.forwards.is_empty() {
+            vec![PREFLIGHT_PLACEHOLDER.to_owned()]
+        } else {
+            args.forwards.iter().map(|f| f.target.to_string()).collect()
+        };
+        match preflight(login, identity.clone().unwrap_or_default(), &app, &destinations).await {
+            Ok(probes) => {
+                checked = Some(
+                    judge(args.policy.as_deref(), &who, &probes, args.forwards.len())
+                        .map_err(failed)?,
+                );
+            }
+            Err(error) => eprintln!(
+                "skimasque exec: could not check access in advance ({error:#}); the gateway still enforces"
+            ),
+        }
+    }
+
+    let crate::session::Connected {
+        session, refresh, ..
+    } = connected;
+    let session = Arc::new(session);
+    // Every task is `JoinHandle<()>` so they can be aborted together.
+    let mut tasks: Vec<tokio::task::JoinHandle<()>> = Vec::new();
+    if let Some((exchange, ttl)) = refresh {
+        let s = session.clone();
+        tasks.push(tokio::spawn(async move {
+            crate::session::refresh_credential(s, exchange, ttl, false).await;
+        }));
+    }
+
+    let bind = |port: u16| async move {
+        TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await
+    };
+    let http_listener = bind(0)
+        .await
+        .map_err(|e| failed(format!("listening on loopback: {e}")))?;
+    let socks_listener = bind(0)
+        .await
+        .map_err(|e| failed(format!("listening on loopback: {e}")))?;
+    let http_addr = http_listener.local_addr().map_err(failed)?;
+    let socks_addr = socks_listener.local_addr().map_err(failed)?;
+    let mut forwards = Vec::new();
+    for spec in &args.forwards {
+        let listener = crate::forward::bind(spec).await.map_err(|e| {
+            failed(format!(
+                "could not listen on 127.0.0.1:{} for {}: {e}",
+                spec.local_port, spec.target
+            ))
+        })?;
+        let local = listener.local_addr().map_err(failed)?;
+        let (s, target) = (session.clone(), spec.target.clone());
+        tasks.push(tokio::spawn(async move {
+            let _ = crate::forward::serve(listener, target, s).await;
+        }));
+        forwards.push((spec.clone(), local));
+    }
+    let s = session.clone();
+    tasks.push(tokio::spawn(async move {
+        let _ = crate::http_connect::serve(http_listener, s).await;
+    }));
+    let s = session.clone();
+    tasks.push(tokio::spawn(async move {
+        let _ = crate::socks5::serve(socks_listener, s).await;
+    }));
+
+    if !args.quiet {
+        let view = HeaderView {
+            identity: who.clone(),
+            policy: args
+                .policy
+                .clone()
+                .or_else(|| checked.as_ref().and_then(|c| c.selected.clone()))
+                .unwrap_or_else(|| "(selected by the gateway)".to_owned()),
+            application: app.clone(),
+            gateway: gateway.clone(),
+            access: forwards
+                .iter()
+                .enumerate()
+                .map(|(i, (spec, local))| AccessLine {
+                    destination: spec.target.to_string(),
+                    allowed: checked.as_ref().and_then(|c| c.allowed.get(i).copied()),
+                    local: *local,
+                })
+                .collect(),
+            session: checked.as_ref().and_then(|c| c.session.clone()),
+        };
+        eprint!("{}", render_header(&view));
+    }
+
+    let mut child = tokio::process::Command::new(&program);
+    child
+        .args(&args.command[1..])
+        .envs(child_env(http_addr, socks_addr, &forwards));
+    let code = match child.spawn() {
+        Err(error) => {
+            let code = spawn_error_code(&error);
+            let what = if code == EXIT_NOT_FOUND {
+                "command not found".to_owned()
+            } else {
+                error.to_string()
+            };
+            eprintln!("skimasque exec: {}: {what}", program.to_string_lossy());
+            code
+        }
+        Ok(mut child) => supervise(&mut child).await.map_err(failed)?,
+    };
+
+    for task in &tasks {
+        task.abort();
+    }
+    for task in tasks {
+        let _ = task.await;
+    }
+    if let Ok(session) = Arc::try_unwrap(session) {
+        session.close();
+    }
+    Ok(code)
+}
+
+/// Wait for the child. Ctrl-C does not end exec (the child receives it and
+/// decides); SIGTERM and SIGHUP are passed on to the child.
+async fn supervise(child: &mut tokio::process::Child) -> std::io::Result<i32> {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+        let mut term = signal(SignalKind::terminate())?;
+        let mut hup = signal(SignalKind::hangup())?;
+        let mut int = signal(SignalKind::interrupt())?;
+        loop {
+            tokio::select! {
+                status = child.wait() => return Ok(status_code(status?)),
+                _ = int.recv() => {}
+                _ = term.recv() => forward_signal(child, libc::SIGTERM),
+                _ = hup.recv() => forward_signal(child, libc::SIGHUP),
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        loop {
+            tokio::select! {
+                status = child.wait() => return Ok(status_code(status?)),
+                _ = tokio::signal::ctrl_c() => {}
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+fn forward_signal(child: &tokio::process::Child, signal: libc::c_int) {
+    if let Some(pid) = child.id() {
+        // SAFETY: `kill` has no memory-safety preconditions; a stale pid at
+        // worst signals nothing (the child is still ours until it is reaped).
+        unsafe {
+            libc::kill(pid as libc::pid_t, signal);
+        }
+    }
+}
+
+/// Simulate each destination on the control plane as the gateway would see it.
+async fn preflight(
+    login: &crate::session::Login,
+    identity: WorkloadIdentity,
+    app: &str,
+    destinations: &[String],
+) -> anyhow::Result<Vec<(String, SimulateResult)>> {
+    let api = crate::account::Api::new(&login.creds.control_plane)?;
+    let mut probes = Vec::new();
+    for destination in destinations {
+        let body = serde_json::json!({
+            "identity": identity,
+            "application": app,
+            "destination": destination,
+            "transport": "tcp",
+        });
+        let result = api
+            .simulate(&login.creds.session_token, &login.org, None, false, None, &body)
+            .await?;
+        probes.push((destination.clone(), result));
+    }
+    Ok(probes)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

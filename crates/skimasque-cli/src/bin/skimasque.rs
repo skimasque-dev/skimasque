@@ -8,6 +8,7 @@
 //! | `skimasque why`     | explain whether an identity may reach a destination -- local policy set, or `--control-plane` for the org's published policy |
 //! | `skimasque gateway` | run the MASQUE gateway -- delegates to `skimasque-server` |
 //! | `skimasque connect` | open a tunnel to a destination -- delegates to `skimasque-client` |
+//! | `skimasque exec`    | run a command with policy-scoped network access through a gateway, dropped when it exits |
 //! | `skimasque init`    | scaffold `.masque/policies/` for a new project |
 //! | `skimasque status`  | the local policy set, plus the control-plane fleet when signed in |
 //! | `skimasque login` / `logout` / `whoami` | sign in to a control plane via GitHub (device flow) |
@@ -130,6 +131,14 @@ enum Command {
         )]
         args: Vec<OsString>,
     },
+
+    /// Run a command with the network access your policy grants, through a
+    /// gateway, and drop the access when the command exits.
+    ///
+    /// Sets HTTPS_PROXY / HTTP_PROXY / ALL_PROXY for the command; use
+    /// `--forward` for tools that ignore them. Exits with the command's status
+    /// (125 if exec itself fails, 126/127 if the command cannot be run).
+    Exec(skimasque_cli::exec::ExecArgs),
 
     /// Work with network-access policies.
     #[command(subcommand)]
@@ -450,6 +459,7 @@ fn run() -> anyhow::Result<ExitCode> {
             }
         }
         Command::Status { source } => run_status(&source),
+        Command::Exec(args) => run_exec(args),
         Command::Policy(command) => run_policy(command),
     }
 }
@@ -970,6 +980,17 @@ fn shell_join(parts: &[String]) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn run_exec(args: skimasque_cli::exec::ExecArgs) -> anyhow::Result<ExitCode> {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("starting the async runtime")?;
+    let code = runtime.block_on(skimasque_cli::exec::run(args));
+    Ok(ExitCode::from(
+        u8::try_from(code).unwrap_or(skimasque_cli::exec::EXIT_FAILED as u8),
+    ))
 }
 
 fn run_connect(destination: &str, passthrough: &[OsString]) -> anyhow::Result<ExitCode> {
