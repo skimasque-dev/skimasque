@@ -855,6 +855,11 @@ impl Service<TunnelRequest> for Dispatch {
 /// is "session context" until stronger application identity exists.
 pub const APPLICATION_HEADER: &str = "x-masque-application";
 
+/// The header a client pins a policy with. The gateway denies the tunnel
+/// unless the policy selected for the client's identity has this name; it
+/// never selects a policy by it. Part of the open tunnel protocol.
+pub const POLICY_HEADER: &str = "x-masque-policy";
+
 /// Turns a bearer credential into a verified
 /// [`WorkloadIdentity`](skimasque_policy::WorkloadIdentity).
 ///
@@ -1171,6 +1176,13 @@ where
             .unwrap_or_default()
             .to_owned();
 
+        let requested_policy = request
+            .headers()
+            .get(POLICY_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
+
         let workload = request
             .extensions()
             .get::<skimasque_policy::WorkloadIdentity>()
@@ -1183,7 +1195,7 @@ where
             application: application.clone(),
             transport,
             destination: policy_destination(&target),
-            requested_policy: None,
+            requested_policy: requested_policy.clone(),
         };
         // Read the live set once, so this request is evaluated against a single
         // consistent snapshot even if a reload lands mid-call.
@@ -1210,14 +1222,16 @@ where
         // later quota, resolution or address-floor failure can still stop an
         // `allow` from becoming a tunnel, and that is a separate event.
         if let Some(sink) = &self.audit {
-            sink.record(&AuditEvent::from_decision(
+            let mut event = AuditEvent::from_decision(
                 &decision,
                 request.protocol().upgrade_token(),
                 application.as_str(),
                 target.to_string(),
                 request.client_addr().to_string(),
                 &ctx.workload,
-            ));
+            );
+            event.requested_policy = ctx.requested_policy.clone();
+            sink.record(&event);
         }
 
         match decision {
@@ -1259,7 +1273,11 @@ fn policy_destination(target: &Target) -> skimasque_policy::Destination {
 /// Render a policy denial as a `403` a client can act on, carrying the reason
 /// and the fix in `Proxy-Status`.
 fn denial_rejection(denied: &skimasque_policy::Denied) -> Rejection {
-    let detail = format!("{} suggested rule: {}", denied.reason.summary(), denied.suggested_rule);
+    // A pin mismatch is not fixed by adding a rule, so it carries no suggestion.
+    let detail = match denied.reason {
+        skimasque_policy::DenyReason::PolicyMismatch { .. } => denied.reason.summary(),
+        _ => format!("{} suggested rule: {}", denied.reason.summary(), denied.suggested_rule),
+    };
     Rejection::new(StatusCode::FORBIDDEN, detail).with_proxy_error("destination_prohibited")
 }
 
@@ -1528,6 +1546,22 @@ mod tests {
         )
     }
 
+    fn pinned_udp_request(target: &str, app: &str, policy: &str) -> TunnelRequest {
+        let parts = http::Request::builder()
+            .header(APPLICATION_HEADER, app)
+            .header(POLICY_HEADER, policy)
+            .body(())
+            .unwrap()
+            .into_parts()
+            .0;
+        TunnelRequest::new(
+            Protocol::ConnectUdp,
+            Destination::Udp(Target::parse(target).unwrap()),
+            "203.0.113.1:9000".parse().unwrap(),
+            parts,
+        )
+    }
+
     /// An inner service that records the authorized destination it was handed
     /// and then declines, so no real socket is needed.
     #[derive(Clone, Default)]
@@ -1655,6 +1689,60 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].decision, "deny");
         assert_eq!(events[0].reason.as_deref(), Some("No matching allow rule."));
+    }
+
+    #[tokio::test]
+    async fn a_matching_pin_is_allowed_and_audited_with_the_requested_policy() {
+        let sink = Arc::new(RecordingSink::default());
+        let mut service = PolicyLayer::new(policy_set(ALLOW_TF))
+            .with_audit(sink.clone())
+            .layer(Spy::default());
+        let _ = service
+            .call(pinned_udp_request("api.production.example.com:443", "terraform", "prod"))
+            .await;
+        let events = sink.0.lock().unwrap();
+        assert_eq!(events[0].decision, "allow");
+        assert_eq!(events[0].requested_policy.as_deref(), Some("prod"));
+    }
+
+    #[tokio::test]
+    async fn a_mismatched_pin_is_denied_403_and_audited() {
+        let sink = Arc::new(RecordingSink::default());
+        let spy = Spy::default();
+        let mut service = PolicyLayer::new(policy_set(ALLOW_TF))
+            .with_audit(sink.clone())
+            .layer(spy.clone());
+        let rejection = service
+            .call(pinned_udp_request("api.production.example.com:443", "terraform", "staging"))
+            .await
+            .unwrap_err();
+        assert_eq!(rejection.status(), StatusCode::FORBIDDEN);
+        assert!(spy.0.lock().unwrap().is_none(), "inner must not be called");
+        let events = sink.0.lock().unwrap();
+        assert_eq!(events[0].decision, "deny");
+        assert_eq!(events[0].requested_policy.as_deref(), Some("staging"));
+        assert_eq!(
+            events[0].reason.as_deref(),
+            Some(r#"Policy "staging" does not apply to this identity; "prod" does."#)
+        );
+    }
+
+    #[test]
+    fn a_mismatch_rejection_carries_no_suggested_rule() {
+        let denied = skimasque_policy::Denied {
+            policy: Some("prod".into()),
+            reason: skimasque_policy::DenyReason::PolicyMismatch {
+                requested: "staging".into(),
+                selected: Some("prod".into()),
+            },
+            suggested_rule: "allow terraform x:1".into(),
+            closest: Vec::new(),
+        };
+        let rejection = denial_rejection(&denied);
+        assert_eq!(
+            rejection.detail(),
+            r#"Policy "staging" does not apply to this identity; "prod" does."#
+        );
     }
 
     #[tokio::test]

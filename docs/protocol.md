@@ -308,6 +308,19 @@ surface `skimasque login` / `org` / `audit` / `status` and the dashboard expect.
 | `GET /v1/orgs/{org}/usage`, `…/usage/history` | usage totals and the daily series |
 | `GET /v1/orgs/{org}/audit` | query shipped decisions (`{ events, next_cursor }`) |
 
+## Tunnel request headers
+
+A client opening a tunnel (`CONNECT` for TCP, extended `CONNECT` with
+`:protocol connect-udp` for UDP) may send, besides `Proxy-Authorization`:
+
+| Header | Meaning |
+|---|---|
+| `X-Masque-Application: <name>` | WHAT — the application the client declares. Policy rules match on it. Session context, not an authenticated fact. |
+| `X-Masque-Policy: <name>` | A pin. The gateway selects the policy for the client's identity exactly as it would without the header; if the selected policy is not `<name>` the tunnel is refused `403` with `Proxy-Status: …; error=destination_prohibited; details="Policy \"<name>\" does not apply to this identity; …"`. The header never selects a policy, so it can only narrow access. Audit events carry it as `requested_policy`. |
+
+Both are part of the open protocol: any gateway, SkiMasque Cloud or
+self-hosted, honours them the same way.
+
 ## Health
 
 `GET /healthz` and `GET /readyz` are unauthenticated. `GET /metrics` (Prometheus)

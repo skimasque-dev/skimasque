@@ -53,7 +53,7 @@ pub use server::{ConnectionRate, ProxyConfig, ResourceLimits, Server, TlsReloade
 pub use service::{
     Accepted, AuthorizeLayer, AuthorizedDestination, Dispatch, IdentityLayer, IdentityVerifier,
     PolicyHandle, PolicyLayer, QuotaLayer, RateLimiter, Rejection, TcpProxy, TunnelGuard,
-    TunnelLimits, TunnelRequest, UdpProxy, APPLICATION_HEADER,
+    TunnelLimits, TunnelRequest, UdpProxy, APPLICATION_HEADER, POLICY_HEADER,
 };
 
 /// Re-exported so a proxy can build a [`PolicyLayer`] without a separate
