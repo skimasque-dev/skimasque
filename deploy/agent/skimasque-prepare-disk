@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# skimasque-prepare-disk DEVICE MOUNTPOINT LABEL
+#
+# Prepare a persistent data disk for first use and mount it, idempotently.
+#
+#   skimasque-prepare-disk /dev/disk/by-id/google-skimasque-state \
+#       /var/lib/private/skimasque skimasque-state
+#
+# It formats the disk ONLY when blkid positively reports "no filesystem"
+# (exit status 2). A disk that already has a filesystem -- the whole point of a
+# persistent disk is that it survives a VM rebuild -- is never touched, and any
+# other blkid failure aborts rather than guessing.
+set -euo pipefail
+
+if [ "$#" -ne 3 ]; then
+  echo "usage: $0 DEVICE MOUNTPOINT LABEL" >&2
+  exit 2
+fi
+device=$1
+mountpoint_dir=$2
+label=$3
+fstab=${FSTAB:-/etc/fstab}
+
+if [ ! -e "$device" ]; then
+  echo "skimasque-prepare-disk: no such device: $device" >&2
+  exit 1
+fi
+
+set +e
+blkid "$device" >/dev/null 2>&1
+status=$?
+set -e
+case "$status" in
+  0) echo "skimasque-prepare-disk: $device already has a filesystem; leaving it alone" ;;
+  2)
+    echo "skimasque-prepare-disk: $device is blank; creating an ext4 filesystem"
+    mkfs.ext4 -q -F -L "$label" "$device"
+    ;;
+  *)
+    echo "skimasque-prepare-disk: blkid failed with status $status; refusing to guess" >&2
+    exit 1
+    ;;
+esac
+
+mkdir -p "$mountpoint_dir"
+if ! grep -qs "^LABEL=$label " "$fstab"; then
+  echo "LABEL=$label $mountpoint_dir ext4 defaults,nofail 0 2" >>"$fstab"
+fi
+if ! mountpoint -q "$mountpoint_dir"; then
+  mount "$mountpoint_dir"
+fi

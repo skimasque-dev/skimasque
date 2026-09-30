@@ -1,0 +1,25 @@
+[Unit]
+Description=SkiMasque release agent (pull the promoted build, verify, install, health-check)
+Documentation=https://github.com/skimasque-dev/skimasque
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# SKIMASQUE_ROLE, SKIMASQUE_RELEASE_SOURCE, SKIMASQUE_SERVICE, SKIMASQUE_BINARY,
+# SKIMASQUE_HEALTH, and optionally SKIMASQUE_SECRET_MAP / _SECRETS_FILE / _GCP_PROJECT.
+EnvironmentFile=/etc/skimasque/deploy.env
+ExecStart=/usr/local/sbin/skimasque-deploy
+# It restarts the service and writes /opt and /etc/skimasque, so it runs as root,
+# but with the rest of the system read-only.
+ProtectSystem=strict
+ReadWritePaths=/opt/skimasque /etc/skimasque /var/lib/skimasque-deploy
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+TimeoutStartSec=300
