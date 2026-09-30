@@ -97,6 +97,10 @@ The `HTTP_PROXY` front end only tunnels `CONNECT`, i.e. HTTPS and other TLS.
 A plain `http://` request sent to it is refused (`405`, with a note on stderr);
 reach such services through `ALL_PROXY` (`socks5h://`) or a `--forward`.
 
+The loopback listeners are not authenticated: while the command runs, any
+process on the machine can use the proxy and forward ports with your identity,
+the same exposure as `ssh -L`. Don't run exec on a shared host you don't trust.
+
 | Flag | Meaning |
 |---|---|
 | `--policy NAME` | Only run if `NAME` is the policy selected for your identity; the gateway enforces it via `X-Masque-Policy`. |
