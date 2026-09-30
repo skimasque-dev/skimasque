@@ -107,6 +107,10 @@ first and refuses to start when `--policy` does not apply or every
 `--forward` would be denied. Exit status is the command's; `125` when exec
 fails before starting it, `126`/`127` when it cannot be run.
 
+On Windows a bare command name is resolved like cmd.exe does it: each `PATH`
+directory in order, trying each `PATHEXT` extension, so `skimasque exec -- npm ci`
+runs `npm.cmd`.
+
 ```
 skimasque exec --policy production -- terraform apply
 skimasque exec --forward 15432:db.prod:5432 -- psql -h 127.0.0.1 -p 15432

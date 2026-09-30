@@ -258,6 +258,39 @@ pub fn render_header(view: &HeaderView) -> String {
     out
 }
 
+/// Find a bare command name on `path` the way cmd.exe does: in each `PATH`
+/// directory in order, try the name with each `PATHEXT` extension in order
+/// (default `.COM;.EXE;.BAT;.CMD`). Rust's own lookup on Windows only tries
+/// `.exe`, so `npm` (really `npm.cmd`) would not be found. `None` when the
+/// name already has a directory or an extension, or nothing matches; the
+/// caller then spawns the name as given.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn resolve_program(
+    program: &OsStr,
+    path: Option<&OsStr>,
+    pathext: Option<&OsStr>,
+    is_file: impl Fn(&Path) -> bool,
+) -> Option<std::path::PathBuf> {
+    let bare = Path::new(program);
+    if bare.components().count() != 1 || bare.extension().is_some() {
+        return None;
+    }
+    let pathext = pathext
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".to_owned());
+    let extensions: Vec<&str> = pathext.split(';').filter(|e| !e.is_empty()).collect();
+    std::env::split_paths(path?)
+        .filter(|dir| !dir.as_os_str().is_empty())
+        .flat_map(|dir| {
+            extensions.iter().map(move |ext| {
+                let mut name = program.to_owned();
+                name.push(ext);
+                dir.join(name)
+            })
+        })
+        .find(|candidate| is_file(candidate))
+}
+
 /// The exit status for a command that could not be started.
 pub fn spawn_error_code(error: &std::io::Error) -> i32 {
     match error.kind() {
@@ -431,7 +464,18 @@ async fn run_inner(args: ExecArgs) -> Result<i32, Failure> {
         eprint!("{}", render_header(&view));
     }
 
-    let mut child = tokio::process::Command::new(&program);
+    // Rust looks up only `.exe` on Windows; resolve `npm` to `npm.cmd` etc.
+    #[cfg(windows)]
+    let executable: std::path::PathBuf = resolve_program(
+        &program,
+        std::env::var_os("PATH").as_deref(),
+        std::env::var_os("PATHEXT").as_deref(),
+        |p| p.is_file(),
+    )
+    .unwrap_or_else(|| program.clone().into());
+    #[cfg(not(windows))]
+    let executable = program.clone();
+    let mut child = tokio::process::Command::new(&executable);
     child
         .args(&args.command[1..])
         .envs(child_env(http_addr, socks_addr, &forwards));
@@ -794,6 +838,67 @@ mod tests {
             spawn_error_code(&Error::from(ErrorKind::PermissionDenied)),
             EXIT_NOT_EXECUTABLE
         );
+    }
+
+    fn fake_path(dirs: &[&str]) -> OsString {
+        std::env::join_paths(dirs).unwrap()
+    }
+
+    /// A fake file system that, like NTFS, ignores case.
+    fn on_disk(files: &[&str]) -> impl Fn(&Path) -> bool {
+        let files: Vec<String> = files.iter().map(|f| f.to_lowercase()).collect();
+        move |p: &Path| {
+            let p = p.to_string_lossy().replace('\\', "/").to_lowercase();
+            files.contains(&p)
+        }
+    }
+
+    #[test]
+    fn resolve_program_follows_path_order_then_pathext_order() {
+        let path = fake_path(&["first", "second"]);
+        let npm = OsStr::new("npm");
+        // An earlier directory wins over a preferred extension in a later one.
+        assert_eq!(
+            resolve_program(
+                npm,
+                Some(&path),
+                None,
+                on_disk(&["first/npm.cmd", "second/npm.exe"])
+            ),
+            Some(Path::new("first").join("npm.CMD"))
+        );
+        // Within one directory, PATHEXT order decides.
+        let tool = OsStr::new("tool");
+        let both = || on_disk(&["first/tool.bat", "first/tool.cmd"]);
+        assert_eq!(
+            resolve_program(tool, Some(&path), Some(OsStr::new(".CMD;.BAT")), both()),
+            Some(Path::new("first").join("tool.CMD"))
+        );
+        assert_eq!(
+            resolve_program(tool, Some(&path), None, both()),
+            Some(Path::new("first").join("tool.BAT")),
+            "the default PATHEXT puts .BAT before .CMD"
+        );
+    }
+
+    #[test]
+    fn resolve_program_leaves_absent_or_qualified_names_alone() {
+        let path = fake_path(&["first"]);
+        assert_eq!(
+            resolve_program(OsStr::new("npm"), Some(&path), None, |_| false),
+            None
+        );
+        assert_eq!(
+            resolve_program(OsStr::new("npm"), None, None, |_| true),
+            None
+        );
+        for name in ["tools/npm", "npm.cmd", "./npm"] {
+            assert_eq!(
+                resolve_program(OsStr::new(name), Some(&path), None, |_| true),
+                None,
+                "{name}"
+            );
+        }
     }
 
     #[cfg(unix)]

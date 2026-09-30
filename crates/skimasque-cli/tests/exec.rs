@@ -280,6 +280,37 @@ async fn a_missing_command_exits_127() {
     );
 }
 
+/// `npm` is really `npm.cmd`: exec finds batch files on PATH via PATHEXT.
+#[cfg(windows)]
+#[tokio::test]
+async fn a_batch_file_on_path_runs_by_its_bare_name() {
+    let gw = spawn_gateway("batch", &[]).await;
+    let config = TempDir::new("batch-config");
+    let bin = TempDir::new("batch-bin");
+    std::fs::write(bin.0.join("skm-exec-probe.cmd"), "@exit /b 7\r\n").unwrap();
+    let mut path = std::ffi::OsString::from(&bin.0);
+    path.push(";");
+    path.push(std::env::var_os("PATH").unwrap_or_default());
+    let out = tokio::process::Command::new(env!("CARGO_BIN_EXE_skimasque"))
+        .args(["exec", "--gateway", &gw.addr.to_string()])
+        .args(["--authority", &format!("localhost:{}", gw.addr.port())])
+        .arg("--ca")
+        .arg(&gw.ca)
+        .args(["--auth-token", "t", "--quiet", "--", "skm-exec-probe"])
+        .env("SKIMASQUE_CONFIG_HOME", &config.0)
+        .env("PATH", path)
+        .env_remove("PATHEXT")
+        .output()
+        .await
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(7),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
 #[tokio::test]
 async fn a_self_hosted_control_plane_without_a_gateway_exits_125() {
     let config = TempDir::new("nogw-config");
