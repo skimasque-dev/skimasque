@@ -3,9 +3,13 @@
 pub mod account;
 pub mod audit_ship;
 pub mod control;
+pub mod exec;
+pub mod forward;
+pub mod http_connect;
 pub mod ops;
 pub mod policy;
 pub mod probe;
+pub mod session;
 pub mod socks5;
 
 use tracing_subscriber::EnvFilter;

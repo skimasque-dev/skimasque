@@ -42,7 +42,7 @@ use std::time::Duration;
 use skimasque_policy::WorkloadIdentity;
 
 pub use credential::{
-    peek_org_id, CredentialIssuer, CredentialSigner, CredentialVerifier, Issued,
+    peek_identity, peek_org_id, CredentialIssuer, CredentialSigner, CredentialVerifier, Issued,
     VerifiedCredential, CREDENTIAL_ISSUER,
 };
 pub use error::Error;

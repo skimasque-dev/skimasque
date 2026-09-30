@@ -52,10 +52,13 @@ ring.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "net", "sync", "time", "macros", "io-util", "io-std", "signal", "fs"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "sync", "time", "macros", "io-util", "io-std", "signal", "fs", "process"] }
 tower = { workspace = true, features = ["util", "limit"] }
 tracing.workspace = true
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

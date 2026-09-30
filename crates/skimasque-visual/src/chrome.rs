@@ -424,15 +424,15 @@ mod tests {
         let s = FeatureGrid::new()
             .feature("Identity-aware", "Know who is asking.")
             .planned(
-                "Command wrapper",
-                "Run a command with access.",
-                "skimasque exec",
+                "Egress IP",
+                "A fixed source address per gateway.",
+                "per-gateway egress IP",
             )
             .html();
         let s = s.as_str();
         assert_eq!(s.matches("v-feature\"").count(), 2);
         assert!(s.contains("PLANNED") && s.contains("<h3"));
-        let note = s.find("skimasque exec").unwrap();
+        let note = s.find("per-gateway egress IP").unwrap();
         assert!(
             s.find("v-sr").is_none_or(|sr| note < sr),
             "the note is visible, not only in sr-only text"
@@ -511,11 +511,16 @@ mod tests {
         assert!(
             b.as_str().contains("v-cta-band") && b.as_str().contains("Create Your First Policy")
         );
-        let p = PlannedBlock::new("command wrapper", &Prose::new().p("skimasque exec")).html();
+        let p = PlannedBlock::new(
+            "SSO",
+            &Prose::new().p("Sign in with your identity provider."),
+        )
+        .html();
         assert!(
-            p.as_str().starts_with("<div class=\"v-planned-block\" role=\"note\"")
+            p.as_str()
+                .starts_with("<div class=\"v-planned-block\" role=\"note\"")
                 && p.as_str().contains("PLANNED")
-                && p.as_str().contains("skimasque exec")
+                && p.as_str().contains("Sign in with your identity provider.")
         );
     }
 

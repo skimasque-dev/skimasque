@@ -683,6 +683,7 @@ tests:
             application: "terraform".into(),
             transport: Transport::Tcp,
             destination: Destination::parse(dest).unwrap(),
+            requested_policy: None,
         };
         assert!(policy.evaluate(&ctx("registry.terraform.io:443")).is_allow());
         assert!(policy.evaluate(&ctx("169.254.169.254:80")).is_deny());

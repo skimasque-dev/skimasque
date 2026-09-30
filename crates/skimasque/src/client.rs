@@ -100,6 +100,7 @@ impl Client {
 
         Ok(Session {
             quic,
+            endpoint: self.endpoint.clone(),
             router,
             send_request,
             template,
@@ -143,6 +144,9 @@ pub struct Credential {
 /// An HTTP/3 session with a proxy, from which tunnels are opened.
 pub struct Session {
     quic: quinn::Connection,
+    /// The endpoint the connection was opened from, kept so
+    /// [`Session::wait_closed`] can wait for the close to be sent.
+    endpoint: quinn::Endpoint,
     router: DatagramRouter,
     send_request: SendRequest,
     template: UriTemplate,
@@ -397,10 +401,21 @@ impl Session {
         &self.template
     }
 
-    /// Close the session and every tunnel on it.
-    pub fn close(self) {
+    /// Close the session and every tunnel on it, even while other holders share
+    /// it (behind an `Arc`, say). Idempotent. This only starts the close; use
+    /// [`wait_closed`](Self::wait_closed) to wait for it to be sent.
+    pub fn close(&self) {
         // HTTP/3 error code H3_NO_ERROR.
         self.quic.close(0x100u32.into(), b"client shutting down");
+    }
+
+    /// Wait, for at most `limit`, until the endpoint has no live connections, so
+    /// the `CONNECTION_CLOSE` started by [`close`](Self::close) has gone out
+    /// before the process exits. Returns `false` if `limit` elapsed first.
+    pub async fn wait_closed(&self, limit: std::time::Duration) -> bool {
+        tokio::time::timeout(limit, self.endpoint.wait_idle())
+            .await
+            .is_ok()
     }
 }
 

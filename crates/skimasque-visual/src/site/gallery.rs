@@ -480,9 +480,9 @@ listening on 127.0.0.1:5432",
                     &FeatureGrid::new()
                         .feature("Identity-aware", "Know who is asking for access.")
                         .planned(
-                            "Command wrapper",
-                            "Run a command with access.",
-                            "command wrapper (planned)",
+                            "Egress IP",
+                            "A fixed source address per gateway.",
+                            "per-gateway egress IP (planned)",
                         ),
                 ),
                 item(
@@ -522,8 +522,8 @@ listening on 127.0.0.1:5432",
                 item(
                     "planned block",
                     &PlannedBlock::new(
-                        "command wrapper (planned)",
-                        &Prose::new().p("Run a command with short-lived access."),
+                        "SSO (planned)",
+                        &Prose::new().p("Sign in with your organisation's identity provider."),
                     ),
                 ),
             ],
@@ -686,6 +686,10 @@ mod tests {
             !page.contains("<script>alert"),
             "hostile strings are escaped"
         );
-        assert!(!page.contains("exec"), "honesty rule: no `skimasque exec`");
+        assert!(
+            !page.to_lowercase().contains("command wrapper") && !page.contains("skimasque exec"),
+            "honesty rule: exec is built, so no sample shows it as Planned"
+        );
+        assert!(page.contains("per-gateway egress IP (planned)"));
     }
 }

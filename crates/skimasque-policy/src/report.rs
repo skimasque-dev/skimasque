@@ -110,6 +110,7 @@ impl Policy {
             application: test.application.clone(),
             transport: test.transport(),
             destination,
+            requested_policy: None,
         };
         let actual = self.evaluate(&ctx).action();
         let passed = actual == test.expect;
@@ -197,6 +198,7 @@ mod tests {
             application: "terraform".into(),
             transport: crate::model::Transport::Tcp,
             destination: Destination::parse("api.production.example.com:443").unwrap(),
+            requested_policy: None,
         });
         let text = decision.to_string();
         assert!(text.starts_with("ALLOW\n"), "{text}");
@@ -212,6 +214,7 @@ mod tests {
             application: "terraform".into(),
             transport: crate::model::Transport::Tcp,
             destination: Destination::parse("google.com:443").unwrap(),
+            requested_policy: None,
         });
         let text = decision.to_string();
         assert!(text.starts_with("DENY\n"), "{text}");

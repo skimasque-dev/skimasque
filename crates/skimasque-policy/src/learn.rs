@@ -184,6 +184,7 @@ mod tests {
             application: app.into(),
             transport: Transport::Tcp,
             destination: Destination::parse(dest).unwrap(),
+            requested_policy: None,
         };
         assert!(suggestion
             .policy
@@ -232,6 +233,7 @@ mod tests {
             application: app.into(),
             transport: t,
             destination: Destination::parse(d).unwrap(),
+            requested_policy: None,
         };
         assert!(suggestion.policy.evaluate(&ctx("dns", Transport::Udp, "1.1.1.1:53")).is_allow());
         assert!(suggestion.policy.evaluate(&ctx("curl", Transport::Udp, "api.example.com:443")).is_deny());

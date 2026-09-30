@@ -20,9 +20,9 @@ amendment wins.
    follow the canonical spec, but anything the product does not do today
    carries a visible **Planned** marker. It is never described in the
    present tense and never offered as a working control. Working examples
-   use real commands (`skimasque connect`, the `skimasque-dev/connect`
-   Action); `skimasque exec` appears only in Planned contexts.
-   - Planned today: `skimasque exec`, paid pricing tiers, per-gateway egress IP,
+   use real commands (`skimasque exec`, `skimasque connect`, the
+   `skimasque-dev/connect` Action).
+   - Planned today: paid pricing tiers, per-gateway egress IP,
      disabling a policy, revoking a session, team roles beyond the current
      owner/member, SSO, CONNECT-IP transport, live policy tests in the
      dashboard, interactive topology, onboarding "Create Example Policy" if
@@ -147,7 +147,7 @@ views are labelled, and nothing is fabricated.
 
 The palette constants in `skimasque-cli`'s `style` module move to the new
 Mint, Slate, deny and warning values. Its output wording already follows
-§89/§90. `exec` is Planned and is not built by this project.
+§89/§90. `exec` shipped in 2026-09 (`docs/superpowers/specs/2026-09-29-skimasque-exec-design.md`).
 
 ## Delivery (supersedes the old plans 2–4)
 

@@ -221,6 +221,7 @@ mod tests {
             rule: None,
             reason: None,
             suggested_rule: None,
+            requested_policy: None,
         }
     }
 

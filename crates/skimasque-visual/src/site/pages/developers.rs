@@ -31,20 +31,18 @@ const LOCAL_POLICY: &str = "$ skimasque policy check developer-db dev-db.interna
 
 const EXEC_FLOW: &str =
     "$ skimasque exec \\\n    --policy production \\\n    --app terraform \\\n    -- terraform apply";
-const EXEC_READOUT: &str = "$ skimasque exec --policy production -- terraform plan\n\nIdentity:\n  alice\n\nApplication:\n  terraform\n\nPolicy:\n  production\n\nDestination:\n  db.prod:5432\n\nSession:\n  20m\n\nAccess:\n  GRANTED";
+const EXEC_READOUT: &str = "$ skimasque exec --policy production --forward 15432:db.prod:5432 -- psql -h 127.0.0.1 -p 15432\nSkiMasque\n\nIdentity     alice\nPolicy       production\nApplication  psql\nGateway      gateway.skimasque.com\n\nAccess\n  db.prod:5432     ✓  → 127.0.0.1:15432\n\nSession\n  20m\n\nConnected.";
 
 fn exec_flow() -> Flow {
     let n = |k: NodeKind, l: &str| Node::new(k).label(l);
     let c = || Connection::new(ConnKind::Normal);
     let a = || Connection::new(ConnKind::Active);
-    Flow::new(
-        "A wrapped command would be checked for identity and policy, given a session, and then run.",
-    )
-    .then(&n(NodeKind::Cli, "COMMAND"))
-    .via(c(), &n(NodeKind::Identity, "IDENTITY"))
-    .via(c(), &n(NodeKind::Policy, "POLICY"))
-    .via(a(), &n(NodeKind::Session, "SESSION"))
-    .via(a(), &n(NodeKind::Application, "COMMAND EXECUTION"))
+    Flow::new("A command is checked for identity and policy, given a session, and then run.")
+        .then(&n(NodeKind::Cli, "COMMAND"))
+        .via(c(), &n(NodeKind::Identity, "IDENTITY"))
+        .via(c(), &n(NodeKind::Policy, "POLICY"))
+        .via(a(), &n(NodeKind::Session, "SESSION"))
+        .via(a(), &n(NodeKind::Application, "COMMAND EXECUTION"))
 }
 
 pub fn page() -> Page {
@@ -80,7 +78,7 @@ pub fn page() -> Page {
     let exec_body = Stack {
         parts: vec![
             Prose::new()
-                .p("A command wrapper would request the access a command needs, run the command, and let the access expire.")
+                .p("skimasque exec requests the access a command needs, runs the command, and drops the access when it exits. Tools that honour HTTPS_PROXY or ALL_PROXY just work; for tools that don't, --forward opens a local port to one destination.")
                 .html(),
             CodeExample::new("wrap a command", EXEC_FLOW).html(),
             exec_flow().html(),
@@ -102,15 +100,12 @@ pub fn page() -> Page {
             )
             .html(),
             Prose::new().sub("Developer flow").html(),
-            CodeExample::new("what the command would print", EXEC_READOUT).html(),
+            CodeExample::new("what it prints", EXEC_READOUT).html(),
         ],
     };
-    let planned_exec = Section::new("Planned: a command wrapper")
+    let exec = Section::new("Run a command with access")
         .alt()
-        .push(&PlannedBlock::new(
-            "skimasque exec — a command wrapper that requests access, runs the command, and lets access expire",
-            &exec_body,
-        ));
+        .push(&exec_body);
 
     let cp_note = Section::new("What is not finished yet").push(&PlannedBlock::new(
         "control-plane-backed connect",
@@ -131,7 +126,7 @@ pub fn page() -> Page {
         .push(&cli)
         .push(&start)
         .push(&local)
-        .push(&planned_exec)
+        .push(&exec)
         .push(&cp_note)
         .html()
         .as_str()
@@ -157,15 +152,19 @@ mod tests {
             "Local development",
             "No network ceremony",
             "Developer flow",
-            "PLANNED",
+            "skimasque exec",
+            "--forward",
         ] {
             assert!(s.contains(want), "missing {want:?}");
         }
-        assert!(s.contains("v-planned-block") && s.contains("skimasque exec"));
+        assert!(
+            !s.contains("Planned: a command wrapper"),
+            "exec is built now"
+        );
         assert_eq!(
             s.matches("<div class=\"v-planned-block\"").count(),
-            2,
-            "planned blocks are siblings, never nested"
+            1,
+            "only the control-plane-backed connect note is still planned"
         );
     }
 }
