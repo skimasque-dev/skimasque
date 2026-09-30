@@ -33,12 +33,16 @@ use skimasque::{
 use skimasque_identity::{peek_audiences, peek_org_id, CredentialVerifier, OidcVerifier};
 use skimasque_policy::{PolicySet, WorkloadIdentity};
 use skimasque_protocol::platform::{
-    normalize_owner, refusal, slug_from_audience, tenant_audience, PlatformMintRequest, Tenant,
-    TenantList,
+    normalize_owner, refusal, slug_from_audience, tenant_audience, PlatformAuditEvent,
+    PlatformHeartbeatRequest, PlatformMintRequest, PlatformShipAuditRequest, Tenant, TenantList,
 };
-use tokio::sync::watch;
+use skimasque_protocol::UsageReport;
+use tokio::sync::{mpsc, watch};
 
-use crate::control::{ControlPlane, GatewayIdentity, PlatformMintError, TenantFetch};
+use crate::audit_ship::{chain_with, persist, resume_from, BATCH_MAX, MAX_PENDING};
+use crate::control::{
+    ControlPlane, Freshness, GatewayIdentity, PlatformMintError, SyncState, TenantFetch,
+};
 
 /// The file, under the state directory, that caches the last tenant list.
 const CACHE_FILE: &str = "tenants.json";
@@ -514,6 +518,235 @@ impl CredentialMinter for PlatformMinter {
     }
 }
 
+/// Sequence and hash `events` into the gateway's one chain, each carrying the
+/// organisation it names. An event with no `org_id` is skipped: it consumes no
+/// sequence number and is never filed under an org it does not name.
+fn chain_platform_batch(
+    events: &[skimasque::audit::AuditEvent],
+    first_seq: u64,
+    prev_hash: &str,
+) -> (Vec<PlatformAuditEvent>, String) {
+    chain_with(
+        events,
+        first_seq,
+        prev_hash,
+        |event, seq, prev_hash, event_json| {
+            Some(PlatformAuditEvent {
+                org_id: event.org_id.clone()?,
+                seq,
+                prev_hash,
+                event_json,
+            })
+        },
+    )
+}
+
+/// Queue `event` for shipping unless it names no organisation, in which case it
+/// is dropped, counted and logged. Returns whether it was queued.
+fn admit_platform_event(
+    pending: &mut Vec<skimasque::audit::AuditEvent>,
+    event: skimasque::audit::AuditEvent,
+) -> bool {
+    if event.org_id.is_none() {
+        metrics::counter!("skimasque_control_plane_audit_total", "outcome" => "dropped_no_org")
+            .increment(1);
+        tracing::warn!(
+            decision = event.decision,
+            "audit event names no organisation; not shipping it to the control plane"
+        );
+        return false;
+    }
+    pending.push(event);
+    true
+}
+
+/// Drain the receiver, hash-chain batches (one chain for the whole gateway) and
+/// ship them, each event tagged with its own organisation. Runs until the sender
+/// is dropped. Same 409-rebase, backoff, backlog cap and persistence as
+/// [`crate::audit_ship::run_audit_shipping`].
+pub async fn run_platform_audit_shipping(
+    control: ControlPlane,
+    identity: GatewayIdentity,
+    mut rx: mpsc::Receiver<skimasque::audit::AuditEvent>,
+    chain_path: PathBuf,
+) {
+    let head = resume_from(control.platform_audit_head(&identity).await, &chain_path);
+    let mut next_seq = head.seq + 1;
+    let mut prev_hash = head.hash;
+    let mut pending: Vec<skimasque::audit::AuditEvent> = Vec::new();
+    let mut backoff = Duration::from_secs(1);
+
+    loop {
+        if pending.is_empty() {
+            match rx.recv().await {
+                Some(event) => {
+                    admit_platform_event(&mut pending, event);
+                }
+                None => return, // the gateway is shutting down
+            }
+            if pending.is_empty() {
+                continue;
+            }
+        }
+        while pending.len() < BATCH_MAX {
+            match rx.try_recv() {
+                Ok(event) => {
+                    admit_platform_event(&mut pending, event);
+                }
+                Err(_) => break,
+            }
+        }
+
+        let take = pending.len().min(BATCH_MAX);
+        let (batch, batch_tail_hash) = chain_platform_batch(&pending[..take], next_seq, &prev_hash);
+        debug_assert_eq!(batch.len(), take, "only org-tagged events are queued");
+
+        match control
+            .ship_platform_audit(&identity, &PlatformShipAuditRequest { events: batch })
+            .await
+        {
+            Ok(_) => {
+                next_seq += take as u64;
+                prev_hash = batch_tail_hash;
+                persist(&chain_path, next_seq - 1, &prev_hash);
+                pending.drain(..take);
+                metrics::counter!("skimasque_control_plane_audit_total", "outcome" => "shipped")
+                    .increment(take as u64);
+                backoff = Duration::from_secs(1);
+            }
+            Err(error) => {
+                metrics::counter!("skimasque_control_plane_audit_total", "outcome" => "error")
+                    .increment(1);
+                let conflict = error.to_string().contains("409");
+                tracing::warn!(
+                    %error,
+                    "shipping platform audit events failed; the local sink still has them"
+                );
+                if conflict {
+                    // Our sequence disagrees with the control plane's chain --
+                    // re-base on its head and rebuild the batch next loop.
+                    if let Ok(head) = control.platform_audit_head(&identity).await {
+                        next_seq = head.seq + 1;
+                        prev_hash = head.hash;
+                        continue;
+                    }
+                }
+                tokio::time::sleep(backoff).await;
+                backoff = (backoff * 2).min(Duration::from_secs(60));
+                while pending.len() < MAX_PENDING {
+                    match rx.try_recv() {
+                        Ok(event) => {
+                            admit_platform_event(&mut pending, event);
+                        }
+                        Err(_) => break,
+                    }
+                }
+                if pending.len() > MAX_PENDING {
+                    let overflow = pending.len() - MAX_PENDING;
+                    pending.drain(..overflow);
+                    metrics::counter!("skimasque_control_plane_audit_total", "outcome" => "dropped")
+                        .increment(overflow as u64);
+                    tracing::warn!(
+                        overflow,
+                        "audit ship backlog full; dropped oldest events from the control-plane \
+                         copy (the local sink still has them)"
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// The heartbeat body: `"online"` when `healthy`, else `"degraded"`, the tenant
+/// list version being enforced, and every org's cumulative usage.
+fn platform_heartbeat_request(
+    healthy: bool,
+    tenants_version: Option<u64>,
+    usage: &skimasque::TenantUsage,
+) -> PlatformHeartbeatRequest {
+    PlatformHeartbeatRequest {
+        status: if healthy { "online" } else { "degraded" }.to_owned(),
+        tenants_version,
+        usage_by_org: usage
+            .snapshot()
+            .into_iter()
+            .map(|(org, s)| {
+                (
+                    org,
+                    UsageReport {
+                        tunnels_opened: s.tunnels_opened,
+                        bytes_to_target: s.bytes_to_target,
+                        bytes_to_client: s.bytes_to_client,
+                    },
+                )
+            })
+            .collect(),
+    }
+}
+
+/// Send a platform heartbeat every `interval`: health from `state` (the tenant
+/// sync's freshness), the tenant list version from `tenants_version`, and each
+/// org's cumulative usage. Never returns; a failed heartbeat is counted and
+/// retried on the next tick.
+pub async fn run_platform_heartbeat(
+    control: ControlPlane,
+    identity: GatewayIdentity,
+    state: Arc<SyncState>,
+    tenants_version: impl Fn() -> Option<u64>,
+    usage: Arc<skimasque::TenantUsage>,
+    interval: Duration,
+) {
+    let mut ticker = tokio::time::interval(interval);
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut last_freshness = Freshness::Fresh;
+    loop {
+        ticker.tick().await;
+
+        let age = state.policy_age();
+        let freshness = state.freshness();
+        metrics::gauge!("skimasque_control_plane_policy_age_seconds").set(age.as_secs_f64());
+        metrics::gauge!("skimasque_control_plane_policy_expired").set(
+            if freshness == Freshness::Expired {
+                1.0
+            } else {
+                0.0
+            },
+        );
+        if freshness != last_freshness {
+            let age_secs = age.as_secs();
+            match freshness {
+                Freshness::Fresh => tracing::info!(
+                    age_secs,
+                    "control plane reachable again; the cached tenants are fresh"
+                ),
+                Freshness::Stale => tracing::warn!(
+                    age_secs,
+                    "tenant lease expired and the control plane is unreachable; still \
+                     enforcing the cached tenants, management is degraded"
+                ),
+                Freshness::Expired => tracing::error!(
+                    age_secs,
+                    "tenant cache TTL exceeded and the control plane is still unreachable; \
+                     still enforcing the last tenants but they may be badly out of date"
+                ),
+            }
+            last_freshness = freshness;
+        }
+
+        let healthy = state.healthy() && freshness == Freshness::Fresh;
+        let request = platform_heartbeat_request(healthy, tenants_version(), &usage);
+        let outcome = match control.platform_heartbeat(&identity, &request).await {
+            Ok(()) => "ok",
+            Err(error) => {
+                tracing::debug!(%error, "platform heartbeat failed");
+                "error"
+            }
+        };
+        metrics::counter!("skimasque_control_plane_heartbeat_total", "outcome" => outcome)
+            .increment(1);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -627,5 +860,116 @@ mod tests {
                 other => panic!("{bad}: {:?}", other.map(|_| ())),
             }
         }
+    }
+
+    fn audit_event(org: Option<&str>, app: &str) -> skimasque::audit::AuditEvent {
+        skimasque::audit::AuditEvent {
+            timestamp: "2026-03-01T00:00:00.000Z".into(),
+            decision: "allow",
+            protocol: "connect-tcp",
+            application: app.into(),
+            destination: "db:5432".into(),
+            client: "10.0.0.1:5000".into(),
+            identity: Default::default(),
+            policy: None,
+            rule: None,
+            reason: None,
+            suggested_rule: None,
+            requested_policy: None,
+            org_id: org.map(str::to_owned),
+        }
+    }
+
+    #[test]
+    fn platform_batches_carry_each_events_own_org_and_keep_one_gateway_chain() {
+        use skimasque_protocol::audit_hash;
+        let genesis = skimasque_protocol::AUDIT_GENESIS;
+        let events = [
+            audit_event(Some("org_a"), "one"),
+            audit_event(Some("org_b"), "two"),
+            audit_event(Some("org_a"), "three"),
+        ];
+        let (batch, tail) = chain_platform_batch(&events, 5, genesis);
+        let orgs: Vec<&str> = batch.iter().map(|e| e.org_id.as_str()).collect();
+        assert_eq!(orgs, ["org_a", "org_b", "org_a"]);
+        assert_eq!(
+            batch.iter().map(|e| e.seq).collect::<Vec<_>>(),
+            [5, 6, 7],
+            "one sequence across orgs"
+        );
+        assert_eq!(batch[0].prev_hash, genesis);
+        let mut hash = genesis.to_owned();
+        for (event, source) in batch.iter().zip(&events) {
+            assert_eq!(event.prev_hash, hash, "one chain across orgs");
+            assert_eq!(event.event_json, serde_json::to_string(source).unwrap());
+            hash = audit_hash(event.seq, &event.prev_hash, &event.event_json);
+        }
+        assert_eq!(tail, hash);
+    }
+
+    #[test]
+    fn an_event_with_no_org_is_never_shipped() {
+        let genesis = skimasque_protocol::AUDIT_GENESIS;
+        let events = [
+            audit_event(Some("org_a"), "one"),
+            audit_event(None, "orphan"),
+            audit_event(Some("org_b"), "two"),
+        ];
+        let (batch, _) = chain_platform_batch(&events, 1, genesis);
+        assert_eq!(batch.len(), 2);
+        assert!(batch.iter().all(|e| !e.event_json.contains("orphan")));
+        assert_eq!(
+            batch.iter().map(|e| e.seq).collect::<Vec<_>>(),
+            [1, 2],
+            "a dropped event leaves no gap in the chain"
+        );
+
+        let mut pending = Vec::new();
+        assert!(!admit_platform_event(&mut pending, audit_event(None, "x")));
+        assert!(pending.is_empty());
+        assert!(admit_platform_event(
+            &mut pending,
+            audit_event(Some("org_a"), "x")
+        ));
+        assert_eq!(pending.len(), 1);
+    }
+
+    #[test]
+    fn the_heartbeat_reports_cumulative_usage_per_org() {
+        let tenants = PlatformTenants::new();
+        tenants.apply(&TenantList {
+            version: 9,
+            tenants: vec![tenant("org_a", "a"), tenant("org_b", "b")],
+        });
+        let snapshot = tenants.table.snapshot();
+        let a = snapshot.resolve_org("org_a").unwrap().id().clone();
+        let b = snapshot.resolve_org("org_b").unwrap().id().clone();
+        let usage = skimasque::TenantUsage::new();
+        usage.meter_for(&a).tunnel_opened();
+        usage.meter_for(&a).add_to_target(10);
+        usage.meter_for(&b).add_to_client(4);
+
+        let version = tenants.table.snapshot().version();
+        let req = platform_heartbeat_request(true, Some(version), &usage);
+        assert_eq!(req.status, "online");
+        assert_eq!(req.tenants_version, Some(9));
+        assert_eq!(req.usage_by_org.len(), 2);
+        let ua = req.usage_by_org["org_a"];
+        assert_eq!(
+            (ua.tunnels_opened, ua.bytes_to_target, ua.bytes_to_client),
+            (1, 10, 0)
+        );
+        let ub = req.usage_by_org["org_b"];
+        assert_eq!(
+            (ub.tunnels_opened, ub.bytes_to_target, ub.bytes_to_client),
+            (0, 0, 4)
+        );
+
+        // Cumulative: a later report includes the earlier traffic.
+        usage.meter_for(&a).add_to_target(5);
+        let again = platform_heartbeat_request(false, None, &usage);
+        assert_eq!(again.status, "degraded");
+        assert_eq!(again.tenants_version, None);
+        assert_eq!(again.usage_by_org["org_a"].bytes_to_target, 15);
     }
 }
