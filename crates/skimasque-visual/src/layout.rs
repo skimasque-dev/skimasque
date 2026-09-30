@@ -257,7 +257,8 @@ mod tests {
             .html();
         let s = s.as_str();
         assert!(s.find("CONNECT-UDP request").unwrap() < s.find("tunnel established").unwrap());
-        assert!(s.contains("→") && s.contains("←"));
+        assert!(s.contains("v-seq-right") && s.contains("v-seq-left"));
+        assert_eq!(s.matches("<svg class=\"v-seq-arrow\"").count(), 2);
         assert!(s.contains("Client to Gateway") && s.contains("Gateway to Client"));
         assert!(Sequence::new("x", "A", "B")
             .html()

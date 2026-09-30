@@ -29,6 +29,8 @@ jobs:
       - run: cargo test --workspace
       - run: cargo clippy -p skimasque-visual --all-targets --features site -- -D warnings
       - run: cargo test -p skimasque-visual --features site
+      - name: Workflow playback controls
+        run: node --test crates/skimasque-visual/tests/workflow-playback.test.cjs
       - name: Generated site pages are up to date
         run: cargo run -q -p skimasque-visual --features site --bin sitegen -- --check
       - name: CONNECT-IP feature still builds
