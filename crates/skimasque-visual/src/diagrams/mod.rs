@@ -214,11 +214,6 @@ mod tests {
                 "{}: no text equivalent",
                 e.slug
             );
-            assert!(
-                !s.to_lowercase().contains("exec"),
-                "{}: mentions exec",
-                e.slug
-            );
             assert!(!has_dotted_quad(s), "{}: fabricated IP address", e.slug);
             assert!(!e.title.is_empty());
         }

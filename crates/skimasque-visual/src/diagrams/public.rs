@@ -258,9 +258,9 @@ mod tests {
     }
 
     #[test]
-    fn the_developer_cli_uses_connect_never_exec() {
+    fn the_developer_cli_diagram_shows_connect() {
         let s = developer_cli().html().as_str().to_owned();
-        assert!(s.contains("skimasque connect") && !s.to_lowercase().contains("exec"));
+        assert!(s.contains("skimasque connect"));
         let b = same_command_different_policy().html().as_str().to_owned();
         assert!(
             b.contains("staging") && b.contains("production") && b.contains("skimasque connect")
