@@ -6,6 +6,7 @@ pub mod control;
 pub mod ops;
 pub mod policy;
 pub mod probe;
+pub mod session;
 pub mod socks5;
 
 use tracing_subscriber::EnvFilter;
