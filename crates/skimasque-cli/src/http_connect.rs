@@ -4,7 +4,7 @@
 //! `socks5h://` (Go, Python, Node, curl, git), so `skimasque exec` points those
 //! variables here. Each `CONNECT host:port` becomes a TCP tunnel through the
 //! gateway; the name is resolved there, not here. Nothing else is proxied:
-//! plain-HTTP requests are refused with `405`.
+//! plain-HTTP requests are refused with `405`, and one stderr line says so.
 
 use std::sync::Arc;
 
@@ -24,8 +24,9 @@ pub const MAX_HEAD: usize = 8 * 1024;
 pub enum Head {
     /// `CONNECT <authority> HTTP/1.x`.
     Connect(String),
-    /// A well-formed request with another method.
-    OtherMethod,
+    /// A well-formed request with another method; for an absolute-form
+    /// `http://` target, its authority.
+    OtherMethod(Option<String>),
     /// Anything that is not an HTTP/1.x request line.
     Malformed,
 }
@@ -46,9 +47,24 @@ pub fn parse_head(head: &[u8]) -> Head {
         return Head::Malformed;
     }
     if method != "CONNECT" {
-        return Head::OtherMethod;
+        return Head::OtherMethod(plain_http_authority(target).map(str::to_owned));
     }
     Head::Connect(target.to_owned())
+}
+
+/// The authority of an absolute-form `http://` request target (without any
+/// userinfo), e.g. `api.example:8080` for `http://api.example:8080/v1`.
+pub fn plain_http_authority(target: &str) -> Option<&str> {
+    const SCHEME: &str = "http://";
+    let rest = target
+        .get(..SCHEME.len())
+        .filter(|scheme| scheme.eq_ignore_ascii_case(SCHEME))
+        .map(|_| &target[SCHEME.len()..])?;
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or_default();
+    let host = authority
+        .rsplit_once('@')
+        .map_or(authority, |(_, host)| host);
+    (!host.is_empty()).then_some(host)
 }
 
 /// Accept connections on `listener` until it fails, handling each on its own
@@ -71,8 +87,14 @@ async fn handle(mut stream: TcpStream, session: Arc<Session>) -> anyhow::Result<
     };
     let authority = match parse_head(&head) {
         Head::Connect(authority) => authority,
-        Head::OtherMethod => {
-            return respond(&mut stream, "405 Method Not Allowed\r\nAllow: CONNECT").await
+        Head::OtherMethod(plain_http) => {
+            if let Some(authority) = plain_http {
+                eprintln!(
+                    "skimasque: plain-HTTP request to {authority} refused; only HTTPS (CONNECT) \
+                     goes through HTTP_PROXY. Use ALL_PROXY (socks5h) or --forward."
+                );
+            }
+            return respond(&mut stream, "405 Method Not Allowed\r\nAllow: CONNECT").await;
         }
         Head::Malformed => return respond(&mut stream, "400 Bad Request").await,
     };
@@ -154,10 +176,31 @@ mod tests {
     }
 
     #[test]
+    fn a_plain_http_target_yields_its_authority() {
+        assert_eq!(plain_http_authority("http://x/"), Some("x"));
+        assert_eq!(
+            plain_http_authority("HTTP://api.example:8080/v1?q=1"),
+            Some("api.example:8080")
+        );
+        assert_eq!(plain_http_authority("http://u:p@host?x"), Some("host"));
+        assert_eq!(
+            plain_http_authority("http://[fd00::5]:80#f"),
+            Some("[fd00::5]:80")
+        );
+        assert_eq!(plain_http_authority("http:///path"), None);
+        assert_eq!(plain_http_authority("https://x/"), None);
+        assert_eq!(plain_http_authority("/index.html"), None);
+    }
+
+    #[test]
     fn other_methods_and_garbage_are_told_apart() {
         assert_eq!(
             parse_head(b"GET http://x/ HTTP/1.1\r\n\r\n"),
-            Head::OtherMethod
+            Head::OtherMethod(Some("x".into()))
+        );
+        assert_eq!(
+            parse_head(b"GET /index.html HTTP/1.1\r\n\r\n"),
+            Head::OtherMethod(None)
         );
         assert_eq!(parse_head(b"CONNECT x:1\r\n\r\n"), Head::Malformed);
         assert_eq!(parse_head(b"CONNECT x:1 SPDY/3\r\n\r\n"), Head::Malformed);

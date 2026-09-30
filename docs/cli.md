@@ -93,6 +93,10 @@ loopback, and runs `COMMAND` with `HTTPS_PROXY`/`HTTP_PROXY` (HTTP CONNECT),
 `ALL_PROXY` (`socks5h://`) and `NO_PROXY=localhost,127.0.0.1,::1` set. Access
 ends when the command exits.
 
+The `HTTP_PROXY` front end only tunnels `CONNECT`, i.e. HTTPS and other TLS.
+A plain `http://` request sent to it is refused (`405`, with a note on stderr);
+reach such services through `ALL_PROXY` (`socks5h://`) or a `--forward`.
+
 | Flag | Meaning |
 |---|---|
 | `--policy NAME` | Only run if `NAME` is the policy selected for your identity; the gateway enforces it via `X-Masque-Policy`. |
