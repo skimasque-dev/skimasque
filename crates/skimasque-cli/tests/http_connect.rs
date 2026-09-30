@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use skimasque::client::Client;
+use skimasque::client::{Client, Session};
 use skimasque::policy::AddressPolicy;
 use skimasque::server::{ProxyConfig, Server};
 use skimasque::service::{Dispatch, PolicyLayer, TcpProxy};
@@ -43,7 +43,7 @@ async fn spawn_echo(tag: &'static [u8]) -> SocketAddr {
 }
 
 /// A gateway allowing `curl` to `allowed` only, and the front end before it.
-async fn spawn_front(allowed: SocketAddr) -> SocketAddr {
+async fn spawn_front(allowed: SocketAddr) -> (SocketAddr, Arc<Session>) {
     let policy = format!(
         "name = \"t\"\n[[rules]]\napplication = \"curl\"\naction = \"allow\"\ndestinations = [\"127.0.0.1:{}\"]\n",
         allowed.port()
@@ -87,10 +87,12 @@ async fn spawn_front(allowed: SocketAddr) -> SocketAddr {
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let front = listener.local_addr().unwrap();
+    let session = Arc::new(session);
+    let served = session.clone();
     tokio::spawn(async move {
-        let _ = http_connect::serve(listener, Arc::new(session)).await;
+        let _ = http_connect::serve(listener, served).await;
     });
-    front
+    (front, session)
 }
 
 async fn read_head(s: &mut TcpStream) -> String {
@@ -109,7 +111,7 @@ async fn read_head(s: &mut TcpStream) -> String {
 #[tokio::test]
 async fn an_allowed_connect_is_established_and_carries_bytes() {
     let echo = spawn_echo(b"ok:").await;
-    let front = spawn_front(echo).await;
+    let (front, _) = spawn_front(echo).await;
     let mut s = TcpStream::connect(front).await.unwrap();
     s.write_all(format!("CONNECT {echo} HTTP/1.1\r\nHost: {echo}\r\n\r\n").as_bytes())
         .await
@@ -124,7 +126,7 @@ async fn an_allowed_connect_is_established_and_carries_bytes() {
 #[tokio::test]
 async fn bytes_sent_with_the_connect_head_reach_the_destination() {
     let echo = spawn_echo(b"ok:").await;
-    let front = spawn_front(echo).await;
+    let (front, _) = spawn_front(echo).await;
     let mut s = TcpStream::connect(front).await.unwrap();
     s.write_all(format!("CONNECT {echo} HTTP/1.1\r\n\r\nearly").as_bytes())
         .await
@@ -139,7 +141,7 @@ async fn bytes_sent_with_the_connect_head_reach_the_destination() {
 async fn a_policy_denial_answers_403_with_the_reason() {
     let echo = spawn_echo(b"ok:").await;
     let other = spawn_echo(b"no:").await;
-    let front = spawn_front(echo).await;
+    let (front, _) = spawn_front(echo).await;
     let mut s = TcpStream::connect(front).await.unwrap();
     s.write_all(format!("CONNECT {other} HTTP/1.1\r\n\r\n").as_bytes())
         .await
@@ -151,7 +153,7 @@ async fn a_policy_denial_answers_403_with_the_reason() {
 #[tokio::test]
 async fn other_methods_get_405_and_garbage_gets_400() {
     let echo = spawn_echo(b"ok:").await;
-    let front = spawn_front(echo).await;
+    let (front, _) = spawn_front(echo).await;
     let mut s = TcpStream::connect(front).await.unwrap();
     s.write_all(b"GET http://example.com/ HTTP/1.1\r\n\r\n")
         .await
@@ -169,4 +171,21 @@ async fn other_methods_get_405_and_garbage_gets_400() {
         .await
         .unwrap();
     assert!(read_head(&mut s).await.starts_with("HTTP/1.1 400 "));
+}
+
+#[tokio::test]
+async fn a_forward_listener_splices_to_its_destination() {
+    use skimasque_cli::forward::{self, ForwardSpec};
+    let echo = spawn_echo(b"fw:").await;
+    let (_, session) = spawn_front(echo).await;
+    let spec = ForwardSpec::parse(&echo.to_string()).unwrap();
+    let listener = forward::bind(&spec).await.unwrap();
+    let local = listener.local_addr().unwrap();
+    assert!(local.ip().is_loopback());
+    tokio::spawn(forward::serve(listener, spec.target.clone(), session));
+    let mut s = TcpStream::connect(local).await.unwrap();
+    s.write_all(b"hi").await.unwrap();
+    let mut reply = [0u8; 5];
+    timeout(T, s.read_exact(&mut reply)).await.unwrap().unwrap();
+    assert_eq!(&reply, b"fw:hi");
 }
