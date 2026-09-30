@@ -96,11 +96,7 @@ fn decode_claims(algorithm: Algorithm, key: &DecodingKey, token: &str) -> Result
 
 /// Verify a credential signed under `algorithm` with `key`, recovering the
 /// identity it carries.
-fn decode(
-    algorithm: Algorithm,
-    key: &DecodingKey,
-    token: &str,
-) -> Result<WorkloadIdentity, Error> {
+fn decode(algorithm: Algorithm, key: &DecodingKey, token: &str) -> Result<WorkloadIdentity, Error> {
     decode_claims(algorithm, key, token).map(|c| c.identity)
 }
 
@@ -163,7 +159,14 @@ impl CredentialIssuer {
         subject: Option<&str>,
         ttl: Duration,
     ) -> Result<Issued, Error> {
-        encode(Algorithm::HS256, &self.encoding, ttl, identity, subject, None)
+        encode(
+            Algorithm::HS256,
+            &self.encoding,
+            ttl,
+            identity,
+            subject,
+            None,
+        )
     }
 
     /// Verify a credential and recover the identity it carries.
@@ -211,7 +214,14 @@ impl CredentialSigner {
         identity: &WorkloadIdentity,
         subject: Option<&str>,
     ) -> Result<Issued, Error> {
-        encode(Algorithm::EdDSA, &self.encoding, self.ttl, identity, subject, None)
+        encode(
+            Algorithm::EdDSA,
+            &self.encoding,
+            self.ttl,
+            identity,
+            subject,
+            None,
+        )
     }
 
     /// Issue a credential scoped to SkiMasque organisation `org_id` -- the
@@ -334,7 +344,11 @@ impl CredentialVerifier {
     /// must equal `expected_org`. A missing claim is refused. Build this
     /// verifier from `expected_org`'s signing key(s) alone; pick them with
     /// [`peek_org_id`].
-    pub fn verify_for_org(&self, token: &str, expected_org: &str) -> Result<WorkloadIdentity, Error> {
+    pub fn verify_for_org(
+        &self,
+        token: &str,
+        expected_org: &str,
+    ) -> Result<WorkloadIdentity, Error> {
         let verified = self.verify_claims(token)?;
         match verified.org_id.as_deref() {
             Some(org) if org == expected_org => Ok(verified.identity),
@@ -361,6 +375,24 @@ pub fn peek_org_id(token: &str) -> Option<String> {
     let payload = token.split('.').nth(1)?;
     let bytes = BASE64_URL_SAFE_NO_PAD.decode(payload).ok()?;
     serde_json::from_slice::<OrgOnly>(&bytes).ok()?.org_id
+}
+
+/// The identity a platform credential carries, read **without verifying the
+/// signature or expiry**. For display and for asking a control plane what a
+/// gateway would decide — never for an authorization decision; a gateway
+/// verifies with [`CredentialVerifier`] or [`CredentialIssuer`].
+pub fn peek_identity(token: &str) -> Result<WorkloadIdentity, Error> {
+    use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+    let payload = token
+        .split('.')
+        .nth(1)
+        .ok_or_else(|| Error::Malformed("not a JWT".to_owned()))?;
+    let bytes = BASE64_URL_SAFE_NO_PAD
+        .decode(payload)
+        .map_err(|e| Error::Malformed(e.to_string()))?;
+    serde_json::from_slice::<Claims>(&bytes)
+        .map(|claims| claims.identity)
+        .map_err(|e| Error::Malformed(e.to_string()))
 }
 
 fn unix_now() -> i64 {
@@ -526,7 +558,8 @@ mod tests {
             identity: identity(),
         };
         let ancient =
-            jsonwebtoken::encode(&Header::new(Algorithm::EdDSA), &claims, &signer.encoding).unwrap();
+            jsonwebtoken::encode(&Header::new(Algorithm::EdDSA), &claims, &signer.encoding)
+                .unwrap();
         assert!(verifier.verify(&ancient).is_err());
     }
 
@@ -625,5 +658,21 @@ mod tests {
         for junk in ["", "abc", "a.b.c", "a.!!!.c", "a..c"] {
             assert_eq!(peek_org_id(junk), None, "{junk:?}");
         }
+    }
+
+    #[test]
+    fn peek_identity_reads_the_claims_without_a_key() {
+        let issuer = CredentialIssuer::generate(Duration::from_secs(900));
+        let issued = issuer.issue(&identity(), Some("sub")).unwrap();
+        assert_eq!(peek_identity(&issued.token).unwrap(), identity());
+    }
+
+    #[test]
+    fn peek_identity_rejects_something_that_is_not_a_jwt() {
+        assert!(matches!(
+            peek_identity("not-a-token"),
+            Err(Error::Malformed(_))
+        ));
+        assert!(matches!(peek_identity("a.%%%.c"), Err(Error::Malformed(_))));
     }
 }

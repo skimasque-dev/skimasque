@@ -42,12 +42,12 @@ use std::time::Duration;
 use skimasque_policy::WorkloadIdentity;
 
 pub use credential::{
-    peek_org_id, CredentialIssuer, CredentialSigner, CredentialVerifier, Issued,
+    peek_identity, peek_org_id, CredentialIssuer, CredentialSigner, CredentialVerifier, Issued,
     VerifiedCredential, CREDENTIAL_ISSUER,
 };
 pub use error::Error;
 pub use jwks::{JwksCache, JwksProvider};
-pub use provider::{Claims, ClaimNames, Provider, GITHUB_ACTIONS_ISSUER};
+pub use provider::{ClaimNames, Claims, Provider, GITHUB_ACTIONS_ISSUER};
 pub use verify::Verifier;
 
 #[cfg(feature = "remote")]
