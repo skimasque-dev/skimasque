@@ -10,6 +10,7 @@ use std::ffi::{OsStr, OsString};
 use std::net::SocketAddr;
 use std::path::Path;
 
+use clap::builder::NonEmptyStringValueParser;
 use skimasque_policy::WorkloadIdentity;
 
 use crate::account::{Credentials, SimulateResult};
@@ -31,22 +32,32 @@ pub const EXIT_NOT_FOUND: i32 = 127;
 pub struct ExecArgs {
     /// Only run if this is the policy selected for your identity. Sent to the
     /// gateway as `X-Masque-Policy`, which denies every tunnel otherwise.
-    #[arg(long, value_name = "NAME")]
+    #[arg(long, value_name = "NAME", value_parser = NonEmptyStringValueParser::new())]
     pub policy: Option<String>,
 
     /// The application to declare (`X-Masque-Application`). Defaults to the
     /// command's file name, e.g. `terraform`.
-    #[arg(long, value_name = "NAME")]
+    #[arg(long, value_name = "NAME", value_parser = NonEmptyStringValueParser::new())]
     pub app: Option<String>,
 
     /// The gateway, as `host[:port]`. Defaults to gateway.skimasque.com when the
     /// control plane is SkiMasque Cloud; required for a self-hosted one.
-    #[arg(long, env = "SKIMASQUE_GATEWAY", value_name = "HOST[:PORT]")]
+    #[arg(
+        long,
+        env = "SKIMASQUE_GATEWAY",
+        value_name = "HOST[:PORT]",
+        value_parser = NonEmptyStringValueParser::new()
+    )]
     pub gateway: Option<String>,
 
     /// The control plane. Defaults to the one you signed in to, else SkiMasque
     /// Cloud.
-    #[arg(long, env = "SKIMASQUE_CONTROL_PLANE", value_name = "URL")]
+    #[arg(
+        long,
+        env = "SKIMASQUE_CONTROL_PLANE",
+        value_name = "URL",
+        value_parser = NonEmptyStringValueParser::new()
+    )]
     pub control_plane: Option<String>,
 
     /// Listen on a loopback port and tunnel each connection to HOST:PORT, for
@@ -734,6 +745,28 @@ mod tests {
             Harness::try_parse_from(["x", "--"]).is_err(),
             "a command is required"
         );
+    }
+
+    #[test]
+    fn empty_names_are_refused() {
+        for flag in ["--policy", "--app", "--gateway", "--control-plane"] {
+            assert!(
+                Harness::try_parse_from(["x", flag, "", "--", "true"]).is_err(),
+                "{flag} \"\" is accepted"
+            );
+            let h = Harness::try_parse_from(["x", flag, "v", "--", "true"]).unwrap();
+            assert!(
+                [
+                    &h.exec.policy,
+                    &h.exec.app,
+                    &h.exec.gateway,
+                    &h.exec.control_plane
+                ]
+                .iter()
+                .any(|v| v.as_deref() == Some("v")),
+                "{flag}"
+            );
+        }
     }
 
     #[test]

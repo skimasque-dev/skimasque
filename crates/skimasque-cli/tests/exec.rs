@@ -360,3 +360,19 @@ async fn a_self_hosted_control_plane_without_a_gateway_exits_125() {
         "{stderr}"
     );
 }
+
+/// An empty `SKIMASQUE_GATEWAY=` is a usage error, not a gateway named "".
+#[tokio::test]
+async fn an_empty_gateway_variable_is_refused() {
+    let config = TempDir::new("emptygw-config");
+    let out = tokio::process::Command::new(env!("CARGO_BIN_EXE_skimasque"))
+        .args(["exec", "--auth-token", "t", "--", "anything"])
+        .env("SKIMASQUE_CONFIG_HOME", &config.0)
+        .env("SKIMASQUE_GATEWAY", "")
+        .output()
+        .await
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(2), "{stderr}");
+    assert!(stderr.contains("--gateway"), "{stderr}");
+}
