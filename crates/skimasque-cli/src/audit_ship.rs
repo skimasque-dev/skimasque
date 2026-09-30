@@ -36,7 +36,8 @@ pub struct ControlPlaneAuditSink {
 
 impl std::fmt::Debug for ControlPlaneAuditSink {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ControlPlaneAuditSink").finish_non_exhaustive()
+        f.debug_struct("ControlPlaneAuditSink")
+            .finish_non_exhaustive()
     }
 }
 
@@ -148,7 +149,11 @@ pub async fn run_audit_shipping(
 
 /// Where to resume the chain: the control plane's head, else the persisted
 /// local tail, else genesis.
-async fn resume(control: &ControlPlane, identity: &GatewayIdentity, chain_path: &std::path::Path) -> AuditHead {
+async fn resume(
+    control: &ControlPlane,
+    identity: &GatewayIdentity,
+    chain_path: &std::path::Path,
+) -> AuditHead {
     match control.audit_head(identity).await {
         Ok(head) => head,
         Err(error) => match std::fs::read(chain_path)
@@ -222,6 +227,7 @@ mod tests {
             reason: None,
             suggested_rule: None,
             requested_policy: None,
+            org_id: None,
         }
     }
 
@@ -238,6 +244,9 @@ mod tests {
             audit_hash(1, genesis, &batch[0].event_json)
         );
         assert_eq!(batch[2].seq, 3);
-        assert_eq!(tail, audit_hash(3, &batch[2].prev_hash, &batch[2].event_json));
+        assert_eq!(
+            tail,
+            audit_hash(3, &batch[2].prev_hash, &batch[2].event_json)
+        );
     }
 }

@@ -888,6 +888,16 @@ async fn serve_exchange(
             )
             .await;
         }
+        Err(MintError::Refused { code, message }) => {
+            debug!(%code, %message, "credential exchange refused");
+            finish_json(
+                &mut stream,
+                StatusCode::FORBIDDEN,
+                None,
+                &error_body(&code, &message),
+            )
+            .await;
+        }
         Err(MintError::Unavailable(detail)) => {
             debug!(%detail, "credential exchange unavailable");
             finish_json(

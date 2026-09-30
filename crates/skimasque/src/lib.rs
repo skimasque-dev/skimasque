@@ -43,6 +43,7 @@ pub mod metrics;
 pub mod policy;
 pub mod server;
 pub mod service;
+pub mod tenant;
 pub mod tls;
 
 pub use audit::{AuditEvent, AuditSink, JsonlAuditSink, TracingAuditSink};
@@ -55,6 +56,7 @@ pub use service::{
     PolicyHandle, PolicyLayer, QuotaLayer, RateLimiter, Rejection, TcpProxy, TunnelGuard,
     TunnelLimits, TunnelRequest, UdpProxy, APPLICATION_HEADER, POLICY_HEADER,
 };
+pub use tenant::{Tenant, TenantId, TenantSnapshot, TenantSpec, TenantTable};
 
 /// Re-exported so a proxy can build a [`PolicyLayer`] without a separate
 /// dependency line.
