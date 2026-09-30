@@ -79,6 +79,39 @@ The credential file lives at `$SKIMASQUE_CONFIG_HOME`, else
   a pipeline). Needs at least `--proxy <gateway>`. Not yet control-plane-aware —
   pass the gateway address explicitly.
 
+### Run a command with access
+
+```
+skimasque exec [--policy NAME] [--app NAME] [--gateway HOST[:PORT]]
+               [--forward [LOCAL_PORT:]HOST:PORT]... [--org ORG] [--quiet]
+               [--auth-token T | --github-oidc --oidc-audience AUD]
+               [--ca PEM | --insecure] -- COMMAND [ARGS...]
+```
+
+Opens a gateway session, starts an HTTP CONNECT proxy and a SOCKS5 relay on
+loopback, and runs `COMMAND` with `HTTPS_PROXY`/`HTTP_PROXY` (HTTP CONNECT),
+`ALL_PROXY` (`socks5h://`) and `NO_PROXY=localhost,127.0.0.1,::1` set. Access
+ends when the command exits.
+
+| Flag | Meaning |
+|---|---|
+| `--policy NAME` | Only run if `NAME` is the policy selected for your identity; the gateway enforces it via `X-Masque-Policy`. |
+| `--app NAME` | Declared application; defaults to the command's file name. |
+| `--gateway HOST[:PORT]` / `$SKIMASQUE_GATEWAY` | Defaults to `gateway.skimasque.com` on SkiMasque Cloud; required with a self-hosted control plane. |
+| `--control-plane URL` / `$SKIMASQUE_CONTROL_PLANE` | Defaults to the control plane you signed in to, else SkiMasque Cloud. |
+| `--forward [LOCAL_PORT:]HOST:PORT` | A loopback listener tunnelled to one destination, for tools that ignore proxy settings (`psql`). Its address is in `$SKIMASQUE_FORWARD_<HOST>_<PORT>`. Pick `LOCAL_PORT` when your shell needs the port on the command line. |
+| `--quiet` | No access summary on stderr. |
+
+With a `skimasque login` session exec checks your access with the control plane
+first and refuses to start when `--policy` does not apply or every
+`--forward` would be denied. Exit status is the command's; `125` when exec
+fails before starting it, `126`/`127` when it cannot be run.
+
+```
+skimasque exec --policy production -- terraform apply
+skimasque exec --forward 15432:db.prod:5432 -- psql -h 127.0.0.1 -p 15432
+```
+
 ---
 
 ## `skimasque-server`

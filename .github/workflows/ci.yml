@@ -34,6 +34,22 @@ jobs:
       - name: CONNECT-IP feature still builds
         run: cargo build -p skimasque --features connect-ip
 
+  windows:
+    # exec spawns processes, handles Ctrl-C and maps exit codes; check that on
+    # Windows as well as Linux.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo test -p skimasque-cli
+
   msrv:
     # The release container image builds `skimasque-cli` on the pinned Rust in
     # deploy/docker/Dockerfile. Build it here on the workspace `rust-version` so

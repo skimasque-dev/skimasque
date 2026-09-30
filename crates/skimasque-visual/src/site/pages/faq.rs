@@ -1,11 +1,8 @@
-//! FAQ (`/faq`): canonical spec §27. The developer answer avoids the literal
-//! command wrapper; that command appears only in the planned block below.
+//! FAQ (`/faq`): canonical spec §27. The developer answer names the real
+//! commands, including `skimasque exec`.
 
 use crate::site::Page;
-use crate::{
-    Component, ConnKind, Connection, Faq, Flow, Hero, Node, NodeKind, PlannedBlock, Prose, Section,
-    SitePage,
-};
+use crate::{Component, ConnKind, Connection, Faq, Flow, Hero, Node, NodeKind, Section, SitePage};
 
 fn default_deny_flow() -> Flow {
     Flow::new("A request that matches no policy is denied.")
@@ -79,7 +76,7 @@ pub fn page() -> Page {
             "Can developers use it?",
             &[
                 "Yes.",
-                "The CLI supports local policy work and opening a tunnel with skimasque connect; a command wrapper is planned.",
+                "The CLI supports local policy work, skimasque connect for a single tunnel, and skimasque exec --policy production -- terraform plan to run a command with access.",
             ],
         )
         .item(
@@ -90,11 +87,7 @@ pub fn page() -> Page {
     let faq = Section::new("Questions")
         .push(&first)
         .push(&default_deny_flow())
-        .push(&second)
-        .push(&PlannedBlock::new(
-            "a command wrapper for developers",
-            &Prose::new().p("skimasque exec --policy production -- terraform plan"),
-        ));
+        .push(&second);
 
     Page {
         path: "faq/index.html",
@@ -117,7 +110,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ten_questions_a_deny_flow_and_the_wrapper_only_in_a_planned_block() {
+    fn ten_questions_a_deny_flow_and_exec_in_the_developer_answer() {
         let p = page();
         assert_eq!(p.path, "faq/index.html");
         let s = &p.contents;
@@ -125,9 +118,11 @@ mod tests {
         for want in ["Is SkiMasque a VPN?", "NO MATCH", "DENY", "Can CI use it?"] {
             assert!(s.contains(want), "missing {want:?}");
         }
-        assert_eq!(s.matches("skimasque exec").count(), 1);
-        let planned = s.find("v-planned-block").expect("planned block");
-        assert!(s.find("skimasque exec").unwrap() > planned);
+        assert!(
+            !s.contains("v-planned-block"),
+            "nothing on the FAQ is planned now"
+        );
+        assert!(s.contains("skimasque exec --policy production -- terraform plan"));
         // The deny flow sits between the default-deny answer and the next question.
         let deny = s.find("The request is denied.").unwrap();
         let flow = s.find("NO MATCH").unwrap();

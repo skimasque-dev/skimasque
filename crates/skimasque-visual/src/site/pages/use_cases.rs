@@ -1,5 +1,5 @@
 //! Use cases (`/use-cases`): canonical spec §23. Developer debugging shows
-//! `skimasque connect`, the real command; `skimasque exec` is not built.
+//! `skimasque connect`, the real command for one tunnel.
 
 use crate::site::Page;
 use crate::{
@@ -128,7 +128,6 @@ mod tests {
         ] {
             assert!(s.contains(want), "missing {want:?}");
         }
-        assert!(!s.contains("skimasque exec"), "exec is not built");
         let main = &s[s.find("<main").unwrap()..s.find("</main>").unwrap()];
         assert_eq!(main.matches("<h2").count(), 6, "one section per use case");
     }

@@ -508,14 +508,8 @@ mod tests {
     #[test]
     fn honesty_and_voice_rules_hold_on_every_page() {
         for p in html_pages() {
-            // Planned blocks may describe what is not built yet, including `skimasque exec`.
             let s = strip_planned_blocks(&p.contents);
             let lower = s.to_lowercase();
-            assert!(
-                !lower.contains("skimasque exec"),
-                "{}: `skimasque exec` outside a planned block",
-                p.path
-            );
             for banned in [
                 "zero trust",
                 "zero-trust",
