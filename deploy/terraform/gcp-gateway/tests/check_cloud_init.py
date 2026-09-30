@@ -9,6 +9,7 @@ and that the gateway's configuration is what the module promises.
 """
 
 import base64
+import re
 import sys
 from pathlib import Path
 
@@ -57,13 +58,35 @@ def main(rendered: str) -> int:
                  "SKIMASQUE_HEALTH=http://127.0.0.1:9090/healthz", "SKIMASQUE_CONTROL_TOKEN?"):
         expect(deploy, line, "deploy.env")
 
+    # Every flag must exist in the real server. This is what catches a flag that is
+    # not (yet) implemented, before a VM crash-loops on it.
+    server_source = (REPO_DEPLOY.parent / "crates/skimasque-cli/src/bin/skimasque-server.rs").read_text()
+    for flag in re.findall(r"(?<![\w-])--([a-z][a-z0-9-]*)", args):
+        field = flag.replace("-", "_")
+        if not (re.search(rf"\b{field}\s*:", server_source) or f'"{flag}"' in server_source):
+            failures.append(f"gateway.env uses --{flag}, which skimasque-server does not define")
+    if "--platform" in args:
+        failures.append("--platform is not supported by the released skimasque-server")
+    if "--github-oidc" in args and "--oidc-audience" not in args:
+        failures.append("--github-oidc without --oidc-audience fails closed at startup")
+
     dropin = content("/etc/systemd/system/skimasque-gateway.service.d/deploy.conf")
+    expect(dropin, "RequiresMountsFor=/var/lib/private/skimasque", "drop-in")
     expect(dropin, "ConditionPathExists=/opt/skimasque/current/skimasque-server", "drop-in")
     expect(dropin, "EnvironmentFile=-/etc/skimasque/gateway-secrets.env", "drop-in")
 
     runcmd = [c if isinstance(c, str) else " ".join(c) for c in doc["runcmd"]]
-    if not any("skimasque-prepare-disk" in c and "google-skimasque-state" in c for c in runcmd):
+    chained = [c for c in runcmd if "skimasque-prepare-disk" in c and "google-skimasque-state" in c]
+    if not chained:
         failures.append("runcmd must prepare the state disk")
+    else:
+        script = chained[0]
+        prepare = script.index("skimasque-prepare-disk")
+        if "set -e" not in script:
+            failures.append("the disk-prepare and service-enable steps must stop at the first failure (set -e)")
+        for later in ("systemctl enable skimasque-gateway.service", "systemctl enable --now skimasque-deploy.timer"):
+            if later not in script or script.index(later) < prepare:
+                failures.append(f"{later!r} must come after the disk is prepared, in the same script")
 
     for failure in failures:
         print("FAIL:", failure)

@@ -15,10 +15,12 @@ provider "google" {
 module "gateway" {
   source = "../.."
 
-  name              = "acme"
-  hostname          = "gateway.example.com"
-  project_id        = "my-project"
-  zone              = "us-central1-a"
+  name       = "acme"
+  hostname   = "gateway.example.com"
+  project_id = "my-project"
+  zone       = "us-central1-a"
+  # The default VPC ships firewall rules that open SSH/RDP to the internet; use a
+  # dedicated VPC outside of a quick trial.
   network           = "default"
   control_plane_url = "https://control.example.com"
   release_source    = "gs://my-release-bucket"

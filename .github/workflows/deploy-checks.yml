@@ -9,10 +9,12 @@ on:
     branches: [main]
     paths:
       - "deploy/**"
+      - "crates/skimasque-cli/src/bin/skimasque-server.rs"
       - ".github/workflows/deploy-checks.yml"
   pull_request:
     paths:
       - "deploy/**"
+      - "crates/skimasque-cli/src/bin/skimasque-server.rs"
       - ".github/workflows/deploy-checks.yml"
 
 permissions:
@@ -43,6 +45,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
 
       - name: Format
         run: terraform fmt -check -recursive deploy/terraform

@@ -20,6 +20,11 @@ Every two minutes (a systemd timer) it:
    release, remembers the bad version in `/var/lib/skimasque-deploy/bad-<role>`
    so it is not retried, and exits non-zero (visible in `journalctl`).
 
+A release is only *trusted* once it has been seen healthy (a `verified-<role>` state file). If a run is
+interrupted after the swap, or the first install fails because something outside the VM is not ready yet
+(DNS for ACME), the next run health-checks the live release again, without restarting it: it recovers by
+itself when the cause clears, or rolls back if there is an earlier release.
+
 **Rollback** is moving the pointer back to an older version. **Integrity** is
 the SHA-256 from the same bucket; signature verification is a follow-up.
 

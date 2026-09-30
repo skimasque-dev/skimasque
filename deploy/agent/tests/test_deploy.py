@@ -2,10 +2,12 @@
 
 import base64
 import hashlib
+import http.client
 import io
 import json
 import os
 import stat
+import subprocess
 import tempfile
 import sys
 import unittest
@@ -22,9 +24,13 @@ class FakeSystemd:
     def __init__(self):
         self.restarts = []
         self.active = True
+        self.fail_next_restart = False
 
     def restart(self, unit):
         self.restarts.append(unit)
+        if self.fail_next_restart:
+            self.fail_next_restart = False
+            raise subprocess.CalledProcessError(1, ["systemctl", "restart", unit])
 
     def is_active(self, unit):
         return self.active
@@ -83,7 +89,11 @@ class Harness(unittest.TestCase):
         self.sync_calls += 1
         return self.secrets_changed
 
+    force_unhealthy = False
+
     def probe(self):
+        if self.force_unhealthy:
+            return False
         current = sd.current_version(self.cfg)
         if current is None:
             return False
@@ -467,6 +477,97 @@ class MainTests(Harness):
 
     def test_main_reports_a_config_error_as_exit_1(self):
         self.assertEqual(sd.main({}), 1)
+
+
+class ReviewFixTests(Harness):
+    def test_a_release_directory_is_world_traversable_so_a_dynamic_user_can_exec_it(self):
+        self.promote("v1")
+        self.point("v1")
+        self.run_deploy()
+        release = self.cfg.releases / "v1"
+        self.assertEqual(stat.S_IMODE(release.stat().st_mode), 0o755)
+        self.assertEqual(stat.S_IMODE((release / "skimasque-control").stat().st_mode), 0o755)
+
+    def test_a_release_that_was_installed_but_never_verified_is_checked_on_the_next_run(self):
+        self.promote("v1")
+        self.point("v1")
+        self.systemd.fail_next_restart = True  # interrupted right after the symlink swap
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.run_deploy()
+        self.assertEqual(sd.current_version(self.cfg), "v1")
+
+        self.assertEqual(self.run_deploy(), 0)  # the next tick verifies it
+        self.assertEqual(sd.read_state(self.cfg, "verified"), "v1")
+        self.assertEqual(len(self.systemd.restarts), 1)  # no extra restart
+        self.assertEqual(self.run_deploy(), 0)
+        self.assertEqual(len(self.systemd.restarts), 1)
+
+    def test_an_unverified_release_that_turns_out_unhealthy_is_rolled_back(self):
+        self.promote("v1")
+        self.point("v1")
+        self.run_deploy()
+        self.promote("v2", content=b"BAD-build")
+        self.point("v2")
+        self.systemd.fail_next_restart = True
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.run_deploy()
+        self.assertEqual(sd.current_version(self.cfg), "v2")
+
+        self.assertEqual(self.run_deploy(), 1)
+        self.assertEqual(sd.current_version(self.cfg), "v1")
+        self.assertEqual(sd.read_bad(self.cfg), {"v2"})
+
+    def test_a_first_install_that_was_unhealthy_recovers_once_the_cause_is_fixed(self):
+        self.promote("v1")
+        self.point("v1")
+        self.force_unhealthy = True  # e.g. DNS had not propagated for ACME yet
+        self.assertEqual(self.run_deploy(), 1)
+        self.assertEqual(sd.read_bad(self.cfg), {"v1"})
+        restarts = len(self.systemd.restarts)
+
+        self.force_unhealthy = False
+        self.assertEqual(self.run_deploy(), 0)
+        self.assertEqual(sd.read_bad(self.cfg), set(), "a release that verifies healthy is no longer bad")
+        self.assertEqual(len(self.systemd.restarts), restarts, "re-verifying must not restart the service")
+
+    def test_a_version_with_a_trailing_newline_inside_the_pointer_is_still_refused(self):
+        self.point("v1\nv2")
+        self.assertEqual(self.run_deploy(), 1)
+
+
+class DestroyedSecretTests(unittest.TestCase):
+    def test_a_destroyed_or_disabled_secret_version_reads_as_absent(self):
+        def precondition_failed(req, timeout):
+            body = io.BytesIO(b'{"error": {"code": 400, "status": "FAILED_PRECONDITION"}}')
+            raise urllib.error.HTTPError(req.full_url, 400, "bad", {}, body)
+
+        manager = sd.SecretManager("p1", token=lambda: "tok")
+        with mock.patch("urllib.request.urlopen", side_effect=precondition_failed):
+            self.assertIsNone(manager.access("registration-token"))
+
+    def test_other_400s_are_still_errors(self):
+        def bad_request(req, timeout):
+            raise urllib.error.HTTPError(req.full_url, 400, "bad", {}, io.BytesIO(b'{"error": {"status": "INVALID_ARGUMENT"}}'))
+
+        manager = sd.SecretManager("p1", token=lambda: "tok")
+        with mock.patch("urllib.request.urlopen", side_effect=bad_request):
+            with self.assertRaises(urllib.error.HTTPError):
+                manager.access("x")
+
+
+class MainErrorTests(Harness):
+    def test_malformed_responses_from_google_are_a_clean_exit_1_not_a_traceback(self):
+        env = {
+            "SKIMASQUE_ROLE": "control",
+            "SKIMASQUE_RELEASE_SOURCE": "gs://bucket",
+            "SKIMASQUE_SERVICE": "skimasque-control.service",
+            "SKIMASQUE_BINARY": "skimasque-control",
+            "SKIMASQUE_HEALTH": "active",
+            "SKIMASQUE_ROOT": str(self.root),
+        }
+        for error in (ValueError("bad json"), KeyError("access_token"), http.client.IncompleteRead(b"x")):
+            with mock.patch.object(sd.GcsSource, "read", side_effect=error):
+                self.assertEqual(sd.main(env), 1, repr(error))
 
 
 if __name__ == "__main__":

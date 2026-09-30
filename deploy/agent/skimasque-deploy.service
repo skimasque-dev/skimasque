@@ -9,6 +9,11 @@ Type=oneshot
 # SKIMASQUE_ROLE, SKIMASQUE_RELEASE_SOURCE, SKIMASQUE_SERVICE, SKIMASQUE_BINARY,
 # SKIMASQUE_HEALTH, and optionally SKIMASQUE_SECRET_MAP / _SECRETS_FILE / _GCP_PROJECT.
 EnvironmentFile=/etc/skimasque/deploy.env
+# A fresh VM has none of these directories, and under ProtectSystem=strict systemd
+# refuses to start (226/NAMESPACE) when a ReadWritePaths entry is missing. The `+`
+# prefix runs these outside the sandbox, before it is built.
+ExecStartPre=+/usr/bin/install -d -m 0755 /opt/skimasque /opt/skimasque/releases /etc/skimasque
+ExecStartPre=+/usr/bin/install -d -m 0700 /var/lib/skimasque-deploy
 ExecStart=/usr/local/sbin/skimasque-deploy
 # It restarts the service and writes /opt and /etc/skimasque, so it runs as root,
 # but with the rest of the system read-only.

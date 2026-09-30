@@ -142,7 +142,7 @@ def parse_secret_map(text: str) -> list[SecretSpec]:
         name, _, var = item.partition("=")
         optional = var.endswith("?")
         var = var.rstrip("?")
-        if not name or not ENV_VAR_RE.match(var):
+        if not name or not ENV_VAR_RE.fullmatch(var):
             raise DeployError(f"bad secret mapping {item!r} (want name=ENV_VAR[?])")
         specs.append(SecretSpec(name, var, optional))
     return specs
@@ -169,6 +169,10 @@ class SecretManager:
                 payload = json.load(resp)
         except urllib.error.HTTPError as err:
             if err.code == 404:
+                return None
+            # Destroying or disabling the newest version (the natural cleanup of a
+            # used one-time token) makes `latest` fail with FAILED_PRECONDITION.
+            if err.code == 400 and b"FAILED_PRECONDITION" in err.read():
                 return None
             raise
         return base64.b64decode(payload["payload"]["data"]).decode("utf-8")
@@ -209,7 +213,7 @@ def sync_secrets(specs: list[SecretSpec], manager, path: Path) -> bool:
                 missing.append(spec.secret)
             continue
         value = value.strip()
-        if not value or not SECRET_VALUE_RE.match(value):
+        if not value or not SECRET_VALUE_RE.fullmatch(value):
             raise DeployError(
                 f"secret {spec.secret!r} is empty or has characters that are not "
                 "allowed in an env file"
@@ -376,6 +380,23 @@ def add_bad(cfg: Config, version: str) -> None:
     write_if_changed(cfg.state / f"bad-{cfg.role}", "\n".join(sorted(bad)) + "\n", 0o644)
 
 
+def read_state(cfg: Config, name: str) -> Optional[str]:
+    """A one-line state file, e.g. ``verified`` (the release last seen healthy)."""
+    try:
+        return (cfg.state / f"{name}-{cfg.role}").read_text().strip() or None
+    except OSError:
+        return None
+
+
+def write_state(cfg: Config, name: str, value: str) -> None:
+    write_if_changed(cfg.state / f"{name}-{cfg.role}", value + "\n", 0o644)
+
+
+def clear_bad(cfg: Config, version: str) -> None:
+    bad = read_bad(cfg) - {version}
+    write_if_changed(cfg.state / f"bad-{cfg.role}", "\n".join(sorted(bad)) + ("\n" if bad else ""), 0o644)
+
+
 def point_current_at(cfg: Config, version: str) -> None:
     """Atomically repoint ``current`` at ``releases/<version>``."""
     cfg.current.parent.mkdir(parents=True, exist_ok=True)
@@ -394,6 +415,9 @@ def install_release(cfg: Config, version: str, binary: bytes) -> None:
         target = staging / cfg.binary
         target.write_bytes(binary)
         os.chmod(target, 0o755)
+        # mkdtemp makes the directory 0700; a DynamicUser service could not exec
+        # the binary inside it.
+        os.chmod(staging, 0o755)
         if dest.exists():
             shutil.rmtree(dest)
         os.replace(staging, dest)
@@ -435,12 +459,16 @@ def deploy(
         log(f"no release promoted for {cfg.role!r} yet; nothing to do")
         return 0
     version = pointer.decode("utf-8", "replace").strip()
-    if not VERSION_RE.match(version):
+    if not VERSION_RE.fullmatch(version):
         log(f"the {cfg.role} channel names an invalid version {version!r}; refusing")
         return 1
 
     current = current_version(cfg)
     if version == current:
+        if read_state(cfg, "verified") != current:
+            # Installed, but a previous run was interrupted (or failed its health
+            # check) before it could be trusted: check it now.
+            return verify_installed(cfg, version, systemd, probe, sleep, clock)
         if sync():
             log("secrets changed; restarting")
             systemd.restart(cfg.service)
@@ -465,21 +493,40 @@ def deploy(
 
     previous = current
     install_release(cfg, version, binary)
+    write_state(cfg, "previous", previous or "none")
     point_current_at(cfg, version)
     systemd.restart(cfg.service)
     log(f"installed {version} (was {previous}); checking health")
+    return verify_installed(cfg, version, systemd, probe, sleep, clock)
 
+
+def verify_installed(
+    cfg: Config,
+    version: str,
+    systemd,
+    probe: Callable[[], bool],
+    sleep: Callable[[float], None],
+    clock: Callable[[], float],
+) -> int:
+    """Health-check the live release. Healthy: trust it. Otherwise: roll back."""
     if wait_healthy(probe, timeout=cfg.health_timeout, sleep=sleep, clock=clock):
+        write_state(cfg, "verified", version)
+        clear_bad(cfg, version)
         prune(cfg)
         log(f"{version} is healthy")
         return 0
 
     add_bad(cfg, version)
-    if previous and (cfg.releases / previous).is_dir():
+    previous = read_state(cfg, "previous")
+    if previous and previous != "none" and previous != version and (cfg.releases / previous).is_dir():
         point_current_at(cfg, previous)
         systemd.restart(cfg.service)
+        write_state(cfg, "verified", previous)
         log(f"{version} is UNHEALTHY; rolled back to {previous}")
     else:
+        # Nothing to roll back to. Leave it in place: the next run health-checks it
+        # again without restarting anything, so a cause that clears by itself (DNS
+        # not yet propagated for ACME) recovers without an operator.
         log(f"{version} is UNHEALTHY and there is no earlier release to roll back to")
     return 1
 
@@ -522,8 +569,15 @@ def main(env=None) -> int:
     except DeployError as err:
         log(str(err))
         return 1
-    except (OSError, urllib.error.URLError, subprocess.CalledProcessError) as err:
-        log(f"failed: {err}")
+    except (
+        OSError,
+        ValueError,  # includes JSONDecodeError
+        KeyError,
+        urllib.error.URLError,
+        http.client.HTTPException,  # includes IncompleteRead
+        subprocess.CalledProcessError,
+    ) as err:
+        log(f"failed: {err!r}")
         return 1
 
 

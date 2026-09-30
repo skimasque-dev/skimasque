@@ -7,7 +7,7 @@
 #       /var/lib/private/skimasque skimasque-state
 #
 # It formats the disk ONLY when blkid positively reports "no filesystem"
-# (exit status 2). A disk that already has a filesystem -- the whole point of a
+# (exit status 2) AND the first 4 MiB are all zeros. A disk that already has a filesystem -- the whole point of a
 # persistent disk is that it survives a VM rebuild -- is never touched, and any
 # other blkid failure aborts rather than guessing.
 set -euo pipefail
@@ -33,8 +33,14 @@ set -e
 case "$status" in
   0) echo "skimasque-prepare-disk: $device already has a filesystem; leaving it alone" ;;
   2)
+    # blkid also answers 2 for a damaged filesystem (say a zeroed primary
+    # superblock) that still holds data. A genuinely blank disk is all zeros.
+    if [ "$(head -c 4194304 "$device" | tr -d '\0' | wc -c)" -ne 0 ]; then
+      echo "skimasque-prepare-disk: $device has data but no recognised filesystem; refusing to format it" >&2
+      exit 1
+    fi
     echo "skimasque-prepare-disk: $device is blank; creating an ext4 filesystem"
-    mkfs.ext4 -q -F -L "$label" "$device"
+    mkfs.ext4 -q -L "$label" "$device"
     ;;
   *)
     echo "skimasque-prepare-disk: blkid failed with status $status; refusing to guess" >&2

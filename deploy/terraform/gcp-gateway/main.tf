@@ -4,7 +4,6 @@ module "agent_files" {
 
 locals {
   region    = join("-", slice(split("-", var.zone), 0, 2))
-  platform  = var.mode == "platform"
   secret_id = "skimasque-gw-${var.name}-registration-token"
 
   # The gateway's command line. Everything stable lives here so a change shows
@@ -22,7 +21,7 @@ locals {
     "--audit-log /var/lib/skimasque/audit.jsonl",
     "--metrics-listen 127.0.0.1:9090",
     "--github-oidc",
-    local.platform ? "--platform" : "--oidc-audience https://${var.hostname}",
+    "--oidc-audience https://${var.hostname}",
     var.extra_args,
   ]))
 

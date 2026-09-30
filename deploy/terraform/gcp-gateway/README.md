@@ -21,7 +21,10 @@ module "gateway" {
 }
 ```
 
-A full example is in [`examples/basic`](examples/basic/main.tf).
+A full example is in [`examples/basic`](examples/basic/main.tf). Use a **dedicated
+VPC** in real deployments: the `default` network's own firewall rules (SSH and RDP
+open to the internet, all internal traffic allowed) still apply to the VM alongside
+the module's rules.
 
 ## What you do around it
 
@@ -40,18 +43,19 @@ A full example is in [`examples/basic`](examples/basic/main.tf).
      "$(terraform output -raw registration_token_secret)" --data-file=-
    ```
 
-   Do this **before** the first release is promoted. The token is needed only
+   Do this **before** the first release is promoted (a gateway with no token and
+   no identity cannot enrol, so its first health check fails). The token is needed only
    until the gateway has enrolled; its identity then lives on the state disk.
 5. Promote a release. Within about two minutes the agent installs it, starts the
    gateway, and ACME issues the certificate.
 
 ## Modes
 
-- `single-tenant` (default): one organisation; the GitHub OIDC audience is
-  `https://<hostname>`.
-- `platform`: SkiMasque's shared multi-tenant gateway. Adds `--platform`, which
-  needs a `skimasque-server` release that supports it. Until then, a release
-  that does not understand the flag will fail its health check and be rolled back.
+The gateway runs single-tenant: one organisation, with the GitHub OIDC audience
+`https://<hostname>`. SkiMasque's shared multi-tenant mode (`--platform`) is not
+offered yet because the released `skimasque-server` has no such flag; the module
+will gain a `mode` input when it does. A test compares every flag the module
+emits with the server's source, so an unsupported flag is caught in CI.
 
 ## State and replacement
 

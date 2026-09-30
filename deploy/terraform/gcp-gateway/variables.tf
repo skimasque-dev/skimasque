@@ -57,17 +57,6 @@ variable "state_disk_gb" {
   default     = 10
 }
 
-variable "mode" {
-  description = "`single-tenant` (one org; GitHub OIDC audience is this gateway) or `platform` (SkiMasque's shared multi-tenant gateway; needs a skimasque-server release that supports --platform)."
-  type        = string
-  default     = "single-tenant"
-
-  validation {
-    condition     = contains(["single-tenant", "platform"], var.mode)
-    error_message = "mode must be \"single-tenant\" or \"platform\"."
-  }
-}
-
 variable "control_plane_url" {
   description = "The control plane this gateway enrols with, e.g. https://control.example.com."
   type        = string
@@ -83,20 +72,30 @@ variable "release_source" {
   type        = string
 
   validation {
-    condition     = startswith(var.release_source, "gs://")
-    error_message = "release_source must be gs://BUCKET."
+    condition     = can(regex("^gs://[a-z0-9][a-z0-9._-]+$", var.release_source))
+    error_message = "release_source must be gs://BUCKET (a bucket name, no path)."
   }
 }
 
 variable "acme_email" {
   description = "Contact email for the Let's Encrypt account."
   type        = string
+
+  validation {
+    condition     = can(regex("^[^\\r\\n]+$", var.acme_email))
+    error_message = "acme_email must be a single line."
+  }
 }
 
 variable "extra_args" {
-  description = "Extra skimasque-server arguments, appended to the generated command line."
+  description = "Extra skimasque-server arguments, appended to the generated command line. Never put a secret here: it lands in instance metadata and Terraform state."
   type        = string
   default     = ""
+
+  validation {
+    condition     = can(regex("^[^\\r\\n]*$", var.extra_args))
+    error_message = "extra_args must be a single line."
+  }
 }
 
 variable "labels" {

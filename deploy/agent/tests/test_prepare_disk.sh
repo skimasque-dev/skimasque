@@ -7,8 +7,8 @@ here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 script="$here/../skimasque-prepare-disk"
 fail=0
 
-run_case() { # name blkid_status expect_mkfs(0|1) expect_exit
-  local name=$1 blkid_status=$2 expect_mkfs=$3 expect_exit=$4
+run_case() { # name blkid_status expect_mkfs(0|1) expect_exit [device_content]
+  local name=$1 blkid_status=$2 expect_mkfs=$3 expect_exit=$4 device_content=${5:-}
   local tmp
   tmp=$(mktemp -d)
   mkdir -p "$tmp/bin"
@@ -29,7 +29,7 @@ grep -qs '^mount ' "$tmp/calls"
 EOF
   chmod +x "$tmp"/bin/*
   : >"$tmp/calls"
-  : >"$tmp/device"
+  printf '%s' "$device_content" >"$tmp/device"
   : >"$tmp/fstab"
 
   PATH="$tmp/bin:$PATH" FSTAB="$tmp/fstab" bash "$script" "$tmp/device" "$tmp/mnt" skimasque-state >"$tmp/out" 2>&1
@@ -59,6 +59,7 @@ EOF
 run_case "a blank disk is formatted and mounted" 2 1 0
 run_case "a disk with a filesystem is never formatted" 0 0 0
 run_case "an unexpected blkid failure aborts without formatting" 4 0 1
+run_case "blkid says blank but the disk holds data: refuse to format" 2 0 1 "not-zeros-this-is-somebodys-data"
 
 # Idempotent: a second run adds no second fstab line.
 tmp=$(mktemp -d); mkdir -p "$tmp/bin"

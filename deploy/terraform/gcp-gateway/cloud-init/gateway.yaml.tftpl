@@ -54,8 +54,10 @@ write_files:
     permissions: "0644"
     content: |
       [Unit]
-      # Do not start until the deploy agent has installed a release.
+      # Do not start until the deploy agent has installed a release...
       ConditionPathExists=/opt/skimasque/current/skimasque-server
+      # ...and never run on the boot disk if the state disk failed to mount.
+      RequiresMountsFor=/var/lib/private/skimasque
 
       [Service]
       EnvironmentFile=-/etc/skimasque/gateway-secrets.env
@@ -66,10 +68,14 @@ write_files:
       SKIMASQUE_ARGS=${server_args}
 
 runcmd:
-  # systemd keeps a DynamicUser's StateDirectory under /var/lib/private.
-  - install -d -m 0700 /var/lib/private
-  - [/usr/local/sbin/skimasque-prepare-disk, /dev/disk/by-id/google-skimasque-state, /var/lib/private/skimasque, skimasque-state]
-  - ln -sfn /opt/skimasque/current/skimasque-server /usr/local/bin/skimasque-server
-  - systemctl daemon-reload
-  - systemctl enable skimasque-gateway.service
-  - systemctl enable --now skimasque-deploy.timer
+  # One script that stops at the first failure: if the state disk cannot be
+  # prepared, neither the gateway nor the deploy timer is enabled.
+  - |
+    set -e
+    # systemd keeps a DynamicUser's StateDirectory under /var/lib/private.
+    install -d -m 0700 /var/lib/private
+    /usr/local/sbin/skimasque-prepare-disk /dev/disk/by-id/google-skimasque-state /var/lib/private/skimasque skimasque-state
+    ln -sfn /opt/skimasque/current/skimasque-server /usr/local/bin/skimasque-server
+    systemctl daemon-reload
+    systemctl enable skimasque-gateway.service
+    systemctl enable --now skimasque-deploy.timer
