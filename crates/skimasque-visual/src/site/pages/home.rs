@@ -106,16 +106,13 @@ pub fn page() -> Page {
             .feature("Policy-driven", "Define access declaratively.")
             .feature(
                 "Developer-friendly",
-                "Use normal commands with skimasque connect, or the GitHub Action in CI.",
+                "Run a command with the access its policy grants: \
+                 skimasque exec --policy production -- terraform apply. \
+                 Or use skimasque connect, or the GitHub Action in CI.",
             )
             .feature(
                 "Real network access",
                 "Built around MASQUE, HTTP/3, and QUIC.",
-            )
-            .planned(
-                "Command wrapper",
-                "A wrapper that would request access for one command and let it expire.",
-                "a command wrapper is planned",
             ),
     );
 
@@ -183,13 +180,14 @@ mod tests {
         }
         assert!(s.contains("v-route"), "the hero route motif");
         assert!(
-            s.contains("PLANNED"),
-            "the command-wrapper feature is planned"
+            !s.to_lowercase().contains("command wrapper"),
+            "exec is built: no planned command-wrapper card"
         );
-        assert!(
-            s.contains("Use normal commands with skimasque connect, or the GitHub Action in CI.")
-        );
+        assert!(s.contains(
+            "Run a command with the access its policy grants: \
+             skimasque exec --policy production -- terraform apply."
+        ));
+        assert!(s.contains("skimasque connect"));
         assert!(!s.contains('`'), "no literal backticks in rendered copy");
-        assert!(!s.to_lowercase().contains("skimasque exec"));
     }
 }

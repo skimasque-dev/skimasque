@@ -458,7 +458,7 @@ mod tests {
         let pricing = page_at(&all, "pricing/index.html");
         assert!(pricing.contains("Try SkiMasque") && pricing.contains(r#"href="../contact/""#));
         assert!(pricing.contains("Talk to Us") && pricing.contains("v-btn v-btn-quiet"));
-        assert!(page_at(&all, "index.html").contains("would request access for one command"));
+        assert!(page_at(&all, "index.html").contains("skimasque exec --policy production"));
         // titles use the nav labels' capitalisation
         for (path, title) in [
             (
