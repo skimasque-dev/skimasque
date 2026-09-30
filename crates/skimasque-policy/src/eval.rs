@@ -28,6 +28,11 @@ pub struct RequestContext {
     pub transport: Transport,
     /// WHERE -- the destination the client named, before DNS.
     pub destination: Destination,
+    /// The policy the client pinned with `X-Masque-Policy`, if any. The engine
+    /// never uses it to *choose* a policy: when the policy selected for the
+    /// identity has another name, the request is denied. A pin can only narrow
+    /// access, never widen it.
+    pub requested_policy: Option<String>,
 }
 
 /// The outcome of an evaluation.
@@ -91,6 +96,12 @@ pub enum DenyReason {
     NoMatchingAllowRule,
     /// A `deny` rule matched the request explicitly.
     ExplicitDeny { rule: String },
+    /// The client pinned a policy (`X-Masque-Policy`) other than the one
+    /// selected for its identity.
+    PolicyMismatch {
+        requested: String,
+        selected: Option<String>,
+    },
 }
 
 impl DenyReason {
@@ -100,6 +111,12 @@ impl DenyReason {
             Self::NoPolicyMatch => "No policy matches this workload identity.".into(),
             Self::NoMatchingAllowRule => "No matching allow rule.".into(),
             Self::ExplicitDeny { rule } => format!("Denied by rule {rule}."),
+            Self::PolicyMismatch { requested, selected: Some(selected) } => format!(
+                "Policy \"{requested}\" does not apply to this identity; \"{selected}\" does."
+            ),
+            Self::PolicyMismatch { requested, selected: None } => format!(
+                "Policy \"{requested}\" does not apply to this identity; no policy does."
+            ),
         }
     }
 }
@@ -150,9 +167,25 @@ impl PolicySet {
     ///
     /// With no matching policy the result is [`DenyReason::NoPolicyMatch`]: the
     /// least-privilege default is that an unrecognised workload reaches
-    /// nothing.
+    /// nothing. When `ctx.requested_policy` names a policy other than the
+    /// selected one, the result is [`DenyReason::PolicyMismatch`].
     pub fn evaluate(&self, ctx: &RequestContext) -> Decision {
-        match self.select(&ctx.workload) {
+        let selected = self.select(&ctx.workload);
+        if let Some(requested) = &ctx.requested_policy {
+            let selected_name = selected.map(|p| p.name.clone());
+            if selected_name.as_deref() != Some(requested.as_str()) {
+                return Decision::Deny(Denied {
+                    policy: selected_name.clone(),
+                    reason: DenyReason::PolicyMismatch {
+                        requested: requested.clone(),
+                        selected: selected_name,
+                    },
+                    suggested_rule: suggested_rule(ctx),
+                    closest: Vec::new(),
+                });
+            }
+        }
+        match selected {
             Some(policy) => policy.evaluate(ctx),
             None => Decision::Deny(Denied {
                 policy: None,
@@ -238,6 +271,7 @@ mod tests {
             application: application.into(),
             transport,
             destination: Destination::parse(destination).unwrap(),
+            requested_policy: None,
         }
     }
 
@@ -374,5 +408,134 @@ mod tests {
             decision,
             Decision::Deny(Denied { reason: DenyReason::NoPolicyMatch, .. })
         ));
+    }
+
+    // --- the policy pin (`X-Masque-Policy`) ---
+
+    const PINNED_SET: [(&str, &str); 2] = [
+        (
+            "prod.toml",
+            r#"
+            name = "prod"
+            [match]
+            repository = "acme/widget"
+            [[rules]]
+            application = "terraform"
+            action = "allow"
+            destinations = ["db.prod:5432"]
+            "#,
+        ),
+        (
+            "broad.toml",
+            r#"
+            name = "broad"
+            [[rules]]
+            application = "terraform"
+            action = "allow"
+            destinations = ["db.prod:5432", "other.example:443"]
+            "#,
+        ),
+    ];
+
+    fn pinned(requested: Option<&str>, repository: &str, destination: &str) -> RequestContext {
+        RequestContext {
+            workload: WorkloadIdentity {
+                repository: Some(repository.into()),
+                ..Default::default()
+            },
+            application: "terraform".into(),
+            transport: Transport::Tcp,
+            destination: Destination::parse(destination).unwrap(),
+            requested_policy: requested.map(str::to_owned),
+        }
+    }
+
+    #[test]
+    fn a_pin_naming_the_selected_policy_evaluates_normally() {
+        let set = PolicySet::from_documents(PINNED_SET).unwrap();
+        match set.evaluate(&pinned(Some("prod"), "acme/widget", "db.prod:5432")) {
+            Decision::Allow(a) => assert_eq!(a.policy, "prod"),
+            other => panic!("expected allow, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn no_pin_leaves_selection_unchanged() {
+        let set = PolicySet::from_documents(PINNED_SET).unwrap();
+        match set.evaluate(&pinned(None, "acme/widget", "other.example:443")) {
+            Decision::Deny(d) => {
+                assert_eq!(d.policy.as_deref(), Some("prod"));
+                assert_eq!(d.reason, DenyReason::NoMatchingAllowRule);
+            }
+            other => panic!("expected deny, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_pin_naming_a_broader_matching_policy_is_still_denied() {
+        // `broad` matches every identity and would allow this, but `prod` is
+        // the more specific match. The pin must not let a workload escape it.
+        let set = PolicySet::from_documents(PINNED_SET).unwrap();
+        match set.evaluate(&pinned(Some("broad"), "acme/widget", "other.example:443")) {
+            Decision::Deny(d) => {
+                assert_eq!(
+                    d.reason,
+                    DenyReason::PolicyMismatch {
+                        requested: "broad".into(),
+                        selected: Some("prod".into()),
+                    }
+                );
+                assert_eq!(d.policy.as_deref(), Some("prod"));
+                assert!(d.closest.is_empty());
+            }
+            other => panic!("expected deny, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_pin_naming_a_missing_policy_is_denied() {
+        let set = PolicySet::from_documents(PINNED_SET).unwrap();
+        let d = set.evaluate(&pinned(Some("staging"), "acme/widget", "db.prod:5432"));
+        assert!(matches!(
+            d,
+            Decision::Deny(Denied { reason: DenyReason::PolicyMismatch { .. }, .. })
+        ));
+    }
+
+    #[test]
+    fn a_pin_with_no_selected_policy_names_none() {
+        let set = PolicySet::from_documents([PINNED_SET[0]]).unwrap();
+        match set.evaluate(&pinned(Some("prod"), "someone/else", "db.prod:5432")) {
+            Decision::Deny(d) => {
+                assert_eq!(
+                    d.reason,
+                    DenyReason::PolicyMismatch { requested: "prod".into(), selected: None }
+                );
+                assert_eq!(d.policy, None);
+            }
+            other => panic!("expected deny, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn policy_mismatch_summaries_read_as_the_spec_says() {
+        assert_eq!(
+            DenyReason::PolicyMismatch { requested: "broad".into(), selected: Some("prod".into()) }
+                .summary(),
+            r#"Policy "broad" does not apply to this identity; "prod" does."#
+        );
+        assert_eq!(
+            DenyReason::PolicyMismatch { requested: "prod".into(), selected: None }.summary(),
+            r#"Policy "prod" does not apply to this identity; no policy does."#
+        );
+    }
+
+    #[test]
+    fn evaluate_named_ignores_the_pin() {
+        let set = PolicySet::from_documents(PINNED_SET).unwrap();
+        let d = set
+            .evaluate_named("broad", &pinned(Some("prod"), "acme/widget", "other.example:443"))
+            .unwrap();
+        assert!(d.is_allow());
     }
 }

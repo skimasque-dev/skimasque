@@ -236,6 +236,7 @@ mod tests {
             application: application.to_owned(),
             transport: skimasque_policy::Transport::Tcp,
             destination: skimasque_policy::Destination::parse(destination).unwrap(),
+            requested_policy: None,
         })
     }
 

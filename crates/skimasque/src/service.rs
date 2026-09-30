@@ -1183,6 +1183,7 @@ where
             application: application.clone(),
             transport,
             destination: policy_destination(&target),
+            requested_policy: None,
         };
         // Read the live set once, so this request is evaluated against a single
         // consistent snapshot even if a reload lands mid-call.

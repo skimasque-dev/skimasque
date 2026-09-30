@@ -147,6 +147,10 @@ enum Command {
         destination: String,
         #[command(flatten)]
         request: RequestArgs,
+        /// Simulate `skimasque exec --policy NAME`: deny unless the policy
+        /// selected for the identity is NAME. Local policy only.
+        #[arg(long, value_name = "NAME", conflicts_with = "control_plane")]
+        policy: Option<String>,
         /// Evaluate against your org's published policy on the control plane
         /// instead of local files (needs `skimasque login`).
         #[arg(long)]
@@ -431,6 +435,7 @@ fn run() -> anyhow::Result<ExitCode> {
         Command::Why {
             destination,
             request,
+            policy,
             control_plane,
             org,
             revision,
@@ -441,7 +446,7 @@ fn run() -> anyhow::Result<ExitCode> {
             if control_plane {
                 run_why_remote(&destination, &request, org, revision, draft, gateway)
             } else {
-                run_why(&destination, &request, &source)
+                run_why(&destination, &request, &source, policy.as_deref())
             }
         }
         Command::Status { source } => run_status(&source),
@@ -465,6 +470,7 @@ fn run_policy(command: PolicyCommand) -> anyhow::Result<ExitCode> {
                 request.transport,
                 &destination,
                 request.identity().into_identity(),
+                None,
             )?;
             println!("{decision}");
             Ok(exit_for(&decision))
@@ -484,6 +490,7 @@ fn run_policy(command: PolicyCommand) -> anyhow::Result<ExitCode> {
                 request.transport,
                 &destination,
                 request.identity().into_identity(),
+                None,
             )?;
             println!("Application: {}", request.app);
             println!("Transport: {}", request.transport);
@@ -986,6 +993,7 @@ fn run_why(
     destination: &str,
     request: &RequestArgs,
     source: &SourceArgs,
+    requested_policy: Option<&str>,
 ) -> anyhow::Result<ExitCode> {
     let loaded = source.load()?;
     let identity = request.identity().into_identity();
@@ -996,6 +1004,7 @@ fn run_why(
         request.transport,
         destination,
         identity.clone(),
+        requested_policy,
     )?;
 
     println!("{}\n", if decision.is_allow() { "ALLOW" } else { "DENY" });
@@ -1458,9 +1467,9 @@ mod tests {
             },
         };
 
-        let allow = run_why("api.example.com:443", &request, &source).unwrap();
+        let allow = run_why("api.example.com:443", &request, &source, None).unwrap();
         assert_eq!(allow, ExitCode::SUCCESS);
-        let deny = run_why("evil.example.com:443", &request, &source).unwrap();
+        let deny = run_why("evil.example.com:443", &request, &source, None).unwrap();
         assert_eq!(deny, ExitCode::FAILURE);
 
         std::fs::remove_dir_all(&dir).ok();

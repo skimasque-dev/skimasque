@@ -64,6 +64,7 @@
 //!     application: "terraform".into(),
 //!     transport: skimasque_policy::Transport::Tcp,
 //!     destination: Destination::parse("api.production.example.com:443").unwrap(),
+//!     requested_policy: None,
 //! };
 //!
 //! assert!(policy.identity_matches(&ctx.workload));
