@@ -314,8 +314,13 @@ pub fn status_code(status: std::process::ExitStatus) -> i32 {
     EXIT_FAILED
 }
 
-/// Run exec to completion and return the process exit status. Every failure
-/// before the command starts is printed and returns [`EXIT_FAILED`].
+/// Run exec to completion and return the process exit status: the command's
+/// own (see [`status_code`]); [`EXIT_NOT_FOUND`] / [`EXIT_NOT_EXECUTABLE`] when
+/// it cannot be started; [`EXIT_FAILED`] when exec fails before starting it
+/// (configuration, signal registration, authentication, session, preflight,
+/// loopback listeners) or cannot wait for it; `128 + signal` when SIGINT,
+/// SIGTERM or SIGHUP (Ctrl-C on Windows: 130) arrives before the command
+/// starts. Every failure is printed to stderr.
 pub async fn run(args: ExecArgs) -> i32 {
     match run_inner(args).await {
         Ok(code) => code,
@@ -333,6 +338,87 @@ fn failed(message: impl std::fmt::Display) -> Failure {
 }
 
 async fn run_inner(args: ExecArgs) -> Result<i32, Failure> {
+    // Registered before anything else, so no signal ends exec by its default
+    // action while the session is half built; one that arrives during setup
+    // ends it here instead, before the command starts.
+    let mut signals =
+        Signals::register().map_err(|e| failed(format!("listening for signals: {e}")))?;
+    let Prepared {
+        session,
+        tasks,
+        env,
+    } = tokio::select! {
+        prepared = prepare(&args) => prepared?,
+        signal = signals.next() => {
+            return Err(Failure(
+                128 + signal,
+                "interrupted before the command started".to_owned(),
+            ));
+        }
+    };
+
+    let program = &args.command[0];
+    // Rust looks up only `.exe` on Windows; resolve `npm` to `npm.cmd` etc.
+    #[cfg(windows)]
+    let executable = resolve_program(
+        program,
+        std::env::var_os("PATH").as_deref(),
+        std::env::var_os("PATHEXT").as_deref(),
+        |p| p.is_file(),
+    )
+    .unwrap_or_else(|| program.into());
+    #[cfg(not(windows))]
+    let executable = std::path::PathBuf::from(program);
+    let mut child = tokio::process::Command::new(&executable);
+    child.args(&args.command[1..]).envs(env);
+    let code = match child.spawn() {
+        Err(error) => {
+            let code = spawn_error_code(&error);
+            let what = if code == EXIT_NOT_FOUND {
+                "command not found".to_owned()
+            } else {
+                error.to_string()
+            };
+            eprintln!("skimasque exec: {}: {what}", program.to_string_lossy());
+            code
+        }
+        Ok(mut child) => match supervise(&mut child, &mut signals).await {
+            Ok(code) => code,
+            Err(error) => {
+                // Never leave the command running without its tunnel.
+                let _ = child.start_kill();
+                eprintln!("skimasque exec: waiting for the command: {error}");
+                EXIT_FAILED
+            }
+        },
+    };
+
+    for task in &tasks {
+        task.abort();
+    }
+    for task in tasks {
+        let _ = task.await;
+    }
+    // Per-connection tasks may still hold clones of the session, so close it
+    // through the shared handle rather than by ownership, and give the
+    // CONNECTION_CLOSE a moment to go out before the runtime is dropped.
+    session.close();
+    session.wait_closed(std::time::Duration::from_secs(1)).await;
+    Ok(code)
+}
+
+/// What setup leaves for launching the command.
+struct Prepared {
+    session: std::sync::Arc<skimasque::client::Session>,
+    /// Every task is `JoinHandle<()>` so they can be aborted together.
+    tasks: Vec<tokio::task::JoinHandle<()>>,
+    /// The variables added to the child's environment.
+    env: Vec<(String, String)>,
+}
+
+/// Open the session, run the preflight, start the loopback listeners and
+/// print the header.
+async fn prepare(args: &ExecArgs) -> Result<Prepared, Failure> {
     use std::sync::Arc;
 
     use http::{HeaderMap, HeaderValue};
@@ -341,8 +427,10 @@ async fn run_inner(args: ExecArgs) -> Result<i32, Failure> {
     let login = crate::account::load().map_err(|e| failed(format!("{e:#}")))?;
     let control_plane = resolve_control_plane(args.control_plane.as_deref(), login.as_ref());
     let gateway = resolve_gateway(args.gateway.as_deref(), &control_plane).map_err(failed)?;
-    let program = args.command[0].clone();
-    let app = args.app.clone().unwrap_or_else(|| default_app(&program));
+    let app = args
+        .app
+        .clone()
+        .unwrap_or_else(|| default_app(&args.command[0]));
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -396,7 +484,6 @@ async fn run_inner(args: ExecArgs) -> Result<i32, Failure> {
         session, refresh, ..
     } = connected;
     let session = Arc::new(session);
-    // Every task is `JoinHandle<()>` so they can be aborted together.
     let mut tasks: Vec<tokio::task::JoinHandle<()>> = Vec::new();
     if let Some((exchange, ttl)) = refresh {
         let s = session.clone();
@@ -464,80 +551,90 @@ async fn run_inner(args: ExecArgs) -> Result<i32, Failure> {
         eprint!("{}", render_header(&view));
     }
 
-    // Rust looks up only `.exe` on Windows; resolve `npm` to `npm.cmd` etc.
-    #[cfg(windows)]
-    let executable: std::path::PathBuf = resolve_program(
-        &program,
-        std::env::var_os("PATH").as_deref(),
-        std::env::var_os("PATHEXT").as_deref(),
-        |p| p.is_file(),
-    )
-    .unwrap_or_else(|| program.clone().into());
-    #[cfg(not(windows))]
-    let executable = program.clone();
-    let mut child = tokio::process::Command::new(&executable);
-    child
-        .args(&args.command[1..])
-        .envs(child_env(http_addr, socks_addr, &forwards));
-    let code = match child.spawn() {
-        Err(error) => {
-            let code = spawn_error_code(&error);
-            let what = if code == EXIT_NOT_FOUND {
-                "command not found".to_owned()
-            } else {
-                error.to_string()
-            };
-            eprintln!("skimasque exec: {}: {what}", program.to_string_lossy());
-            code
-        }
-        Ok(mut child) => supervise(&mut child).await.map_err(failed)?,
-    };
-
-    for task in &tasks {
-        task.abort();
-    }
-    for task in tasks {
-        let _ = task.await;
-    }
-    // Per-connection tasks may still hold clones of the session, so close it
-    // through the shared handle rather than by ownership, and give the
-    // CONNECTION_CLOSE a moment to go out before the runtime is dropped.
-    session.close();
-    session.wait_closed(std::time::Duration::from_secs(1)).await;
-    Ok(code)
+    Ok(Prepared {
+        session,
+        tasks,
+        env: child_env(http_addr, socks_addr, &forwards),
+    })
 }
 
-/// Wait for the child. Ctrl-C does not end exec (the child receives it and
-/// decides); SIGTERM and SIGHUP are passed on to the child.
-async fn supervise(child: &mut tokio::process::Child) -> std::io::Result<i32> {
+/// The signals exec handles: SIGINT, SIGTERM and SIGHUP on Unix, Ctrl-C on
+/// Windows. Registering them replaces their default action (ending exec).
+struct Signals {
     #[cfg(unix)]
-    {
-        use tokio::signal::unix::{signal, SignalKind};
-        let mut term = signal(SignalKind::terminate())?;
-        let mut hup = signal(SignalKind::hangup())?;
-        let mut int = signal(SignalKind::interrupt())?;
-        loop {
+    int: tokio::signal::unix::Signal,
+    #[cfg(unix)]
+    term: tokio::signal::unix::Signal,
+    #[cfg(unix)]
+    hup: tokio::signal::unix::Signal,
+    #[cfg(windows)]
+    ctrl_c: tokio::signal::windows::CtrlC,
+}
+
+/// SIGINT's number; Ctrl-C is reported as it on Windows too.
+const SIGINT: i32 = 2;
+
+impl Signals {
+    fn register() -> std::io::Result<Self> {
+        #[cfg(unix)]
+        {
+            use tokio::signal::unix::{signal, SignalKind};
+            Ok(Self {
+                int: signal(SignalKind::interrupt())?,
+                term: signal(SignalKind::terminate())?,
+                hup: signal(SignalKind::hangup())?,
+            })
+        }
+        #[cfg(windows)]
+        {
+            Ok(Self {
+                ctrl_c: tokio::signal::windows::ctrl_c()?,
+            })
+        }
+    }
+
+    /// The number of the next signal received. Cancel-safe.
+    async fn next(&mut self) -> i32 {
+        #[cfg(unix)]
+        {
             tokio::select! {
-                status = child.wait() => return Ok(status_code(status?)),
-                _ = int.recv() => {}
-                _ = term.recv() => forward_signal(child, libc::SIGTERM),
-                _ = hup.recv() => forward_signal(child, libc::SIGHUP),
+                Some(()) = self.int.recv() => libc::SIGINT,
+                Some(()) = self.term.recv() => libc::SIGTERM,
+                Some(()) = self.hup.recv() => libc::SIGHUP,
+                else => std::future::pending::<i32>().await,
+            }
+        }
+        #[cfg(windows)]
+        {
+            match self.ctrl_c.recv().await {
+                Some(()) => SIGINT,
+                None => std::future::pending::<i32>().await,
             }
         }
     }
-    #[cfg(not(unix))]
-    {
-        loop {
-            tokio::select! {
-                status = child.wait() => return Ok(status_code(status?)),
-                _ = tokio::signal::ctrl_c() => {}
+}
+
+/// Wait for the child. Ctrl-C / SIGINT does not end exec (the terminal already
+/// delivered it to the child, which decides); SIGTERM and SIGHUP are passed on
+/// to the child.
+async fn supervise(
+    child: &mut tokio::process::Child,
+    signals: &mut Signals,
+) -> std::io::Result<i32> {
+    loop {
+        tokio::select! {
+            status = child.wait() => return Ok(status_code(status?)),
+            signal = signals.next() => {
+                if signal != SIGINT {
+                    forward_signal(child, signal);
+                }
             }
         }
     }
 }
 
 #[cfg(unix)]
-fn forward_signal(child: &tokio::process::Child, signal: libc::c_int) {
+fn forward_signal(child: &tokio::process::Child, signal: i32) {
     if let Some(pid) = child.id() {
         // SAFETY: `kill` has no memory-safety preconditions; a stale pid at
         // worst signals nothing (the child is still ours until it is reaped).
@@ -546,6 +643,10 @@ fn forward_signal(child: &tokio::process::Child, signal: libc::c_int) {
         }
     }
 }
+
+/// Windows has only Ctrl-C here, which the child receives itself.
+#[cfg(not(unix))]
+fn forward_signal(_child: &tokio::process::Child, _signal: i32) {}
 
 /// Simulate each destination on the control plane as the gateway would see it.
 async fn preflight(

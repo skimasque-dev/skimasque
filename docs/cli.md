@@ -109,7 +109,10 @@ reach such services through `ALL_PROXY` (`socks5h://`) or a `--forward`.
 With a `skimasque login` session exec checks your access with the control plane
 first and refuses to start when `--policy` does not apply or every
 `--forward` would be denied. Exit status is the command's; `125` when exec
-fails before starting it, `126`/`127` when it cannot be run.
+fails before starting it, `126`/`127` when it cannot be run. Ctrl-C, SIGTERM
+or SIGHUP before the command starts stops exec with `128 + signal` (`130` for
+Ctrl-C); once it runs, Ctrl-C goes to the command and SIGTERM/SIGHUP are passed
+on to it.
 
 On Windows a bare command name is resolved like cmd.exe does it: each `PATH`
 directory in order, trying each `PATHEXT` extension, so `skimasque exec -- npm ci`
