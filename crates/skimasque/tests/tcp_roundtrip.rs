@@ -116,6 +116,33 @@ async fn bytes_reach_the_target_and_come_back() {
 }
 
 #[tokio::test]
+async fn closing_a_shared_session_tears_down_its_tunnels() {
+    let echo = spawn_echo(b"echo:").await;
+    let proxy = tcp_only_proxy(AddressPolicy::permissive());
+    let session = std::sync::Arc::new(connect(&proxy).await);
+    // Another holder (as a per-connection task would be) keeps the session alive.
+    let other = session.clone();
+
+    let mut tunnel = session
+        .connect_tcp(Target::parse(&echo.to_string()).unwrap())
+        .await
+        .unwrap();
+    tunnel.write(b"hi").await.unwrap();
+    let reply = timeout(REPLY_TIMEOUT, tunnel.read()).await.unwrap();
+    assert_eq!(&reply.unwrap().unwrap()[..], b"echo:hi");
+
+    session.close();
+    assert!(session.wait_closed(Duration::from_secs(5)).await);
+
+    // The tunnel ends (EOF or error) although `other` is still alive.
+    let ended = timeout(Duration::from_secs(5), tunnel.read())
+        .await
+        .expect("the tunnel did not end after close");
+    assert!(!matches!(ended, Ok(Some(_))), "unexpected data: {ended:?}");
+    drop(other);
+}
+
+#[tokio::test]
 async fn the_target_closing_its_side_surfaces_as_eof() {
     let echo = spawn_echo(b"e:").await;
     let proxy = tcp_only_proxy(AddressPolicy::permissive());

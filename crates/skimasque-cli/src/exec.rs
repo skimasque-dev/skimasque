@@ -455,9 +455,11 @@ async fn run_inner(args: ExecArgs) -> Result<i32, Failure> {
     for task in tasks {
         let _ = task.await;
     }
-    if let Ok(session) = Arc::try_unwrap(session) {
-        session.close();
-    }
+    // Per-connection tasks may still hold clones of the session, so close it
+    // through the shared handle rather than by ownership, and give the
+    // CONNECTION_CLOSE a moment to go out before the runtime is dropped.
+    session.close();
+    session.wait_closed(std::time::Duration::from_secs(1)).await;
     Ok(code)
 }
 
