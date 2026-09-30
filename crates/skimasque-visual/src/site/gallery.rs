@@ -6,13 +6,13 @@ use askama::Template;
 
 use super::Page;
 use crate::{
-    AuditEventCard, Boundary, Change, Check, CodeExample, ComparisonTable, Component, ConnKind,
-    Connection, Contour, Cta, CtaBand, DecisionBadge, DecisionCard, DecisionExplainer, EmptyState,
-    Expire, Faq, FeatureGrid, Flow, GatewayCard, HealthCard, Hero, Html, Icons, IdentityCard,
-    Mountain, Node, NodeKind, Planned, PlannedBlock, PolicyCard, PolicyDiff, PolicyExplorer,
-    PolicySummary, Prose, Reveal, Route, Run, RunCard, Section, SessionCard, SessionTimeline,
-    Shape, Status, StatusBadge, TierCard, TimelineEvent, Tone, TrailMarker, WorkflowDemo,
-    DIMENSIONS,
+    ArrowGeometry, AuditEventCard, Boundary, Change, Check, CodeExample, ComparisonTable,
+    Component, ConnKind, Connection, Contour, Cta, CtaBand, DecisionBadge, DecisionCard,
+    DecisionExplainer, EmptyState, Expire, Faq, FeatureGrid, Flow, GatewayCard, HealthCard, Hero,
+    Html, Icons, IdentityCard, Mountain, Node, NodeKind, Planned, PlannedBlock, PolicyCard,
+    PolicyDiff, PolicyExplorer, PolicySummary, Prose, Reveal, Route, Run, RunCard, Section,
+    SessionCard, SessionTimeline, Shape, Status, StatusBadge, TierCard, TimelineEvent, Tone,
+    TrailMarker, WorkflowDemo, DIMENSIONS,
 };
 
 struct Item {
@@ -57,7 +57,7 @@ fn groups() -> Vec<Group> {
         .iter()
         .map(|k| item(k.slug(), &Node::new(*k)))
         .collect();
-    let conns = [
+    let mut conns: Vec<Item> = [
         ConnKind::Normal,
         ConnKind::Control,
         ConnKind::Active,
@@ -67,6 +67,10 @@ fn groups() -> Vec<Group> {
     .into_iter()
     .map(|k| item(k.slug(), &Connection::new(k)))
     .collect();
+    conns.push(item(
+        "SVG · 64px shaft frame, 10px head, 3px gap",
+        &Connection::new(ConnKind::Active).geometry(ArrowGeometry::new(64, 10, 3)),
+    ));
     let statuses = {
         let mut v: Vec<Item> = [
             Status::Allow,
