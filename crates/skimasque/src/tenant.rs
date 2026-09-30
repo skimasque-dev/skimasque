@@ -5,11 +5,14 @@
 //! the organisation is a tenant: there is deliberately no public constructor.
 
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use skimasque_policy::PolicySet;
 use tokio::sync::watch;
 use tracing::warn;
+
+use crate::metrics::UsageSnapshot;
+use crate::service::TunnelMeter;
 
 /// An organisation the gateway serves. Minted only by [`TenantTable`]: there is
 /// no public constructor, so a `TenantId` in hand means "this org is a tenant".
@@ -44,12 +47,20 @@ pub struct Tenant {
 }
 
 impl Tenant {
+    /// Owner logins and the keys of `owner_ids` are lowercased here, whatever
+    /// the control plane sent: [`owns`](Self::owns) looks both up by the
+    /// lowercased login, and a mixed-case `owner_ids` key it could not find
+    /// would silently weaken the check to login-only.
     pub(crate) fn new(spec: TenantSpec) -> Self {
         Self {
             id: TenantId(Arc::from(spec.org_id)),
             slug: spec.slug,
-            owners: spec.owners,
-            owner_ids: spec.owner_ids,
+            owners: spec.owners.iter().map(|o| o.to_lowercase()).collect(),
+            owner_ids: spec
+                .owner_ids
+                .into_iter()
+                .map(|(login, id)| (login.to_lowercase(), id))
+                .collect(),
             policy: spec.policy,
         }
     }
@@ -155,9 +166,50 @@ impl TenantTable {
         self.tx.borrow().clone()
     }
 
-    #[allow(dead_code)] // consumed by the layers added in later tasks
     pub(crate) fn subscribe(&self) -> watch::Receiver<Arc<TenantSnapshot>> {
         self.tx.subscribe()
+    }
+}
+
+/// Per-tenant usage: one [`TunnelMeter`] per organisation, created on first
+/// use and kept for the life of the process.
+///
+/// Like the process-wide totals in [`crate::metrics`], the counts are
+/// cumulative since process start; the control plane turns successive
+/// snapshots into its own accumulator. A tenant removed from the table keeps
+/// its meter, so traffic it relayed before removal is still reported.
+#[derive(Debug, Default)]
+pub struct TenantUsage {
+    meters: Mutex<HashMap<String, Arc<TunnelMeter>>>,
+}
+
+impl TenantUsage {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The meter for `id`'s organisation. Every call for the same org returns
+    /// the same meter.
+    pub fn meter_for(&self, id: &TenantId) -> Arc<TunnelMeter> {
+        self.meters
+            .lock()
+            .expect("tenant usage table is not poisoned")
+            .entry(id.as_str().to_owned())
+            .or_default()
+            .clone()
+    }
+
+    /// Every metered org's totals, ordered by `org_id`.
+    pub fn snapshot(&self) -> Vec<(String, UsageSnapshot)> {
+        let mut report: Vec<(String, UsageSnapshot)> = self
+            .meters
+            .lock()
+            .expect("tenant usage table is not poisoned")
+            .iter()
+            .map(|(org, meter)| (org.clone(), meter.snapshot()))
+            .collect();
+        report.sort_by(|a, b| a.0.cmp(&b.0));
+        report
     }
 }
 
@@ -225,6 +277,50 @@ mod tests {
         assert!(!t.owns("acme", None), "a recorded id must be presented");
         assert!(t.owns("octocat", None), "no recorded id: login only");
         assert!(!t.owns("someone-else", Some(900)));
+    }
+
+    #[test]
+    fn a_mixed_case_owner_id_key_still_enforces_the_recorded_numeric_id() {
+        // The control plane sends a key that is not lowercase. Were it kept
+        // as-is, the lowercased lookup in `owns` would miss it and silently
+        // fall back to login-only.
+        let mut s = spec("org_a", "acme", &["Acme"]);
+        s.owner_ids.insert("Acme".into(), 900);
+        let table = TenantTable::new();
+        table.store(1, vec![s]);
+        let t = table.snapshot().resolve_org("org_a").unwrap().clone();
+        assert!(!t.owns("acme", Some(901)), "a wrong id must be refused");
+        assert!(!t.owns("acme", None), "a recorded id must be presented");
+        assert!(t.owns("ACME", Some(900)));
+    }
+
+    #[test]
+    fn usage_is_metered_per_org_and_reported_in_org_order() {
+        let table = TenantTable::new();
+        table.store(1, vec![spec("org_b", "b", &[]), spec("org_a", "a", &[])]);
+        let snap = table.snapshot();
+        let a = snap.resolve_org("org_a").unwrap().id().clone();
+        let b = snap.resolve_org("org_b").unwrap().id().clone();
+
+        let usage = TenantUsage::new();
+        assert!(
+            usage.snapshot().is_empty(),
+            "nothing is reported before use"
+        );
+        let meter = usage.meter_for(&a);
+        meter.add_to_target(7);
+        assert!(
+            Arc::ptr_eq(&meter, &usage.meter_for(&a)),
+            "one meter per org, reused"
+        );
+        usage.meter_for(&b).add_to_client(3);
+
+        let report = usage.snapshot();
+        let orgs: Vec<&str> = report.iter().map(|(org, _)| org.as_str()).collect();
+        assert_eq!(orgs, ["org_a", "org_b"]);
+        assert_eq!(report[0].1.bytes_to_target, 7);
+        assert_eq!(report[0].1.bytes_to_client, 0);
+        assert_eq!(report[1].1.bytes_to_client, 3);
     }
 
     #[test]

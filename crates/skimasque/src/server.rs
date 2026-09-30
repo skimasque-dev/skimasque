@@ -26,7 +26,9 @@ use tracing::{debug, info, trace, Instrument};
 
 use crate::capsules::CapsulePump;
 use crate::dgram::{DatagramRoute, DatagramRouter};
-use crate::service::{Accepted, AcceptedKind, Destination, Rejection, TunnelLimits, TunnelRequest};
+use crate::service::{
+    Accepted, AcceptedKind, Destination, Rejection, TunnelLimits, TunnelMeter, TunnelRequest,
+};
 use crate::{tls, Error};
 
 type H3Connection = h3::server::Connection<h3_quinn::Connection, Bytes>;
@@ -68,12 +70,16 @@ impl Drop for ActiveConnection {
 }
 
 /// The `skimasque_tunnels_active` equivalent of [`ActiveConnection`]; also emits
-/// the `skimasque_tunnels_opened_total` counter for `protocol` on creation.
+/// the `skimasque_tunnels_opened_total` counter for `protocol` on creation, and
+/// counts the tunnel against its tenant's `meter` when it has one.
 struct ActiveTunnel;
 
 impl ActiveTunnel {
-    fn open(protocol: &'static str) -> Self {
+    fn open(protocol: &'static str, meter: Option<&TunnelMeter>) -> Self {
         crate::metrics::tunnel_opened(protocol);
+        if let Some(meter) = meter {
+            meter.tunnel_opened();
+        }
         Self
     }
 }
@@ -81,6 +87,32 @@ impl ActiveTunnel {
 impl Drop for ActiveTunnel {
     fn drop(&mut self) {
         crate::metrics::tunnel_closed();
+    }
+}
+
+/// Which way relayed payload moved.
+#[derive(Debug, Clone, Copy)]
+enum Direction {
+    ToTarget,
+    ToClient,
+}
+
+/// Count `bytes` of relayed payload in the process-wide totals and, for a
+/// tenant's tunnel, against that tenant's `meter` too.
+fn count_relayed(direction: Direction, bytes: u64, meter: Option<&TunnelMeter>) {
+    match direction {
+        Direction::ToTarget => {
+            crate::metrics::bytes_relayed("to_target", bytes);
+            if let Some(meter) = meter {
+                meter.add_to_target(bytes);
+            }
+        }
+        Direction::ToClient => {
+            crate::metrics::bytes_relayed("to_client", bytes);
+            if let Some(meter) = meter {
+                meter.add_to_client(bytes);
+            }
+        }
     }
 }
 
@@ -724,7 +756,7 @@ async fn serve_request<S>(
         }
     };
 
-    let (kind, extra_headers, tunnel_guards, limits) = accepted.into_parts();
+    let (kind, extra_headers, tunnel_guards, limits, meter) = accepted.into_parts();
     let extra_headers = extra_headers.map(|headers| *headers).unwrap_or_default();
     let idle = config.limits.tunnel_idle_timeout;
     let span = tracing::info_span!("tunnel", stream_id, %target);
@@ -743,9 +775,10 @@ async fn serve_request<S>(
             }
             let (_send, recv) = stream.split();
 
-            let _active = ActiveTunnel::open(Protocol::ConnectUdp.upgrade_token());
+            let _active =
+                ActiveTunnel::open(Protocol::ConnectUdp.upgrade_token(), meter.as_deref());
             info!(stream_id, %target, %peer, "tunnel open");
-            relay(socket, route, inbound, recv, idle, limits)
+            relay(socket, route, inbound, recv, idle, limits, meter)
                 .instrument(span)
                 .await;
         }
@@ -762,9 +795,10 @@ async fn serve_request<S>(
             }
             let (send, recv) = stream.split();
 
-            let _active = ActiveTunnel::open(Protocol::ConnectTcp.upgrade_token());
+            let _active =
+                ActiveTunnel::open(Protocol::ConnectTcp.upgrade_token(), meter.as_deref());
             info!(stream_id, %target, %peer, "tcp tunnel open");
-            relay_tcp(tcp, send, recv, idle, limits)
+            relay_tcp(tcp, send, recv, idle, limits, meter)
                 .instrument(span)
                 .await;
         }
@@ -1117,6 +1151,7 @@ async fn relay(
     stream: RecvStream,
     idle: Option<Duration>,
     limits: TunnelLimits,
+    meter: Option<Arc<TunnelMeter>>,
 ) {
     let mut reader = tokio::spawn(read_capsules(stream, route.sink()));
     let mut buf = vec![0u8; MAX_UDP_PAYLOAD];
@@ -1150,7 +1185,7 @@ async fn relay(
                             debug!(%error, "could not forward to the target");
                             break;
                         }
-                        crate::metrics::bytes_relayed("to_target", payload.len() as u64);
+                        count_relayed(Direction::ToTarget, payload.len() as u64, meter.as_deref());
                         if transfer_exceeded(&mut moved, payload.len(), limits.total_bytes) {
                             debug!("udp tunnel reached its transfer ceiling; closing");
                             break;
@@ -1180,7 +1215,7 @@ async fn relay(
                             // dropped rather than fragmented.
                             trace!(%error, len, "dropping reply");
                         } else {
-                            crate::metrics::bytes_relayed("to_client", len as u64);
+                            count_relayed(Direction::ToClient, len as u64, meter.as_deref());
                         }
                         if transfer_exceeded(&mut moved, len, limits.total_bytes) {
                             debug!("udp tunnel reached its transfer ceiling; closing");
@@ -1245,6 +1280,7 @@ async fn relay_tcp(
     mut recv: RecvStream,
     idle: Option<Duration>,
     limits: TunnelLimits,
+    meter: Option<Arc<TunnelMeter>>,
 ) {
     let (mut tcp_read, mut tcp_write) = tcp.into_split();
     let mut buf = vec![0u8; TCP_RELAY_BUFFER];
@@ -1273,7 +1309,7 @@ async fn relay_tcp(
                         debug!(%error, "could not write to the target");
                         break;
                     }
-                    crate::metrics::bytes_relayed("to_target", bytes.len() as u64);
+                    count_relayed(Direction::ToTarget, bytes.len() as u64, meter.as_deref());
                     if transfer_exceeded(&mut moved, bytes.len(), limits.total_bytes) {
                         debug!("tcp tunnel reached its transfer ceiling; closing");
                         break;
@@ -1303,7 +1339,7 @@ async fn relay_tcp(
                         debug!(%error, "could not send to the client");
                         break;
                     }
-                    crate::metrics::bytes_relayed("to_client", len as u64);
+                    count_relayed(Direction::ToClient, len as u64, meter.as_deref());
                     if transfer_exceeded(&mut moved, len, limits.total_bytes) {
                         debug!("tcp tunnel reached its transfer ceiling; closing");
                         break;
@@ -1326,6 +1362,37 @@ async fn relay_tcp(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_global_usage_totals_still_count_everything() {
+        // The process-wide totals are shared by every test in the binary, so
+        // assert on growth, not on exact values.
+        let before = crate::metrics::usage_snapshot();
+        let meter = crate::service::TunnelMeter::default();
+
+        let active = ActiveTunnel::open("connect-udp", Some(&meter));
+        count_relayed(Direction::ToTarget, 10, Some(&meter));
+        count_relayed(Direction::ToClient, 5, Some(&meter));
+        // A tunnel with no tenant meter still counts globally.
+        let unmetered = ActiveTunnel::open("connect-tcp", None);
+        count_relayed(Direction::ToTarget, 1000, None);
+        drop((active, unmetered));
+
+        let after = crate::metrics::usage_snapshot();
+        assert!(after.tunnels_opened >= before.tunnels_opened + 2);
+        assert!(after.bytes_to_target >= before.bytes_to_target + 1010);
+        assert!(after.bytes_to_client >= before.bytes_to_client + 5);
+
+        assert_eq!(
+            meter.snapshot(),
+            crate::metrics::UsageSnapshot {
+                tunnels_opened: 1,
+                bytes_to_target: 10,
+                bytes_to_client: 5,
+            },
+            "the tenant meter sees only its own tunnel's traffic"
+        );
+    }
 
     #[test]
     fn the_default_resource_limits_are_bounded_and_unlimited_removes_them() {
