@@ -606,9 +606,10 @@ async fn a_job_whose_owner_is_not_verified_never_receives_a_credential() {
             .await,
     );
     assert_eq!(code, "owner_not_verified");
-    assert!(
-        message.starts_with("`beta-corp` is not verified for `acme`. Verify it at "),
-        "{message}"
+    assert_eq!(
+        message,
+        "`beta-corp` is not verified for `acme`. Verify it at \
+         https://control.skimasque.com/settings/owners."
     );
 
     // The right login but a different numeric id (a renamed-away login).
@@ -622,8 +623,12 @@ async fn a_job_whose_owner_is_not_verified_never_receives_a_credential() {
     let no_owner = sign_oidc(serde_json::json!({
         "iss": GITHUB_ACTIONS_ISSUER, "aud": acme_aud, "exp": now() + 3600,
     }));
-    let (code, _) = refused(minter.mint(no_owner).await);
+    let (code, message) = refused(minter.mint(no_owner).await);
     assert_eq!(code, "owner_not_verified");
+    assert_eq!(
+        message,
+        "The job's token names no repository owner, so it cannot be verified for `acme`."
+    );
 
     assert!(
         control.requests().is_empty(),
@@ -644,13 +649,9 @@ async fn an_unknown_slug_is_refused_with_unknown_org() {
             .await,
     );
     assert_eq!(code, "unknown_org");
-    assert!(
-        message.contains("Unknown SkiMasque organisation `nobody`"),
-        "{message}"
-    );
-    assert!(
-        message.contains("Check the `audience` in your workflow."),
-        "{message}"
+    assert_eq!(
+        message,
+        "Unknown SkiMasque organisation `nobody`. Check the `audience` in your workflow."
     );
 
     // Another host's audience, the bare host, and no audience at all.
@@ -665,9 +666,11 @@ async fn an_unknown_slug_is_refused_with_unknown_org() {
         }));
         let (code, message) = refused(minter.mint(token).await);
         assert_eq!(code, "unknown_org", "{aud}");
-        assert!(
-            message.contains("Check the `audience` in your workflow."),
-            "{message}"
+        assert_eq!(
+            message,
+            "Unknown SkiMasque organisation. Check the `audience` in your workflow. It must be \
+             `https://gw.example/o/<your-org-slug>`.",
+            "{aud}"
         );
     }
 
@@ -677,8 +680,13 @@ async fn an_unknown_slug_is_refused_with_unknown_org() {
         "aud": [format!("{BASE}/o/acme"), format!("{BASE}/o/beta")],
         "exp": now() + 3600, "repository_owner": "acme", "repository_owner_id": "900",
     }));
-    let (code, _) = refused(minter.mint(both).await);
+    let (code, message) = refused(minter.mint(both).await);
     assert_eq!(code, "unknown_org");
+    assert_eq!(
+        message,
+        "The token names more than one SkiMasque organisation. Check the `audience` in your \
+         workflow."
+    );
 
     assert!(control.requests().is_empty());
 }

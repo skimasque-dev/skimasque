@@ -401,7 +401,8 @@ fn slug_of(base_url: &str, token: &str) -> Result<(String, String), MintError> {
             Some(_) => {
                 return Err(refused(
                     refusal::UNKNOWN_ORG,
-                    "The token names more than one SkiMasque organisation. Check the                      `audience` in your workflow."
+                    "The token names more than one SkiMasque organisation. Check the \
+                     `audience` in your workflow."
                         .to_owned(),
                 ))
             }
@@ -411,7 +412,8 @@ fn slug_of(base_url: &str, token: &str) -> Result<(String, String), MintError> {
         refused(
             refusal::UNKNOWN_ORG,
             format!(
-                "Unknown SkiMasque organisation. Check the `audience` in your workflow. It must                  be `{}`.",
+                "Unknown SkiMasque organisation. Check the `audience` in your workflow. It must \
+                 be `{}`.",
                 tenant_audience(base_url, "<your-org-slug>")
             ),
         )
