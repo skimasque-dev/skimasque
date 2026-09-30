@@ -74,7 +74,7 @@ pub use chrome::{
     Block, ComparisonTable, Cta, CtaBand, Faq, Feature, FeatureGrid, Hero, PlannedBlock, Prose,
     Section, TierCard, TierGrid,
 };
-pub use connection::{ConnKind, Connection};
+pub use connection::{ArrowGeometry, ConnKind, Connection};
 pub use content::{CodeExample, EmptyState, Planned};
 pub use decision::{AuditEventCard, Check, DecisionCard, DecisionExplainer, DIMENSIONS};
 pub use flow::{Flow, Step};
