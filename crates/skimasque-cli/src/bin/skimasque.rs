@@ -988,6 +988,16 @@ fn run_exec(args: skimasque_cli::exec::ExecArgs) -> anyhow::Result<ExitCode> {
         .build()
         .context("starting the async runtime")?;
     let code = runtime.block_on(skimasque_cli::exec::run(args));
+    // Windows exit codes are 32-bit (e.g. STATUS_CONTROL_C_EXIT) and
+    // `ExitCode` only carries a byte, so exit directly with the whole code
+    // once the runtime (and with it the session) is gone.
+    #[cfg(windows)]
+    {
+        drop(runtime);
+        std::process::exit(code);
+    }
+    // On Unix the command's status is already 0..=255.
+    #[cfg(not(windows))]
     Ok(ExitCode::from(
         u8::try_from(code).unwrap_or(skimasque_cli::exec::EXIT_FAILED as u8),
     ))

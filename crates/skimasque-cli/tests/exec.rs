@@ -280,14 +280,18 @@ async fn a_missing_command_exits_127() {
     );
 }
 
-/// `npm` is really `npm.cmd`: exec finds batch files on PATH via PATHEXT.
+/// Run `skimasque exec -- skm-exec-probe`, where `skm-exec-probe.cmd` on PATH
+/// is `@exit /b <code>`; returns exec's exit code and stderr.
 #[cfg(windows)]
-#[tokio::test]
-async fn a_batch_file_on_path_runs_by_its_bare_name() {
-    let gw = spawn_gateway("batch", &[]).await;
-    let config = TempDir::new("batch-config");
-    let bin = TempDir::new("batch-bin");
-    std::fs::write(bin.0.join("skm-exec-probe.cmd"), "@exit /b 7\r\n").unwrap();
+async fn exec_batch_file(tag: &str, code: i64) -> (Option<i32>, String) {
+    let gw = spawn_gateway(tag, &[]).await;
+    let config = TempDir::new(&format!("{tag}-config"));
+    let bin = TempDir::new(&format!("{tag}-bin"));
+    std::fs::write(
+        bin.0.join("skm-exec-probe.cmd"),
+        format!("@exit /b {code}\r\n"),
+    )
+    .unwrap();
     let mut path = std::ffi::OsString::from(&bin.0);
     path.push(";");
     path.push(std::env::var_os("PATH").unwrap_or_default());
@@ -303,12 +307,30 @@ async fn a_batch_file_on_path_runs_by_its_bare_name() {
         .output()
         .await
         .unwrap();
-    assert_eq!(
+    (
         out.status.code(),
-        Some(7),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
+        String::from_utf8_lossy(&out.stderr).into_owned(),
+    )
+}
+
+/// `npm` is really `npm.cmd`: exec finds batch files on PATH via PATHEXT.
+#[cfg(windows)]
+#[tokio::test]
+async fn a_batch_file_on_path_runs_by_its_bare_name() {
+    let (code, stderr) = exec_batch_file("batch", 7).await;
+    assert_eq!(code, Some(7), "{stderr}");
+}
+
+/// Windows exit codes are 32-bit; exec passes them on whole.
+#[cfg(windows)]
+#[tokio::test]
+async fn a_windows_exit_code_above_255_passes_through() {
+    let (code, stderr) = exec_batch_file("wide", 300).await;
+    assert_eq!(code, Some(300), "{stderr}");
+    // STATUS_CONTROL_C_EXIT, as a command killed by Ctrl-C reports it.
+    let status_control_c_exit = 0xC000_013A_u32 as i32;
+    let (code, stderr) = exec_batch_file("ctrlc", status_control_c_exit.into()).await;
+    assert_eq!(code, Some(status_control_c_exit), "{stderr}");
 }
 
 #[tokio::test]
