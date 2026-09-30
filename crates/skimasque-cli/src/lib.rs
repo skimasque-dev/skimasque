@@ -3,6 +3,7 @@
 pub mod account;
 pub mod audit_ship;
 pub mod control;
+pub mod http_connect;
 pub mod ops;
 pub mod policy;
 pub mod probe;
