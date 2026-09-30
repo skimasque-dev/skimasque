@@ -30,9 +30,12 @@ fn hero_flow() -> Flow {
          carries it to the private service.",
     )
     .then(&Node::new(NodeKind::Identity).label("IDENTITY"))
-    .via(active(), &Node::new(NodeKind::Policy).label("POLICY"))
     .via(
-        active(),
+        Connection::new(ConnKind::Control).label("checked"),
+        &Node::new(NodeKind::Policy).label("POLICY"),
+    )
+    .via(
+        Connection::new(ConnKind::Control).label("authorized"),
         &Node::new(NodeKind::Session)
             .label("TEMPORARY SESSION")
             .status(Status::Active),
@@ -59,7 +62,10 @@ pub fn page() -> Page {
         .lead("No standing access.")
         .lead("Just the network access required for the job.")
         .cta(Cta::primary("Get Started", GET_STARTED_URL))
-        .cta(Cta::secondary("See How It Works", link("", "how-it-works")))
+        .cta(Cta::secondary(
+            "Watch the workflow",
+            link("", "how-it-works"),
+        ))
         .aside(&art);
 
     let problem = Section::new("Your deployment shouldn't need the whole network.")
@@ -171,7 +177,7 @@ mod tests {
             "Network access should be temporary.",
             "Create Your First Policy",
             "Get Started",
-            "See How It Works",
+            "Watch the workflow",
         ] {
             assert!(
                 s.contains(want) || s.contains(&want.replace('\'', "&#39;")),

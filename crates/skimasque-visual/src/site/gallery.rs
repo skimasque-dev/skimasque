@@ -11,7 +11,8 @@ use crate::{
     Expire, Faq, FeatureGrid, Flow, GatewayCard, HealthCard, Hero, Html, Icons, IdentityCard,
     Mountain, Node, NodeKind, Planned, PlannedBlock, PolicyCard, PolicyDiff, PolicyExplorer,
     PolicySummary, Prose, Reveal, Route, Run, RunCard, Section, SessionCard, SessionTimeline,
-    Shape, Status, StatusBadge, TierCard, TimelineEvent, Tone, TrailMarker, DIMENSIONS,
+    Shape, Status, StatusBadge, TierCard, TimelineEvent, Tone, TrailMarker, WorkflowDemo,
+    DIMENSIONS,
 };
 
 struct Item {
@@ -31,6 +32,8 @@ struct Gallery {
     sprite: Html,
     groups: Vec<Group>,
     themes: [&'static str; 2],
+    previews: Vec<Item>,
+    widths: [usize; 3],
 }
 
 fn item(caption: impl Into<String>, c: &impl Component) -> Item {
@@ -432,6 +435,7 @@ listening on 127.0.0.1:5432",
             title: "Motion",
             wide: true,
             items: vec![
+                item("workflow · simulated deployment", &WorkflowDemo::new()),
                 item(
                     "expired session",
                     &Expire::new(&Node::new(NodeKind::Session).status(Status::Expired)),
@@ -549,10 +553,34 @@ listening on 127.0.0.1:5432",
 }
 
 pub(super) fn pages() -> Vec<Page> {
+    let mut previews = Vec::new();
+    for count in [3, 5, 7] {
+        let mut flow = Flow::new("A responsive example of an access path.");
+        for kind in [
+            NodeKind::GitHub,
+            NodeKind::Identity,
+            NodeKind::Policy,
+            NodeKind::Session,
+            NodeKind::Gateway,
+            NodeKind::Network,
+            NodeKind::Database,
+        ]
+        .into_iter()
+        .take(count)
+        {
+            flow = flow.via(
+                Connection::new(ConnKind::Control).label("checked"),
+                &Node::new(kind),
+            );
+        }
+        previews.push(item(format!("{count}-node flow"), &flow));
+    }
     let gallery = Gallery {
         sprite: Icons.html(),
         groups: groups(),
         themes: ["light", "dark"],
+        previews,
+        widths: [320, 720, 1120],
     };
     vec![
         Page {
@@ -569,6 +597,29 @@ pub(super) fn pages() -> Vec<Page> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gallery_navigation_resolves_and_previews_cover_three_widths() {
+        let page = pages().remove(0).contents;
+        assert!(page.contains("id=\"g-theme-picker\""));
+        for href in page.split("href=\"#").skip(1) {
+            let anchor = href.split('"').next().unwrap();
+            // Demo links to "#" intentionally point to the page top.
+            if anchor.is_empty() {
+                continue;
+            }
+            assert!(
+                page.contains(&format!("id=\"{anchor}\"")),
+                "missing target {anchor}"
+            );
+        }
+        for width in [320, 720, 1120] {
+            assert!(
+                page.contains(&format!("--preview-width: {width}px")),
+                "missing {width}px preview"
+            );
+        }
+    }
 
     #[test]
     fn rendering_is_deterministic() {

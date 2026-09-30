@@ -52,6 +52,23 @@ impl Flow {
     fn conn_html(step: &Step) -> Option<Html> {
         step.next.as_ref().map(|c| c.html())
     }
+
+    /// Complex component bodies retain the wide breakpoint; simple node chains
+    /// can use a row as soon as their node count permits it.
+    fn layout(&self) -> &'static str {
+        if !self
+            .steps
+            .iter()
+            .all(|step| step.body.as_str().starts_with("<div class=\"v-node "))
+        {
+            return "full";
+        }
+        match self.steps.len() {
+            0..=3 => "compact",
+            4..=5 => "medium",
+            _ => "full",
+        }
+    }
 }
 
 impl Component for Flow {}
@@ -60,6 +77,36 @@ impl Component for Flow {}
 mod tests {
     use super::*;
     use crate::{Boundary, Component, ConnKind, Node, NodeKind};
+
+    #[test]
+    fn flows_choose_breakpoints_for_their_content() {
+        for (count, want) in [
+            (1, "compact"),
+            (3, "compact"),
+            (4, "medium"),
+            (5, "medium"),
+            (6, "full"),
+            (7, "full"),
+        ] {
+            let mut flow = Flow::new("A sequence of nodes.");
+            for _ in 0..count {
+                flow = flow.then(&Node::new(NodeKind::Gateway));
+            }
+            assert!(
+                flow.html()
+                    .as_str()
+                    .contains(&format!("data-layout=\"{want}\"")),
+                "{count} nodes should use {want}"
+            );
+        }
+        let complex = Flow::new("A gateway enters a network.")
+            .then(&Node::new(NodeKind::Gateway))
+            .then(&Boundary::region("YOUR VPC").child(&Node::new(NodeKind::Database)));
+        assert!(
+            complex.html().as_str().contains("data-layout=\"full\""),
+            "complex bodies keep the conservative breakpoint"
+        );
+    }
 
     #[test]
     fn a_flow_is_an_ordered_list_with_connections_between_steps_only() {

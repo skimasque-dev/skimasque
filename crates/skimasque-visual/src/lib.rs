@@ -81,7 +81,7 @@ pub use flow::{Flow, Step};
 pub use icons::Icons;
 pub use layout::{Arm, Branch, Compare, LayerRow, Layers, Message, Sequence, Side};
 pub use motif::{Contour, Mountain, Route, Run, RunCard, Shape, TrailMarker};
-pub use motion::{Expire, Reveal};
+pub use motion::{Expire, Reveal, WorkflowDemo};
 pub use node::{Node, NodeKind, Tone};
 pub use policy::{Change, ChangeKind, PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary};
 pub use site_chrome::{SiteFooter, SiteNav, SitePage, NAV_GROUPS};
