@@ -162,7 +162,7 @@ nothing changes.
 $ skimasque-server --platform --github-oidc \
     --hostname gateway.skimasque.com \
     --control-plane https://control.skimasque.com \
-    --control-plane-state /var/lib/skimasque/control \
+    --control-plane-state /var/lib/skimasque/platform \
     --audit-log /var/lib/skimasque/audit.jsonl
 ```
 
@@ -200,7 +200,8 @@ https://<--hostname>/o/<org-slug>
 
 For example `https://gateway.skimasque.com/o/acme`. A `:443` suffix on
 `--hostname` is dropped; any other port stays. The slug is matched exactly:
-**case is not folded**. At startup the gateway logs how many organisations it
+**case is not folded**. `--hostname` must be the name CI jobs request
+tokens for, since the audience is built from it. At startup the gateway logs how many organisations it
 serves and the audience pattern (`-v` lists each slug's audience).
 
 ### Token exchange and refusals
@@ -214,13 +215,14 @@ tenant is refused.
 
 | Code | HTTP | Raised by | Meaning |
 |---|---|---|---|
-| `unknown_org` | 403 | gateway, or control plane | no tenant has that slug |
-| `owner_not_verified` | 403 | gateway, or control plane | the job's GitHub owner is not verified for the org; the gateway's message points at the owner-settings page |
-| `over_cap` | 403 | control plane | the org used its plan's shared-gateway allowance |
+| `unknown_org` | 403 | gateway | no tenant has that slug in the audience |
+| `owner_not_verified` | 403 | gateway; also relayed from the control plane | the job's GitHub owner is not verified for the org; the gateway's message points at the owner-settings page |
+| `over_cap` | 403 | control plane, relayed | the org used its plan's shared-gateway allowance |
 | `temporarily_unavailable` | 502 | gateway | the control plane (or GitHub's signing keys) could not be reached; retry |
 
-The refusals `unknown_org`, `owner_not_verified` and `over_cap` are relayed
-verbatim (code and message) to the CI log. A wrong or expired OIDC token is a
+The gateway raises `unknown_org` and `owner_not_verified` itself; any refusal
+the control plane returns (`over_cap`, and others) is relayed verbatim, code and
+message, to the CI log. A wrong or expired OIDC token is a
 403 `invalid_grant`.
 
 ### Outages: no local minting
@@ -236,8 +238,11 @@ the cached list, and refuses to start only if it has neither.
 The gateway pulls the tenant list (slug, verified owners, signing keys and
 policy per organisation) from the control plane and keeps polling it. The
 current list is written atomically to `<--control-plane-state>/tenants.json`.
-A removed tenant or owner takes effect at the next refresh; credentials already
-issued live out their TTL (`--credential-ttl`).
+A **removed tenant** is cut off at the next refresh: every tunnel resolves its
+organisation from the current list, so its existing credentials stop working
+with no TTL grace. A **removed owner** takes effect for new exchanges at the
+next refresh (owners are checked at exchange time); credentials that owner's
+jobs already hold stay valid until they expire (`--credential-ttl`).
 
 ### Isolation
 
@@ -256,7 +261,7 @@ local `--audit-log` stays authoritative. See
 | `skimasque_platform_tenants` | | tenants in force; an unexpected drop |
 | `skimasque_platform_tenant_sync_total` | `outcome` = `applied`, `error` | rising `error`: the control plane is unreachable and the list is going stale |
 | `skimasque_platform_tenant_policy_total` | `outcome` = `applied`, `rejected` | `rejected`: a tenant's policy did not load |
-| `skimasque_platform_mint_total` | `outcome` = `minted`, `owner_not_verified`, `refused`, `unavailable`, `oidc_keys_unavailable` | `unavailable` is a control-plane outage; `refused` carries the control plane's `over_cap` and `unknown_org` |
+| `skimasque_platform_mint_total` | `outcome` = `minted`, `owner_not_verified`, `refused`, `unavailable`, `oidc_keys_unavailable` | `unavailable` is a control-plane outage; `refused` carries the control plane's refusals, such as `over_cap` |
 | `skimasque_control_plane_audit_total` | `outcome` = `shipped`, `error`, `dropped`, `dropped_no_org` | `error` and `dropped` are lost audit events |
 | `skimasque_control_plane_heartbeat_total` | `outcome` | the control plane seeing this gateway |
 | `skimasque_control_plane_policy_age_seconds`, `skimasque_control_plane_policy_expired` | | the tenant list's age against `--control-plane-policy-lease` and `--control-plane-cache-ttl` |
