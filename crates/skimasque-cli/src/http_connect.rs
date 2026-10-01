@@ -132,9 +132,7 @@ pub fn rewrite_plain(head: &[u8]) -> Option<Forward> {
 
     let mut out = format!("{method} {path} {version}\r\nHost: {authority}\r\n");
     for header in headers {
-        let Some((name, _)) = header.split_once(':') else {
-            return None;
-        };
+        let (name, _) = header.split_once(':')?;
         let name = name.trim().to_ascii_lowercase();
         if HOP_BY_HOP.contains(&name.as_str()) || named.contains(&name) {
             continue;
