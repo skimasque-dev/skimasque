@@ -2133,6 +2133,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "ipnet",
+ "jsonwebtoken",
  "libc",
  "metrics",
  "metrics-exporter-prometheus",

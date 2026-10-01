@@ -42,6 +42,15 @@ impl Verifier {
         self
     }
 
+    /// A copy of this verifier requiring `aud` to contain exactly `audience`
+    /// (the configured audiences are replaced); issuer and leeway are kept.
+    pub fn with_audience(&self, audience: &str) -> Verifier {
+        Verifier {
+            audiences: vec![audience.to_owned()],
+            ..self.clone()
+        }
+    }
+
     /// The issuer this verifier trusts.
     pub fn issuer(&self) -> &str {
         &self.issuer

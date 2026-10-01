@@ -51,6 +51,9 @@ pub enum MintError {
     /// The minter could not complete -- a key fetch failed, say. Answered
     /// `502`, since a retry might succeed.
     Unavailable(String),
+    /// The minter refused with its own error code, which the client sees in the
+    /// response body. Answered `403`.
+    Refused { code: String, message: String },
 }
 
 impl std::fmt::Display for MintError {
@@ -58,6 +61,7 @@ impl std::fmt::Display for MintError {
         match self {
             Self::Unauthorized(detail) => write!(f, "unauthorized: {detail}"),
             Self::Unavailable(detail) => write!(f, "unavailable: {detail}"),
+            Self::Refused { code, message } => write!(f, "refused ({code}): {message}"),
         }
     }
 }

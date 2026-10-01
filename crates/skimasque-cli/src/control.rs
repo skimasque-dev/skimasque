@@ -17,6 +17,10 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use skimasque_policy::WorkloadIdentity;
+use skimasque_protocol::platform::{
+    PlatformHeartbeatRequest, PlatformMintRequest, PlatformRegisterRequest,
+    PlatformRegisterResponse, PlatformShipAuditRequest, Refusal, TenantList,
+};
 use skimasque_protocol::{paths, HeartbeatRequest, LabelsRequest, MintRequest, RegisterRequest};
 
 // The protocol's wire types, re-exported so existing `crate::control::…` paths
@@ -197,6 +201,37 @@ pub struct MintedCredential {
     pub token: String,
     pub expires_in: Duration,
 }
+
+/// The outcome of a tenant-list poll by a platform gateway.
+#[derive(Debug)]
+pub enum TenantFetch {
+    /// A newer tenant list than the version asked about.
+    Updated(TenantList),
+    /// The control plane has nothing newer.
+    Unchanged,
+}
+
+/// Why a platform mint did not produce a credential.
+#[derive(Debug)]
+pub enum PlatformMintError {
+    /// The control plane refused (`403` / `422` with a [`Refusal`] body). The
+    /// gateway relays the code and message as received.
+    Refused(Refusal),
+    /// Anything else: the control plane was unreachable, answered `5xx`, or
+    /// sent a body that could not be understood.
+    Unavailable(anyhow::Error),
+}
+
+impl std::fmt::Display for PlatformMintError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Refused(r) => write!(f, "mint refused ({}): {}", r.code, r.message),
+            Self::Unavailable(e) => write!(f, "mint unavailable: {e:#}"),
+        }
+    }
+}
+
+impl std::error::Error for PlatformMintError {}
 
 impl ControlPlane {
     /// `base_url` is the control plane's root (`https://control.skimasque.com`).
@@ -491,6 +526,193 @@ impl ControlPlane {
             token: body.credential,
             expires_in: Duration::from_secs(body.expires_in),
         })
+    }
+
+    /// Register a platform (multi-tenant) gateway with `token`, persist the
+    /// identity (with an empty `org_id`: it belongs to no single org), and
+    /// return it.
+    pub async fn register_platform(
+        &self,
+        token: &str,
+        name: &str,
+        labels: &BTreeMap<String, String>,
+    ) -> Result<GatewayIdentity> {
+        let response = self
+            .http
+            .post(format!("{}{}", self.base_url, paths::PLATFORM_REGISTER))
+            .json(&PlatformRegisterRequest {
+                registration_token: token.to_owned(),
+                name: name.to_owned(),
+                labels: labels.clone(),
+            })
+            .send()
+            .await
+            .context("sending the platform registration request")?;
+        let response = error_for_status(response, "platform registration").await?;
+        let body: PlatformRegisterResponse = response
+            .json()
+            .await
+            .context("parsing the platform registration response")?;
+
+        let identity = GatewayIdentity {
+            gateway_id: body.gateway_id,
+            org_id: String::new(),
+            secret: body.secret,
+        };
+        std::fs::create_dir_all(&self.state_dir)
+            .context("creating the control-plane state directory")?;
+        let json = serde_json::to_vec_pretty(&identity)?;
+        write_private(&self.identity_path(), &json).context("persisting the gateway identity")?;
+        Ok(identity)
+    }
+
+    /// Poll for a tenant list newer than `known_version`. With `wait` set the
+    /// request is held open that long server-side before a `304`.
+    pub async fn fetch_tenants(
+        &self,
+        identity: &GatewayIdentity,
+        known_version: Option<u64>,
+        wait: Option<Duration>,
+    ) -> Result<TenantFetch> {
+        let mut url = format!(
+            "{}{}",
+            self.base_url,
+            paths::platform_tenants(&identity.gateway_id)
+        );
+        if let Some(wait) = wait {
+            url.push_str(&format!("?wait={}", wait.as_secs()));
+        }
+        let mut request = self.http.get(&url).bearer_auth(&identity.secret);
+        if let Some(version) = known_version {
+            request = request.header(reqwest::header::IF_NONE_MATCH, format!("\"{version}\""));
+        }
+
+        let response = request.send().await.context("polling for tenants")?;
+        if response.status() == reqwest::StatusCode::NOT_MODIFIED {
+            return Ok(TenantFetch::Unchanged);
+        }
+        let response = error_for_status(response, "tenant poll").await?;
+        let list: TenantList = response.json().await.context("parsing the tenant list")?;
+        Ok(TenantFetch::Updated(list))
+    }
+
+    /// Ask the control plane to mint a credential scoped to `req.org_id` for an
+    /// identity the gateway already verified. A `403` / `422` carrying a
+    /// [`Refusal`] is [`PlatformMintError::Refused`]; everything else that goes
+    /// wrong is [`PlatformMintError::Unavailable`].
+    pub async fn platform_mint(
+        &self,
+        identity: &GatewayIdentity,
+        req: &PlatformMintRequest,
+    ) -> Result<MintedCredential, PlatformMintError> {
+        let response = self
+            .http
+            .post(format!(
+                "{}{}",
+                self.base_url,
+                paths::platform_credentials(&identity.gateway_id)
+            ))
+            .bearer_auth(&identity.secret)
+            .json(req)
+            .send()
+            .await
+            .context("requesting a platform credential")
+            .map_err(PlatformMintError::Unavailable)?;
+
+        let status = response.status();
+        if status == reqwest::StatusCode::FORBIDDEN
+            || status == reqwest::StatusCode::UNPROCESSABLE_ENTITY
+        {
+            let body = response.text().await.unwrap_or_default();
+            return Err(match serde_json::from_str::<Refusal>(&body) {
+                Ok(refusal) => PlatformMintError::Refused(refusal),
+                Err(_) => PlatformMintError::Unavailable(anyhow::anyhow!(
+                    "platform credential mint failed: {status} {}",
+                    body.trim()
+                )),
+            });
+        }
+        let response = error_for_status(response, "platform credential mint")
+            .await
+            .map_err(PlatformMintError::Unavailable)?;
+        let body: skimasque_protocol::MintResponse = response
+            .json()
+            .await
+            .context("parsing the platform mint response")
+            .map_err(PlatformMintError::Unavailable)?;
+        Ok(MintedCredential {
+            token: body.credential,
+            expires_in: Duration::from_secs(body.expires_in),
+        })
+    }
+
+    /// Ship a hash-chained batch of org-tagged audit events. Returns the new
+    /// head.
+    pub async fn ship_platform_audit(
+        &self,
+        identity: &GatewayIdentity,
+        batch: &PlatformShipAuditRequest,
+    ) -> Result<ShipAuditResponse> {
+        let response = self
+            .http
+            .post(format!(
+                "{}{}",
+                self.base_url,
+                paths::platform_audit(&identity.gateway_id)
+            ))
+            .bearer_auth(&identity.secret)
+            .json(batch)
+            .send()
+            .await
+            .context("shipping platform audit events")?;
+        error_for_status(response, "platform audit ship")
+            .await?
+            .json()
+            .await
+            .context("parsing the platform audit-ship response")
+    }
+
+    /// The tail of this platform gateway's audit chain, as the control plane
+    /// holds it.
+    pub async fn platform_audit_head(&self, identity: &GatewayIdentity) -> Result<AuditHead> {
+        let response = self
+            .http
+            .get(format!(
+                "{}{}",
+                self.base_url,
+                paths::platform_audit_head(&identity.gateway_id)
+            ))
+            .bearer_auth(&identity.secret)
+            .send()
+            .await
+            .context("fetching the platform audit head")?;
+        error_for_status(response, "platform audit head")
+            .await?
+            .json()
+            .await
+            .context("parsing the platform audit head")
+    }
+
+    /// Send a platform heartbeat.
+    pub async fn platform_heartbeat(
+        &self,
+        identity: &GatewayIdentity,
+        req: &PlatformHeartbeatRequest,
+    ) -> Result<()> {
+        let response = self
+            .http
+            .post(format!(
+                "{}{}",
+                self.base_url,
+                paths::platform_heartbeat(&identity.gateway_id)
+            ))
+            .bearer_auth(&identity.secret)
+            .json(req)
+            .send()
+            .await
+            .context("sending a platform heartbeat")?;
+        error_for_status(response, "platform heartbeat").await?;
+        Ok(())
     }
 
     fn cache_meta_path(&self) -> PathBuf {

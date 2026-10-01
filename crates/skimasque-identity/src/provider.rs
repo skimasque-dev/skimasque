@@ -42,6 +42,16 @@ impl Claims {
         self.get("iss")
     }
 
+    /// GitHub's numeric `repository_owner_id` (a string claim; a JSON number is
+    /// also accepted). `None` if absent or not a non-negative integer.
+    pub fn owner_id(&self) -> Option<u64> {
+        match self.0.get("repository_owner_id")? {
+            serde_json::Value::String(s) => s.parse().ok(),
+            serde_json::Value::Number(n) => n.as_u64(),
+            _ => None,
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn from_value(value: serde_json::Value) -> Self {
         Self(value.as_object().expect("a JSON object").clone())
@@ -187,6 +197,23 @@ mod tests {
 
     fn claims(value: serde_json::Value) -> Claims {
         Claims::from_value(value)
+    }
+
+    #[test]
+    fn owner_id_reads_github_numeric_owner_id_as_string_or_number() {
+        assert_eq!(
+            claims(serde_json::json!({"repository_owner_id": "4242"})).owner_id(),
+            Some(4242)
+        );
+        assert_eq!(
+            claims(serde_json::json!({"repository_owner_id": 4242})).owner_id(),
+            Some(4242)
+        );
+        assert_eq!(
+            claims(serde_json::json!({"repository_owner_id": "abc"})).owner_id(),
+            None
+        );
+        assert_eq!(claims(serde_json::json!({})).owner_id(), None);
     }
 
     #[test]
