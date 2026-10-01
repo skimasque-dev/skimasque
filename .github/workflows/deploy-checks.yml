@@ -45,7 +45,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The default wrapper does not forward stdin, so `echo ... | terraform console`
+      # (render_check.sh) would wait for input forever.
       - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
         with:
           terraform_version: "1.9.8"
 
