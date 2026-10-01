@@ -101,7 +101,7 @@ Every tunnel carries `Proxy-Authorization: Bearer <credential>`.
 | Forged credential | HS256 verified locally with `--credential-secret`; no network, no external trust at tunnel time. | Strength is the secret. A weak or leaked secret is total compromise of the identity layer. |
 | Expired credential | `exp` checked; the client proactively re-exchanges before expiry. | — |
 | Credential minted by a *different* gateway in the fleet | Accepted by design when `--credential-secret` is shared. | A compromise of one gateway's secret compromises the fleet. Operators who want isolation run separate secrets. |
-| Replaying a captured credential from another runner | The credential is a bearer token; its identity and its policy are what bound the damage, plus `[session] max_duration`. | Same bearer-token caveat as B1. No proof-of-possession binding to the QUIC connection. |
+| Replaying a captured credential from another runner | The credential is a bearer token; its identity, policy and credential expiry bound the damage. `[session] max_duration` is not enforced by the gateway. | Same bearer-token caveat as B1. No proof-of-possession binding to the QUIC connection. |
 | Lying about the application (`--app terraform`) | **Not trusted.** The README is explicit: application name is session context, matched but not authenticated. Policy authors treat it as a convenience, not a control. | A hostile job picks whatever `--app` string opens the most doors. Mitigation is writing policy where the *destination* set is the real constraint. Strong process identity is roadmap (Phase 5). |
 
 ### B3 — PolicyLayer → egress (destination authorization)

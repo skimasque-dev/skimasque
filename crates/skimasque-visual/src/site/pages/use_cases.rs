@@ -63,7 +63,7 @@ pub fn page() -> Page {
         ))
         .push(
             &Prose::new()
-                .p("Access can be limited to:")
+                .p("For an agent session, set an enforced TTL such as:")
                 .quote("20 minutes"),
         );
 
@@ -100,6 +100,8 @@ pub fn page() -> Page {
         .push(&migrations)
         .push(&debugging)
         .push(&automation)
+        .push(&Section::new("Coding agents").push(&Prose::new()
+            .p("Grant a staging API to one task with exec --agent, inspect its decisions and end it from the console. Delegated sessions end with their parent. Use a sandbox to prevent direct bypass; destination permissions still control what the agent can do after connecting.")))
         .html()
         .as_str()
         .to_owned(),
@@ -129,6 +131,6 @@ mod tests {
             assert!(s.contains(want), "missing {want:?}");
         }
         let main = &s[s.find("<main").unwrap()..s.find("</main>").unwrap()];
-        assert_eq!(main.matches("<h2").count(), 6, "one section per use case");
+        assert_eq!(main.matches("<h2").count(), 7, "one section per use case");
     }
 }

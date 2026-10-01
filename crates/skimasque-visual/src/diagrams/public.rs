@@ -101,7 +101,7 @@ pub fn traditional_vs_skimasque() -> Compare {
 }
 
 pub fn access_lifecycle() -> Flow {
-    Flow::new("An access request is authenticated, authorized, connected, active for a limited time, and then expires.")
+    Flow::new("An access request is authenticated and authorized before connecting. Agent sessions close tunnels at expiry; other credentials gate new tunnels, while client cleanup closes local connections.")
         .then(&Node::new(NodeKind::Workload).label("REQUEST"))
         .via(control("identity"), &Node::new(NodeKind::Identity).label("AUTHENTICATE"))
         .via(control("policy"), &Node::new(NodeKind::Policy).label("AUTHORIZE"))

@@ -96,7 +96,7 @@ pub fn page() -> Page {
                 )
                 .feature(
                     "Short-lived credentials",
-                    "The platform credential defaults to a one-hour lifetime and is refreshed proactively while the client runs. Session duration is bounded separately by policy. A copied bearer credential can remain valid until it expires.",
+                    "Managed CI/developer credentials default to 15 minutes and are capped at 1 hour; standalone gateway credentials default to 1 hour. Clients refresh supported credentials. Agent sessions default to 30 minutes and are capped at 4 hours or a lower organisation limit. A copied bearer token can be used until expiry or applicable revocation; policy max_duration is not an enforced gateway timeout.",
                 ),
         )
         .push(&Prose::new().p(

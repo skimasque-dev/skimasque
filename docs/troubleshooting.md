@@ -5,6 +5,41 @@
 Turn up logging with `-v` (repeatable). The gateway's `--audit-log` and the
 client's stderr carry the decision detail.
 
+## Action mode or capability check fails
+
+The current Action defaults to transparent mode. On macOS, Windows or Linux
+without the required Ubuntu TUN/systemd-resolved setup, select `mode: proxy`.
+Use a Node 24-compatible runner and coordinated Action/client releases:
+`proxy-ready-v1` for proxies, plus `proxy-tun-v1` for transparent mode.
+Merging changes to main does not move old tags. `client-bin` still runs capability
+checks; it does not bypass them.
+
+## A database client ignores the proxy
+
+`psql` does not honour ALL_PROXY. Use transparent routes/private DNS in CI or
+`skimasque exec --forward 15432:db.internal:5432 -- psql -h 127.0.0.1 -p 15432`
+locally. A shared Cloud gateway cannot reach a private VPC without connectivity;
+deploy a customer gateway inside that network.
+
+## Transparent routing or private DNS fails
+
+List all private destination CIDRs, including IPv6 for AAAA records. Specify DNS
+server IPs and private DNS routing domains; avoid default routes and `~.`. Remove
+inherited proxy variables. Native flows present IP destinations: policy must
+allow IP/CIDR rules and TCP/UDP DNS ports, and the gateway address floor must
+permit those ranges. Hostname-only policy does not authorize TUN flows.
+ICMP/ping does not work; use `probe-target` for a real TCP readiness check.
+If the client dies, owned private routes become unreachable until cleanup.
+Use the Action's state-file and stop.cjs for recovery after an interrupted hook.
+
+## An agent still has access after ending its session
+
+Check gateway connectivity to the control plane. Revocations apply when received;
+an offline gateway uses its cached list until it reconnects, with credential
+expiry bounding the session. A direct request outside the gateway is not governed
+by session policy. Use a sandbox to prevent bypass. Runtime labels are audit
+context and policy max_duration does not enforce expiry; use session TTL.
+
 ## OIDC exchange fails
 
 **Symptom:** the client exits at "exchange", or the gateway logs a `401`/`403`
@@ -43,7 +78,8 @@ client sees `REPLY_NOT_ALLOWED`; the job step fails.
   will not work.
 - `--acme` also needs inbound **TCP 443** for the Let's Encrypt challenge —
   publishing the port with `-p` is not enough if a cloud firewall blocks it.
-- Check `curl -sS https://<gateway>/readyz` if `--metrics-listen` is set.
+- Check `http://<metrics-listen-address>/readyz` on the configured private metrics
+  listener. The QUIC gateway listener is not an HTTPS health endpoint.
 
 ## Destination unreachable, but policy allowed it
 

@@ -87,7 +87,7 @@ pub fn page() -> Page {
         .push(&public::gateway());
     let expire = Section::new("Step 6 — Expire")
         .alt()
-        .push(&Prose::new().p("When the session expires or ends, that session's access closes. A later connection requires a new request and another policy decision."))
+        .push(&Prose::new().p("Each new tunnel requires a valid credential and another policy decision. Exec closes its local tunnels on exit. Agent sessions additionally close active tunnels at expiry or when the gateway receives revocation. CI/developer credential expiry does not cut existing tunnels, and policy max_duration is currently metadata."))
         .push(&public::access_lifecycle())
         .push(
             &Prose::new()

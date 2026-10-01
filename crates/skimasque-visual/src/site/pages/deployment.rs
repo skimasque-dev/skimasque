@@ -47,7 +47,8 @@ pub fn page() -> Page {
         .push(
             &Prose::new()
                 .p("You run your apps. We run SkiMasque.")
-                .p("Live today with a free tier. Paid plans are not available yet.")
+                .p("The shared gateway reaches destinations available from its network. Use a customer gateway for private VPC resources; a Cloud account does not create private connectivity.")
+                .p("The control plane implements Free, Team and Business entitlements, with Stripe checkout and billing management when enabled. Check your console for the plans available on your deployment.")
                 .kv("Control plane", "SkiMasque")
                 .kv("Gateway", "SkiMasque")
                 .kv("Operations", "Minimal"),
@@ -188,9 +189,9 @@ mod tests {
         assert_eq!(
             main.matches("PLANNED").count(),
             1,
-            "only paid plans are planned, once, in the run card"
+            "only dedicated Cloud egress are planned, once, in the run card"
         );
-        assert!(main.contains("Free tier") && main.contains("paid plans"));
+        assert!(main.contains("Free tier") && main.contains("dedicated Cloud egress"));
         assert!(s.contains(r#"aria-current="page""#));
     }
 }

@@ -5,8 +5,8 @@ use crate::diagrams::public;
 use crate::site::Page;
 use crate::site_chrome::GET_STARTED_URL;
 use crate::{
-    CodeExample, Component, ConnKind, Connection, Cta, Flow, Hero, Node, NodeKind, PlannedBlock,
-    Prose, Section, SitePage,
+    CodeExample, Component, ConnKind, Connection, Cta, Flow, Hero, Node, NodeKind, Prose, Section,
+    SitePage,
 };
 
 /// The real production policy (`docs/policies.md`), as a TOML document.
@@ -111,7 +111,7 @@ pub fn page() -> Page {
         ));
 
     let wizard = Prose::new()
-        .p("A planned dashboard wizard will help you build a policy from the access a workload needs.")
+        .p("The console wizard guides you through identity, application, destinations, limits and review. Save a draft, validate and test it, then publish a revision.")
         .p("Start with:")
         .kv("Who needs access?", "acme/widget")
         .kv("What are they running?", "terraform")
@@ -120,12 +120,9 @@ pub fn page() -> Page {
         .kv("Bandwidth limit?", "100 Mbps")
         .p("Review the generated policy before applying it.");
     let ux = Section::new("Create and explain policies")
-        .push(&PlannedBlock::new(
-            "interactive policy creation wizard in the dashboard",
-            &wizard,
-        ))
+        .push(&wizard)
         .push(&Prose::new().p(
-            "Today you write the policy file, then ask why a request would be allowed or denied. The engine explains the decision and suggests a rule.",
+            "Write a policy file or use the console wizard, then ask why a request is allowed or denied. Explanations include baseline guardrails. Verified workload kinds distinguish CI, developers and agents; application names remain declared context. Policy max_duration is currently metadata, not an enforced timeout.",
         ))
         .push(&CodeExample::new("Explain a denial, offline", DENIAL));
 
@@ -175,14 +172,14 @@ mod tests {
             "max_duration = &quot;60m&quot;",
             "Create and explain policies",
             "Who needs access?",
-            "PLANNED",
+            "publish a revision",
             "skimasque policy check production google.com:443 --app terraform",
             "No matching allow rule.",
         ] {
             assert!(s.contains(want), "missing {want:?}");
         }
         let main = &s[s.find("<main").unwrap()..s.find("</main>").unwrap()];
-        assert!(main.contains("v-planned-block"));
+        assert!(!main.contains("v-planned-block"));
         assert!(!s.contains("group ="), "no invented policy fields");
     }
 }

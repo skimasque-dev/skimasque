@@ -18,10 +18,10 @@ to stop it. SkiMasque does that in two parts:
 asserts **your own identity** (your GitHub login as `actor`) plus
 `kind = agent` and a session id. Three consequences follow from that design:
 
-1. **The agent can reach nothing you could not.** There is no separate agent
-   authorization system. The credential is your identity with a kind added, so it
-   matches the same policies you do. A policy that names `kind = agent` can
-   narrow that, or give agents something you do not have.
+1. **The agent acts as the initiating user, with its own workload kind.**
+   Policies without a kind match both developer and agent credentials. Explicit
+   `kind = agent` policies can grant different access from `kind = developer`
+   policies; use baseline denials to set an organisation-wide ceiling.
 2. **`kind` is a verified fact, not a claim.** The control plane sets it, only on
    this path. A gateway cannot mint an `agent` or `developer` credential, and a
    token cannot name its own kind.
@@ -58,7 +58,7 @@ existing one without `--force`) or `--print-token` (the token alone on stdout).
 If the file cannot be written, the session is ended again rather than left
 running with a lost credential.
 
-You can also start, list and end sessions in the console (**Sessions → Agent
+You can also inspect and end sessions in the console (**Sessions → Agent
 sessions**), which also shows what each session was allowed and refused.
 
 ### Delegating

@@ -47,7 +47,9 @@ fn exec_flow() -> Flow {
 
 pub fn page() -> Page {
     let hero = Hero::new("Run the command. Get the access. Lose the access when you're done.")
-        .lead("Use the CLI to check a policy, open a tunnel, or run a command with temporary access.")
+        .lead(
+            "Use the CLI to check a policy, open a tunnel, or run a command with temporary access.",
+        )
         .cta(Cta::primary("Get Started", GET_STARTED_URL))
         .cta(Cta::secondary("Read the Docs", doc("cli.md")));
 
@@ -110,7 +112,7 @@ pub fn page() -> Page {
     let cp_note = Section::new("What is not finished yet").push(&PlannedBlock::new(
         "control-plane-backed connect",
         &Prose::new().p(
-            "Today skimasque connect needs the gateway address passed explicitly. A control-plane-backed connect, which would resolve the organisation's gateway and credential from your signed-in session, is not finished.",
+            "The client can mint a developer credential from your signed-in session. Automatic discovery of a customer gateway is not implemented: use --proxy for connect or --gateway for exec when the Cloud default is not your destination.",
         ),
     ));
 
@@ -127,6 +129,9 @@ pub fn page() -> Page {
         .push(&start)
         .push(&local)
         .push(&exec)
+        .push(&Section::new("Coding agents").push(&Prose::new()
+            .p("Use skimasque exec --agent --sandbox srt with allowed domains to run a coding agent through the gateway, or explicitly choose --unsandboxed. SkiMasque integrates with an external sandbox; proxy variables alone do not confine a process.")
+            .p("Agent sessions default to 30 minutes, are capped at 4 hours or a lower organisation limit, and support delegation. End a session in the CLI or console to revoke it and its children. Gateways apply revocation updates when received; expiry bounds access during outages.")))
         .push(&cp_note)
         .html()
         .as_str()

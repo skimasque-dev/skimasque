@@ -17,8 +17,11 @@ falsifiable version (every "mitigated" claim points at code or config), and
 - **Deny by default.** No matching allow rule → DENY. There is no implicit
   "allow the rest", and a policy that fails to parse is ignored in favour of the
   last good one.
-- **Short-lived access.** The platform credential defaults to a 1h TTL and is
-  re-exchanged proactively; when the job ends nothing is left holding access.
+- **Short-lived credentials.** Managed developer/CI credentials default to 15m
+  (maximum 1h); standalone gateway credentials default to 1h. Supported clients
+  refresh them. Stopping a client closes its tunnels, but copied bearer credentials
+  can remain valid until expiry. CI/developer expiry gates new tunnels without
+  closing existing ones. Policy max_duration is not an enforced gateway timeout.
 - **Agent sessions are stoppable.** A coding agent's access is a session you can
   end: new tunnels are refused and open ones closed, and tunnels also close when
   the session's credential expires (30 minutes by default, 4 hours at most). See

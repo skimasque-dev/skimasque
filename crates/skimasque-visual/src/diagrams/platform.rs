@@ -15,7 +15,7 @@ fn control(label: &str) -> Connection {
 }
 
 pub fn ci_lifecycle() -> Flow {
-    Flow::new("A CI job starts, proves its identity, gets a session, deploys, completes, and its session expires.")
+    Flow::new("A CI job proves its identity, opens gateway tunnels, deploys and completes. Cleanup closes local tunnels; credentials expire independently and can renew during the job.")
         .then(&Node::new(NodeKind::CiJob).label("JOB START"))
         .via(control("OIDC"), &Node::new(NodeKind::Identity).label("IDENTITY"))
         .via(control("policy"), &Node::new(NodeKind::Session).label("SESSION CREATED").status(Status::Active))
@@ -182,7 +182,7 @@ pub fn deployment_models() -> Compare {
             "Free tier",
         ],
     )
-    .planned("paid plans");
+    .planned("dedicated Cloud egress");
     let blue = RunCard::new(
         Run::Blue,
         "Your Gateway",
@@ -309,10 +309,11 @@ mod tests {
         assert_eq!(
             s.matches("PLANNED").count(),
             1,
-            "only paid plans are planned (billing is not in place)"
+            "only dedicated Cloud egress are planned (billing is not in place)"
         );
         assert!(
-            s.contains("paid plans <span class=\"v-planned\">") && !s.contains("v-sr\"> — paid"),
+            s.contains("dedicated Cloud egress <span class=\"v-planned\">")
+                && !s.contains("v-sr\"> — paid"),
             "the note is visible beside the marker"
         );
     }

@@ -21,7 +21,10 @@ const INDEX: &[(&str, &[(&str, &str)])] = &[
         ],
     ),
     ("CI/CD", &[("GitHub Actions", "github-actions.md")]),
-    ("Developers", &[("CLI", "cli.md")]),
+    (
+        "Developers",
+        &[("CLI", "cli.md"), ("Coding agents", "agents.md")],
+    ),
     (
         "Deployment",
         &[

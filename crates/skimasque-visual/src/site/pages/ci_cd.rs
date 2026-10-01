@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// The real workflow step from the Action's documentation.
-const WORKFLOW: &str = "permissions:\n  id-token: write          # the job mints its own OIDC token\n  contents: read\n\nsteps:\n  - uses: skimasque-dev/connect@v1\n    with:\n      proxy: gateway.skimasque.com:443\n      audience: https://gateway.skimasque.com\n      application: terraform\n\n  - run: terraform apply -auto-approve   # egresses through the gateway";
+const WORKFLOW: &str = "permissions:\n  id-token: write          # the job mints its own OIDC token\n  contents: read\n\nsteps:\n  - uses: skimasque-dev/connect@v1\n    with:\n      proxy: gateway.skimasque.com:443\n      audience: https://gateway.skimasque.com\n      mode: proxy\n      application: terraform\n\n  - run: terraform apply -auto-approve   # egresses through the gateway";
 
 pub fn page() -> Page {
     let hero = Hero::new(
@@ -50,7 +50,10 @@ pub fn page() -> Page {
         ))
         .push(&Prose::new().p("Result:"))
         .push(&DecisionBadge::new(true))
-        .push(&Prose::new().p("After 20 minutes: ACCESS EXPIRED"))
+        .push(
+            &Prose::new()
+                .p("Agent sessions close at expiry; CI credentials renew while the job runs."),
+        )
         .push(&StatusBadge {
             status: Status::Expired,
         });
@@ -87,7 +90,7 @@ pub fn page() -> Page {
     let action = Section::new("The GitHub Action")
         .alt()
         .push(&Prose::new().p(
-            "The action exchanges the runner's OIDC token for a short-lived credential and sets ALL_PROXY to a local SOCKS5 relay. Tools that honour ALL_PROXY can then reach, through the gateway, only what your policy allows.",
+            "The Action exchanges GitHub OIDC for a renewable credential. Transparent mode routes configured private TCP/UDP and split DNS on dedicated Ubuntu runners. Explicit proxy mode sets HTTP, HTTPS and SOCKS variables for tools that support them. Policy applies to traffic through the gateway; public traffic outside configured routes keeps its normal path.",
         ))
         .push(&CodeExample::new(".github/workflows/deploy.yml", WORKFLOW));
 
@@ -95,7 +98,7 @@ pub fn page() -> Page {
         &Prose::new()
             .p("Supported today:")
             .list(&["GitHub Actions", "generic OIDC", "GitLab CI", "Buildkite"])
-            .p("Terraform and other command-line applications are the typical use case: any tool that honours ALL_PROXY can run behind the action.")
+            .p("Use proxy mode for proxy-aware tools. For psql and other raw-socket tools, configure transparent routes and private DNS, with IP/CIDR policy and a gateway that can reach those networks. Use coordinated Action/client releases; old tags keep their previous interface.")
             .p("Additional integrations under consideration:")
             .list(&["CircleCI", "Jenkins", "other workload identity providers"]),
     );
@@ -140,7 +143,7 @@ mod tests {
             "deploy-production",
             "20 minutes · 100 Mbps",
             "ACCESS GRANTED",
-            "ACCESS EXPIRED",
+            "Agent sessions close at expiry",
             "Pull requests vs production",
             "feature/*",
             "staging-api:443",

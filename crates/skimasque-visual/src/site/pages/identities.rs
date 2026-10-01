@@ -16,6 +16,8 @@ pub fn page() -> Page {
     let types = Section::new("Identity and request context").push(
         &FeatureGrid::new()
             .feature("Developer", "developer: alice")
+            .feature("Coding agent", "actor: alice · kind: agent · revocable session")
+            .feature("CI kind", "kind: ci · verified OIDC claims")
             .feature("Repository", "repository: acme/widget")
             .feature("Workflow", "workflow: deploy-production")
             .feature("Ref", "ref: main")
@@ -80,6 +82,9 @@ pub fn page() -> Page {
         .push(&actions)
         .push(&developers)
         .push(&together)
+        .push(&Section::new("Agent identity and delegation").push(&Prose::new()
+            .p("Agent sessions carry the initiating user, a verified agent kind and a session id. Runtime and run-id labels are audit context, not authorization claims.")
+            .p("Policies without a kind apply to all kinds. Explicit agent policies can differ from developer policies; baseline denials set shared guardrails. Ending a parent ends delegated sessions. A sandbox is required to prevent direct network bypass.")))
         .html()
         .as_str()
         .to_owned(),

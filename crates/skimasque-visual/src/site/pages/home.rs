@@ -23,8 +23,8 @@ pub fn page() -> Page {
     let art = HeroArt;
     let hero = Hero::new("Give every workload exactly the network access it needs.")
         .lead(
-            "SkiMasque provides identity-aware, least-privilege network access for developers \
-             and CI/CD workloads.",
+            "SkiMasque provides identity-aware, least-privilege network access for developers, \
+             CI/CD workloads and coding agents.",
         )
         .lead("Grant a policy-bounded session for the destinations the job needs.")
         .cta(Cta::primary("Get Started", GET_STARTED_URL))
@@ -47,7 +47,7 @@ pub fn page() -> Page {
                     "unrelated production infrastructure",
                 ])
                 .p("Traditional solutions often solve this by putting the workload somewhere inside the network.")
-                .p("SkiMasque checks the workloadâ€™s identity and requested destination against policy before the gateway opens a tunnel."),
+                .p("SkiMasque checks the workload's identity and requested destination against policy before the gateway opens a tunnel."),
         )
         .push(&public::traditional_vs_skimasque());
 
@@ -74,7 +74,10 @@ pub fn page() -> Page {
                 "Least privilege",
                 "Grant access to specific destinations instead of entire networks.",
             )
-            .feature("Short-lived", "Access expires automatically.")
+            .feature(
+                "Short-lived",
+                "Credentials expire; agent sessions also close active tunnels at expiry.",
+            )
             .feature("Policy-driven", "Define access declaratively.")
             .feature(
                 "Developer-friendly",
@@ -98,8 +101,8 @@ pub fn page() -> Page {
         contents: SitePage::new(
             "",
             "",
-            "SkiMasque â€” identity-aware network access",
-            "SkiMasque provides identity-aware, least-privilege network access for developers and CI/CD workloads.",
+            "SkiMasque — identity-aware network access",
+            "SkiMasque provides identity-aware, least-privilege network access for developers, CI/CD workloads and coding agents.",
         )
         .push(&hero)
         .push(&problem)

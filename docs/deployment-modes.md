@@ -62,6 +62,9 @@ register, patch, monitor, or keep online.
 GitHub Actions ──OIDC──▶ SkiMasque Cloud ──authorized tunnel──▶ your database / API
 ```
 
+The gateway must already have a network path to the resource. Cloud sign-in does
+not connect a private VPC; use Mode 2 for a private-only destination.
+
 You configure **identity** (which OIDC issuers and claims you trust) and
 **policy** (what each identity may reach). That's it.
 
@@ -73,7 +76,8 @@ You configure **identity** (which OIDC issuers and claims you trust) and
   traffic or policy.
 - Traffic egresses from a shared SkiMasque IP. A **dedicated egress IP** — so you
   can allowlist exactly one address on your firewall — is a higher subscription
-  tier (same gateway, a reserved address).
+  tier in the product plan; dedicated Cloud egress is not implemented yet.
+  Run a customer gateway to control egress today.
 
 Get started: [`getting-started.md`](getting-started.md).
 

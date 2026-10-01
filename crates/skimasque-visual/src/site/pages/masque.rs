@@ -37,7 +37,7 @@ pub fn page() -> Page {
         .push(&PlannedBlock::new(
             "CONNECT-IP forwarding through a TUN device",
             &Prose::new().p(
-                "Today SkiMasque carries UDP and TCP tunnels, with a SOCKS5 front end on the client. Forwarding whole IP packets is not available yet.",
+                "Today SkiMasque carries TCP/UDP tunnels with HTTP and SOCKS frontends. Native Linux TUN forwarding translates configured TCP/UDP flows into those tunnels. General IP forwarding with RFC 9484 CONNECT-IP, ICMP and arbitrary IP protocols remains unavailable.",
             ),
         ));
 
@@ -125,7 +125,7 @@ mod tests {
             "RFC 9297",
             "RFC 1928",
             "TUN forwarding not yet wired",
-            "SOCKS5 front end on the client",
+            "Native Linux TUN forwarding",
             "MASQUE specifications listed below",
             "identity-aware network access",
             "the network transport underneath it",

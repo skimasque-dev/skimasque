@@ -1,6 +1,6 @@
 # SkiMasque
 
-**Identity-aware, least-privilege network access for CI/CD jobs and developers.**
+**Identity-aware network access for CI jobs, developers and coding agents.**
 
 Give a CI/CD job exactly the network access it needs — and nothing else, only
 for as long as it needs it — without putting it on a broad VPN or handing it a
@@ -10,8 +10,8 @@ A workload proves *who* it is (a GitHub Actions job proves its repository,
 workflow, and branch with an OIDC token), declares *what* it is running, and
 asks to reach a *destination*. A policy decides — **no matching allow rule means
 DENY** — and if it allows, the job gets a short-lived, identity-bound tunnel to
-that one destination through an enforcement gateway. When the job ends, so does
-the access.
+that one destination through an enforcement gateway. The client closes its tunnels when it stops; agent sessions also have enforced
+expiry and revocation. Traffic must use the gateway for its policy to apply.
 
 ```
 GitHub Actions job
@@ -42,30 +42,52 @@ that only opens when the policy says so.
 
 ---
 
-## Quick start (GitHub Actions)
+## Quick start
 
-Point CI at [SkiMasque Cloud](docs/deployment-modes.md#mode-1--fully-managed),
-write a policy, done — no infrastructure to run.
+Sign in with `skimasque login`, create an organisation, verify its GitHub owner,
+and publish a policy in the console. Then run a command with its allowed access:
+
+```console
+skimasque exec --app curl -- curl https://api.staging.example.com/health
+skimasque exec --forward 15432:db.internal:5432 -- psql -h 127.0.0.1 -p 15432
+```
+
+For CI, the [connect Action](https://github.com/skimasque-dev/connect) exchanges
+GitHub OIDC for a short-lived credential and renews it while the job runs:
 
 ```yaml
 permissions:
-  id-token: write          # the job mints its own OIDC token
+  id-token: write
   contents: read
-
 steps:
   - uses: skimasque-dev/connect@v1
     with:
+      mode: proxy
       proxy: gateway.skimasque.com:443
       audience: https://gateway.skimasque.com
-      application: terraform
-
-  - run: terraform apply -auto-approve   # egresses through the gateway
+      application: curl
+  - run: curl --fail https://api.staging.example.com/health
 ```
 
-The action downloads `skimasque-client`, exchanges the runner's OIDC token for a
-short-lived credential, and puts a SOCKS5 relay on `ALL_PROXY`. Tools that honour
-`ALL_PROXY` (`terraform`, `psql`, `curl`, `git`, most cloud SDKs) now reach only
-what your policy allows. Full walkthrough: [`docs/getting-started.md`](docs/getting-started.md).
+Use coordinated Action/client releases that include these interfaces. Proxy mode
+sets HTTP, HTTPS and SOCKS variables for tools that support them. Transparent mode
+on dedicated Ubuntu runners routes configured private TCP/UDP and split DNS
+through the client's native TUN stack; it requires explicit networks and DNS.
+`psql` needs transparent routing or a local forward, not `ALL_PROXY`.
+
+Choose a gateway that can reach the destination. The shared Cloud gateway does
+not automatically reach your private VPC. Follow [getting started](docs/getting-started.md)
+and [GitHub Actions](docs/github-actions.md) for policy and network setup.
+
+### Coding agents
+
+`skimasque exec --agent` starts a revocable session for one command. Choose
+`--sandbox srt` with allowed domains, or explicitly use `--unsandboxed`.
+Standalone `agent-session start/list/end` commands support external sandboxes and
+delegation. Sessions default to 30 minutes, are capped at 4 hours (or a lower org
+limit), and ending a parent ends its descendants. Gateway revocation depends on
+receiving control-plane updates; credential expiry bounds access during outages.
+See [agents](docs/agents.md).
 
 ---
 
@@ -273,28 +295,27 @@ Full detail: [`docs/architecture.md`](docs/architecture.md).
 
 ---
 
-## Roadmap
+## Current capabilities and limits
 
-| Phase | Status |
-|---|---|
-| **0 — Protocol** | Done: CONNECT-UDP, graceful shutdown, resource bounds, cert hot-reload, ACME, Prometheus/health. |
-| **1 — Local developer product** | Done: `init` / `policy` / `why` locally; `gateway` / `connect` delegate; `login` / `org` / `gateway register` / `audit` / `status`. |
-| **2 — Policy engine** | Done, minus YAML `diff` niceties and a live `observe` collector. Transport-aware rules and learning. |
-| **3 — CI identity** | Done: OIDC verification + per-provider mapping, token exchange with proactive refresh, the composite action, release/e2e workflows. |
-| **4 — Control plane** | Running: registration, ETag/long-poll policy pull, fail-static cache, Ed25519 per-org credential signing with rotation, the CLI surface, the dashboard. Dedicated egress IPs and billing are being built. |
-| **5 — Strong application identity** | Not started — application name is session context until then. |
-| **6 — Private networking** | Not started — rides the CONNECT-IP path. |
+- HTTP/3 over QUIC with TCP CONNECT and CONNECT-UDP; HTTP/HTTPS and SOCKS5
+  local proxies, command-scoped access and local TCP forwards.
+- Native Linux TUN forwarding for configured TCP/UDP routes. This translates
+  flows into MASQUE TCP/UDP tunnels; it is separate from RFC 9484 CONNECT-IP.
+- Verified workload kinds (`ci`, `developer`, `agent`), TOML/YAML policy,
+  baseline guardrails, offline policy checks and explanations.
+- Control-plane policy revisions, shared/customer gateways, audit, organisation
+  membership, GitHub owner verification and per-org signing-key rotation.
+- Agent sessions, delegation, per-kind credential ceilings, revocation and
+  optional integration with an external sandbox runtime.
+- Usage/plan enforcement and Stripe checkout, portal and webhooks in the private
+  control plane, enabled by deployment configuration.
 
-### Not yet done
-
-- A control-plane-backed `skimasque connect` (resolve the org's gateway +
-  credential from the session).
-- Per-session (rather than per-policy / per-tunnel) `[limits]`.
-- CONNECT-IP packet forwarding to a TUN device.
-- HTTP/1.1 and HTTP/2 transports (only HTTP/3 today).
-- The IPv4 Don't Fragment bit on forwarded packets.
-
----
+Not implemented: strong process identity, connection profiles, general IP/ICMP
+forwarding, HTTP/1.1 or HTTP/2 MASQUE transports, and RFC 9484 TUN forwarding.
+`[session] max_duration` is policy metadata, not a gateway-enforced timeout.
+CI/developer credential expiry gates new tunnels; agent expiry also closes active
+tunnels. Resource quotas are per tunnel or policy, not a single shared session
+budget. Dedicated Cloud egress and public incident reporting remain planned.
 
 ## Documentation
 

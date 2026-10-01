@@ -110,6 +110,21 @@ The credential is re-exchanged a quarter of its TTL before expiry, so a job that
 outlasts the TTL keeps working. Every allow and deny is recorded through an
 `AuditSink`.
 
+## Client networking and workload kinds
+
+`skimasque exec` runs a command with HTTP/SOCKS proxies or local TCP forwards.
+The GitHub Action supervises the same client: proxy mode exports proxy variables;
+transparent mode owns private routes and split DNS on dedicated Ubuntu runners.
+The client's embedded tun-rs/smoltcp stack translates native TCP/UDP flows to
+MASQUE tunnels. It does not use CONNECT-IP and does not support ICMP, fragmentation
+or arbitrary IP protocols. Public traffic outside configured routes bypasses it.
+
+Credentials carry verified workload kinds: CI claims come from OIDC; developer
+and agent credentials come from the control plane. Agents carry an initiating
+actor and session id. Runtime labels do not authenticate a program. Baseline
+denials constrain selected policies across kinds. Agent expiry closes active
+tunnels; CI/developer expiry checks new tunnels. Policy max_duration is metadata.
+
 ## MASQUE transport
 
 The transport is a from-scratch implementation of IETF MASQUE — QUIC, HTTP/3,

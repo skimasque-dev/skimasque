@@ -145,7 +145,7 @@ not silently also permit TCP to that host.
 
 | Key | Scope | Meaning |
 |---|---|---|
-| `[session] max_duration` | per session | the credential lifetime cap |
+| `[session] max_duration` | metadata | displayed session duration; not currently enforced by the gateway |
 | `[limits] bandwidth` | aggregate across the policy | a shared token bucket the relay paces every tunnel against |
 | `[limits] packets_per_second` | aggregate | as above |
 | `[limits] connections` | aggregate | concurrent-tunnel cap (a semaphore) |

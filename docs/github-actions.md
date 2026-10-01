@@ -4,7 +4,7 @@
 > all three; only the gateway's `proxy` / `audience` change.
 
 A workflow job proves its identity to a SkiMasque gateway with a **GitHub OIDC
-token**, and trades it — once — for a short-lived **platform credential** that
+token**, and exchanges it for a short-lived **platform credential** that
 its tunnels present. The gateway evaluates policy against the identity in that
 credential, so a policy can say "the `deploy.yml` workflow on `main` of
 `acme/widget` may reach `db.production:5432`" and nothing else can borrow the
@@ -19,7 +19,7 @@ issuers work the same way — see [Other CI systems](#other-ci-systems).
 runner  ──OIDC token──▶  gateway /.well-known/masque/skimasque-credential
                               │  verify RS256 · iss · aud · exp
                               │  claims ─▶ WorkloadIdentity
-                         ◀──credential──  HS256 JWT, ~1h, signed by the gateway
+                         ◀──credential──  standalone: HS256; managed: org Ed25519 credential
 runner  ──credential──▶  gateway  (every tunnel, in Proxy-Authorization: Bearer)
                               │  verify locally — no network
                               │  WorkloadIdentity ─▶ policy ─▶ ALLOW / DENY
@@ -127,66 +127,94 @@ deploy:
 
 ## In the workflow
 
-The job needs `id-token: write`. Use the
-[`skimasque-dev/connect`](https://github.com/skimasque-dev/connect) composite
-action:
+The [connect Action](https://github.com/skimasque-dev/connect) is a Node 24 action
+with a supervised client and an always-running post hook. Use a runner supporting
+Node 24 and coordinated Action/client releases with `proxy-ready-v1`; transparent
+mode also requires `proxy-tun-v1`. A merged implementation does not change old tags.
+
+### Proxy-aware tools
 
 ```yaml
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  check-api:
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write
       contents: read
     steps:
       - uses: skimasque-dev/connect@v1
         with:
-          proxy: masque.example:4433
-          audience: https://masque.example
-          application: terraform
-
-      # ALL_PROXY now points at a local SOCKS5 relay through the gateway.
-      - run: terraform apply -auto-approve
+          mode: proxy
+          proxy: gateway.skimasque.com:443
+          audience: https://gateway.skimasque.com
+          application: curl
+      - run: curl --fail https://api.staging.example.com/health
 ```
 
-Pin an exact client version with `with: { version: vX.Y.Z }`; `@v1` otherwise
-tracks the latest `skimasque` release.
+Proxy mode exports uppercase/lowercase HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and
+NO_PROXY. HTTP/HTTPS use the HTTP proxy (`http://127.0.0.1:8080`); SOCKS uses
+`socks5h://127.0.0.1:1080` with gateway-side hostname resolution. Raw sockets are
+not intercepted. Use transparent mode or `skimasque exec --forward` for `psql`.
 
-The action downloads `skimasque-client` for the runner (from the
-`skimasque-dev/skimasque` release), then runs it with `--github-oidc`: the client
-fetches the OIDC token from the runner, exchanges it, starts
-`skimasque-client … socks5` in the background, and exports
-`ALL_PROXY=socks5h://127.0.0.1:1080`. Tools that honour `ALL_PROXY` (curl, git,
-most cloud SDKs) egress through the gateway, subject to policy.
+### Private TCP/UDP without proxy support
 
-The SOCKS5 relay serves both `CONNECT` (TCP — HTTPS, git, database and cloud-SDK
-traffic) and `UDP ASSOCIATE` (DNS and other UDP). Both are on by default; a
-gateway started with **`--no-connect-tcp`** answers `CONNECT` with a SOCKS
-`command not supported` reply and only UDP egresses.
-
-Action inputs: `proxy`, `audience` (required); `authority`, `application`, `ca`,
-`listen`, `version`, `repository`, `client-bin` (optional). Pass `client-bin` to
-use a binary you built or installed yourself and skip the download.
-
-A complete, runnable example against the live SkiMasque Cloud gateway
-(`gateway.skimasque.com`, governed from `https://control.skimasque.com`) is
-[`examples/github-actions/managed-postgres-migration.yml`](../examples/github-actions/managed-postgres-migration.yml)
-— copy it, edit the two marked lines, publish the matching policy, done.
-
-### Without the action
-
-`skimasque-client` does the whole exchange itself:
+Transparent mode is the default. Configure all private destination CIDRs and
+split DNS explicitly:
 
 ```yaml
-      - name: Open the tunnel
-        run: |
-          skimasque-client --proxy masque.example:4433 \
-            --github-oidc --oidc-audience https://masque.example --app terraform \
-            probe --target db.production.example.com:5432 --text ping
+- uses: skimasque-dev/connect@v1
+  with:
+    mode: transparent
+    proxy: gateway.example.com:443
+    audience: https://gateway.example.com
+    application: psql
+    routes: 10.42.0.0/16,fd42::/48
+    dns-servers: 10.43.0.53,fd43::53
+    dns-domains: ~internal.example
+    probe-target: db.internal.example:5432
+- run: psql -h db.internal.example -d app -f migrations/latest.sql
 ```
 
-`--github-oidc` reads `ACTIONS_ID_TOKEN_REQUEST_URL` / `…_TOKEN` from the runner.
-Pass `--oidc-token <jwt>` instead to supply a token you fetched another way.
+Replace every network setting and configure a gateway inside, or connected to,
+that network. The gateway currently needs an IPv4 address. Destinations can use
+IPv4 and IPv6: list both families where services have A and AAAA records.
+
+Use a dedicated Ubuntu runner with `/dev/net/tun`, `ip`, `unzip`, `flock`, a
+working systemd-resolved stub at `127.0.0.53`, and root or passwordless sudo.
+Remove inherited proxy variables. Unsupported transparent runners fail before
+network changes; select `mode: proxy` explicitly to use proxies instead.
+
+The Action owns the TUN link, routing rules/table and per-link DNS. DNS servers
+receive routes even outside `routes`. Default routes, `~.`, loopback, link-local
+and gateway-overlapping ranges are rejected. Native forwarding carries IP
+destinations: allow the private IP/CIDR and ports in policy, including DNS over
+TCP/UDP, and permit these ranges with the gateway's `--allow-cidr` address floor.
+Hostname-only rules cannot authorize native IP flows. ICMP and arbitrary IP
+protocols are unsupported. Public traffic remains on ordinary runner routing.
+
+### Readiness, releases and cleanup
+
+The Action checks client capabilities, authentication and listener readiness.
+Transparent mode also checks TUN attachment, routes and DNS; `probe-target` adds
+a real TCP connection check. It supervises the client through the job. Private
+routes become unreachable if the client dies, until cleanup removes them.
+
+The post hook cleans up owned processes, DNS, rules, routes and links, and restores
+previous proxy variables in proxy mode. Startup failures roll back. Forced runner
+kills can prevent hooks; use ephemeral runners or the Action's `stop.cjs` and
+`state-file` manifest before reusing a persistent runner.
+
+Inputs and defaults are listed in [configuration](configuration.md). Outputs are
+`mode`, `http-proxy`, `socks-proxy` and `state-file`. Pin `version` to a compatible
+client release or pass `client-bin` for a local build. Named connection profiles
+(`connection: staging`) are planned; current workflows use explicit inputs.
+
+### Other clients
+
+The client fetches GitHub OIDC with `--github-oidc`; other providers supply
+`--oidc-token`. Run `proxy` for HTTP/SOCKS listeners, `connect --target HOST:PORT`
+for a raw TCP stream, or `probe` for UDP diagnostics. `probe --text ping` is not
+a Postgres connectivity test. See [CLI](cli.md).
 
 ## Policy
 
