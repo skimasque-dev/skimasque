@@ -324,6 +324,7 @@ surface `skimasque login` / `org` / `audit` / `status` and the dashboard expect.
 | `GET /v1/orgs/{org}/usage`, `…/usage/history` | usage totals and the daily series |
 | `GET /v1/orgs/{org}/audit` | query shipped decisions (`{ events, next_cursor }`) |
 | `POST/GET /v1/orgs/{org}/agent-sessions` | start an agent session (`AgentSessionRequest` → `AgentSessionResponse`, with the credential) / list recent ones (`AgentSessionView`) |
+| `GET/PUT /v1/orgs/{org}/credential-limits` | how long credentials of each kind may live: read (any member) / lower the per-kind ceiling, in seconds (owner-only; above the built-in ceiling is refused) |
 | `POST /v1/orgs/{org}/agent-sessions/{sid}/end` | end one now, and the sessions delegated from it (`EndedSession`) |
 
 ## Tunnel request headers

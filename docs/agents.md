@@ -30,7 +30,10 @@ asserts **your own identity** (your GitHub login as `actor`) plus
    policy. An agent that calls itself `deployment-agent` gains nothing.
 
 A session lasts 30 minutes unless you ask for longer, and never more than 4
-hours. It ends when it expires or when you end it, whichever is first.
+hours. It ends when it expires or when you end it, whichever is first. An org
+owner can set a lower ceiling for each kind of credential
+(`PUT /v1/orgs/{org}/credential-limits`, e.g. `{"agent": 3600}` to cap agent
+sessions at an hour); an org can lower the built-in ceiling but never raise it.
 
 ## Start, hand over, end
 
