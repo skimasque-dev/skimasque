@@ -75,6 +75,19 @@ Control-plane gateways verify against the org's Ed25519 **public** key (fetched
 once, re-checked hourly for rotation) and mint through the control plane at
 token exchange, falling back to a locally signed credential during an outage.
 
+## Sessions and revocation
+
+A credential is a signed token a gateway verifies offline, so it cannot itself be
+taken back. For workloads that need to be stoppable (coding agents, see
+[`agents.md`](agents.md)) the control plane also keeps a **session record** and
+puts its id in the credential as `sid`. Ending the session adds it to a list the
+org's gateways long-poll (`GET /v1/gateways/{id}/revocations`; the shared gateway
+polls the platform equivalent for every org). The gateway refuses new tunnels for
+a listed `sid`, closes the open ones, and keeps the list on disk. Entries drop off
+the list once the credential could no longer be presented anyway, so it stays
+small. A control-plane outage never makes the gateway stop enforcing; sessions
+ended during one are bounded by the credential's expiry.
+
 ## The wire contract
 
 The exact endpoints and JSON shapes are in [`protocol.md`](protocol.md) and the

@@ -143,6 +143,22 @@ actual lifetime after any server-side cap. The gateway may fall back to a
 locally signed HS256 credential if this endpoint is unreachable (unless
 `--control-plane-no-credential-fallback`).
 
+### `GET /v1/gateways/{id}/revocations`
+
+The agent sessions that have been ended and whose credentials could still be
+presented. Long-polls like the policy endpoint: `?generation=<n>` is the
+`generation` from the last answer, `?wait=<seconds>` holds the request open
+(capped at 60), and `304` means nothing has changed. A `200` is always the
+**complete** current list, never a delta:
+
+```json
+{ "generation": 7, "revoked": [ { "sid": "sess_3f9c…", "expires_at_ms": 1790000000000 } ] }
+```
+
+A gateway refuses new tunnels for a listed `sid`, closes its open ones, and
+persists the list. A platform gateway uses
+`GET /v1/platform/gateways/{id}/revocations`, which covers every org it serves.
+
 ### `GET /v1/orgs/{org}/signing-key`
 
 The org's Ed25519 public key. Unauthenticated. The gateway verifies
@@ -307,6 +323,8 @@ surface `skimasque login` / `org` / `audit` / `status` and the dashboard expect.
 | `GET /v1/orgs/{org}/gateways` | the fleet |
 | `GET /v1/orgs/{org}/usage`, `…/usage/history` | usage totals and the daily series |
 | `GET /v1/orgs/{org}/audit` | query shipped decisions (`{ events, next_cursor }`) |
+| `POST/GET /v1/orgs/{org}/agent-sessions` | start an agent session (`AgentSessionRequest` → `AgentSessionResponse`, with the credential) / list recent ones (`AgentSessionView`) |
+| `POST /v1/orgs/{org}/agent-sessions/{sid}/end` | end one now, and the sessions delegated from it (`EndedSession`) |
 
 ## Tunnel request headers
 

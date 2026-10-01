@@ -71,6 +71,17 @@ The credential file lives at `$SKIMASQUE_CONFIG_HOME`, else
 
 `--org` is inferred when you belong to exactly one.
 
+### Give a coding agent access (needs `skimasque login`)
+
+| Command | Does |
+|---|---|
+| `skimasque agent-session start [--org ID] [--ttl 30m] [--runtime NAME] [--run-id ID] [--parent SESSION] (--token-file PATH [--force] \| --print-token)` | start a session and hand over its credential. `--token-file` writes a new owner-only file and prints the session id; `--print-token` prints only the credential. One of the two is required. |
+| `skimasque agent-session list [--org ID] [--all]` | the org's recent agent sessions (active only, unless `--all`) |
+| `skimasque agent-session end <SESSION_ID> [--org ID]` | end it now, and every session delegated from it |
+
+The lifetime defaults to 30 minutes and is capped at 4 hours. See
+[`agents.md`](agents.md) for the model and for sandboxing.
+
 ### Run a gateway or open a tunnel
 
 - `skimasque gateway <args…>` execs `skimasque-server` with the args — see below.
@@ -214,6 +225,7 @@ record of every decision (conflicts with `--policy-observe`).
 | `--ca <PATH>` | trust these PEM certs instead of the system roots |
 | `--insecure` | accept any certificate — gives up MITM defence; use `--ca` instead |
 | `--auth-token <TOKEN>` (`SKIMASQUE_TOKEN`) | static bearer, for a `--auth-token` gateway |
+| `--auth-token-file <PATH>` (`SKIMASQUE_TOKEN_FILE`) | read the static bearer from a file, keeping it out of argv and the environment; for an agent session's credential. Exclusive with the other credential sources. |
 | `--github-oidc` | fetch the runner's OIDC token and exchange it (needs `--oidc-audience`) |
 | `--oidc-token <JWT>` (`SKIMASQUE_OIDC_TOKEN`) | supply a token you fetched another way |
 | `--oidc-audience <AUD>` | must match one of the gateway's `--oidc-audience` values |
