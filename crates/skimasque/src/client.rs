@@ -168,6 +168,11 @@ impl std::fmt::Debug for Session {
 }
 
 impl Session {
+    /// Wait until the gateway connection is closed, including transport failure.
+    pub async fn closed(&self) -> quinn::ConnectionError {
+        self.quic.closed().await
+    }
+
     /// Send `headers` on every request opened from this session.
     ///
     /// The usual reason is `Proxy-Authorization`, which is constant for the
