@@ -28,7 +28,7 @@ mod trust;
 mod use_cases;
 
 pub fn all() -> Vec<Page> {
-    vec![
+    let mut pages = vec![
         home::page(),
         how_it_works::page(),
         identities::page(),
@@ -50,12 +50,14 @@ pub fn all() -> Vec<Page> {
         about::page(),
         contact::page(),
         status::page(),
-    ]
+    ];
+    pages.extend(docs::guides());
+    pages
 }
 
-/// A link to a file under the repository's `docs/`.
+/// A public guide hosted in the website.
 pub(super) fn doc(file: &str) -> String {
-    format!("{DOCS_BASE}{file}")
+    format!("{DOCS_BASE}{}/", file.trim_end_matches(".md"))
 }
 
 /// A row of documentation buttons: `(label, href)`.

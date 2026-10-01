@@ -1,0 +1,209 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><script>(() => {
+  const key = 'skimasque-theme';
+  const root = document.documentElement;
+  let theme = 'system';
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === 'light' || saved === 'dark') theme = saved;
+  } catch (_) { /* Storage may be disabled; switching still works. */ }
+  function apply() {
+    if (theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+  }
+  apply();
+  document.addEventListener('DOMContentLoaded', () => {
+    const control = document.querySelector('.v-theme-control');
+    const picker = document.querySelector('#site-theme');
+    if (!control || !picker) return;
+    picker.value = theme;
+    control.hidden = false;
+    picker.addEventListener('change', () => {
+      theme = picker.value;
+      apply();
+      try { localStorage.setItem(key, theme); } catch (_) { /* Keep the current-page choice. */ }
+    });
+  });
+})();
+</script><title>Configuration · SkiMasque</title><meta name="description" content="Configuration"><meta property="og:title" content="Configuration · SkiMasque"><meta property="og:description" content="Configuration"><meta property="og:type" content="website"><link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href="../../assets/visual.css?v=1bc626f0340909d7"></head><body class="v-site"><svg class="v-sprite" aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-workload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></symbol>
+<symbol id="i-developer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 8v8M17 10c0 4-4 4-8 6"/></symbol>
+<symbol id="i-ci-job" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M4 12h16M4 17h10"/><path d="M17 4.5l3 2.5-3 2.5"/></symbol>
+<symbol id="i-application" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10l3 2-3 2M12 15h5"/></symbol>
+<symbol id="i-identity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M17 12v3M20 12v2"/></symbol>
+<symbol id="i-policy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 13l2 2 4-4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+<symbol id="i-gateway" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M2 8h9M8 5l3 3-3 3M22 16h-9M16 13l-3 3 3 3"/></symbol>
+<symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M11 6.8L6 16.2M13 6.8l5 9.4M7 18h10"/></symbol>
+<symbol id="i-service" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></symbol>
+<symbol id="i-api" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4C7 4 6 5 6 7v2c0 1-1 3-2 3 1 0 2 2 2 3v2c0 2 1 3 3 3M15 4c2 0 3 1 3 3v2c0 1 1 3 2 3-1 0-2 2-2 3v2c0 2-1 3-3 3"/></symbol>
+<symbol id="i-kubernetes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M12 14.5V20M4 12h5.5M14.5 12H20"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9a4.5 4.5 0 0 0 1 9z"/></symbol>
+<symbol id="i-firewall" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 10h18M3 15h18M9 5v5M15 10v5M9 15v4"/></symbol>
+<symbol id="i-internet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.5 2.5 13.5 0 16M12 4c-2.5 2.5-2.5 13.5 0 16"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-cross" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-control-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="7" rx="2"/><path d="M12 10v5M4 15h16M4 15v3M12 15v3M20 15v3"/><circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="2"/></symbol>
+<symbol id="i-cli" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l7 6-7 6M13 18h7"/></symbol>
+<symbol id="i-credential" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+<symbol id="i-audit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+</svg><a class="v-skip" href="#main">Skip to content</a><header class="v-site-header"><div class="v-wrap v-site-bar"><a class="v-brand" href="../../">SkiMasque</a><nav class="v-site-nav" aria-label="Primary"><details class="v-nav-group" name="site-nav"><summary>Product</summary><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Compare</summary><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Technology</summary><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Resources</summary><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul></details><a class="v-nav-top" href="../../pricing/">Pricing</a></nav><div class="v-site-actions"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel"><p class="v-menu-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul><p class="v-menu-title">Compare</p><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul><p class="v-menu-title">Technology</p><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul><p class="v-menu-title">Resources</p><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul><p class="v-menu-title">Pricing</p><ul><li><a href="../../pricing/">Pricing</a></li></ul><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></p></div></details></nav><label class="v-theme-control" hidden for="site-theme"><span>Theme</span><select id="site-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header><main id="main"><section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy"><h1>Configuration</h1><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="../">All guides</a></p></div></div></section><section class="v-section"><div class="v-wrap"><h2>Guide</h2><article class="v-guide"><blockquote>
+<p><strong>Applies to:</strong> ✓ Mode 1 (Action inputs) · ✓ Mode 2 · ✓ Mode 3</p>
+</blockquote>
+<p>Every flag also reads an environment variable where noted. This page is a
+companion to <code>--help</code>, not a replacement — run <code>skimasque-server --help</code>,
+<code>skimasque-client --help</code>, <code>skimasque &lt;cmd&gt; --help</code> for the authoritative text.</p>
+<h2 id="skimasque-server-the-gateway"><code>skimasque-server</code> (the gateway)</h2>
+<h3 id="listen-and-authority">Listen and authority</h3>
+<table><thead><tr><th>Flag</th><th>Default</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>--listen &lt;ADDR&gt;</code></td><td><code>0.0.0.0:4433</code></td><td>the QUIC (UDP) listener</td></tr>
+<tr><td><code>--hostname &lt;HOST[:PORT]&gt;</code></td><td><code>gateway.skimasque.com</code></td><td>public name; the <code>--acme</code> certificate domain and the default <code>--authority</code></td></tr>
+<tr><td><code>--authority &lt;HOST[:PORT]&gt;</code></td><td><code>--hostname</code></td><td>the authority in the URI Template</td></tr>
+<tr><td><code>--template &lt;TEMPLATE&gt;</code></td><td>—</td><td>a complete URI Template, overriding <code>--authority</code></td></tr>
+</tbody></table>
+<h3 id="tls">TLS</h3>
+<table><thead><tr><th>Flag</th><th>Default</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>--acme</code></td><td>off</td><td>obtain + renew a Let's Encrypt cert for <code>--hostname</code> over TLS-ALPN-01. Needs TCP 443 reachable and <code>--acme-cache</code>. Mutually exclusive with <code>--cert</code>.</td></tr>
+<tr><td><code>--acme-email &lt;EMAIL&gt;</code></td><td>—</td><td>Let's Encrypt expiry-warning contact</td></tr>
+<tr><td><code>--acme-cache &lt;DIR&gt;</code></td><td><code>skimasque-acme</code></td><td><strong>must persist</strong> or rate limits bite</td></tr>
+<tr><td><code>--acme-staging</code></td><td>off</td><td>Let's Encrypt staging (untrusted certs, lax limits) — for testing</td></tr>
+<tr><td><code>--acme-extra-domain &lt;DOMAIN&gt;</code></td><td>—</td><td>additional SAN; repeatable</td></tr>
+<tr><td><code>--acme-challenge-port &lt;PORT&gt;</code></td><td><code>--listen</code> port</td><td>only for a local test rig; Let's Encrypt only validates on 443</td></tr>
+<tr><td><code>--cert &lt;PATH&gt;</code> / <code>--key &lt;PATH&gt;</code></td><td>—</td><td>bring your own PEM</td></tr>
+<tr><td><code>--tls-reload</code></td><td>off</td><td>re-read <code>--cert</code>/<code>--key</code> on change; <code>SIGHUP</code> forces it</td></tr>
+<tr><td><code>--tls-reload-interval &lt;DUR&gt;</code></td><td><code>5s</code></td><td></td></tr>
+<tr><td><code>--self-signed-name &lt;NAME&gt;</code></td><td><code>localhost</code></td><td>subject for a generated dev cert; repeatable</td></tr>
+<tr><td><code>--write-cert &lt;PATH&gt;</code></td><td>—</td><td>write the served cert for a client to <code>--ca</code>-pin</td></tr>
+</tbody></table>
+<h3 id="identity">Identity</h3>
+<table><thead><tr><th>Flag</th><th>Env</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>--oidc</code> / <code>--github-oidc</code></td><td>—</td><td>verify CI OIDC tokens and enable the exchange endpoint. Replaces <code>--auth-token</code>.</td></tr>
+<tr><td><code>--oidc-provider &lt;NAME&gt;</code></td><td>—</td><td><code>github</code> (default), <code>gitlab</code>, <code>buildkite</code>, <code>generic</code></td></tr>
+<tr><td><code>--oidc-audience &lt;AUD&gt;</code></td><td>—</td><td><strong>required</strong> with <code>--oidc</code>; repeatable; the <code>aud</code> each pipeline requests</td></tr>
+<tr><td><code>--oidc-issuer &lt;URL&gt;</code></td><td>—</td><td>override for self-managed GitLab / GHES / <code>generic</code></td></tr>
+<tr><td><code>--oidc-claim &lt;FIELD=CLAIM&gt;</code></td><td>—</td><td>for <code>generic</code>: map <code>organization</code>/<code>repository</code>/<code>workflow</code>/<code>ref</code>/<code>environment</code>/<code>actor</code></td></tr>
+<tr><td><code>--auth-token &lt;TOKEN&gt;</code></td><td><code>SKIMASQUE_TOKEN</code></td><td>a shared bearer token (instead of <code>--oidc</code>)</td></tr>
+<tr><td><code>--credential-secret &lt;HEX&gt;</code></td><td><code>SKIMASQUE_CREDENTIAL_SECRET</code></td><td>HS256 key for signing platform credentials; <strong>same value across a fleet</strong></td></tr>
+<tr><td><code>--credential-ttl &lt;DUR&gt;</code></td><td>—</td><td>credential lifetime (default <code>1h</code>)</td></tr>
+</tbody></table>
+<h3 id="policy">Policy</h3>
+<table><thead><tr><th>Flag</th><th>Default</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>--policy-dir &lt;DIR&gt;</code></td><td>—</td><td>enforce <code>*.toml</code> / <code>*.yaml</code> here</td></tr>
+<tr><td><code>--policy-file &lt;PATH&gt;</code></td><td>—</td><td>specific files instead of scanning a dir</td></tr>
+<tr><td><code>--policy-reload</code></td><td>off</td><td>swap the policy set on file change; <code>SIGHUP</code> forces it; a bad revision is logged and ignored</td></tr>
+<tr><td><code>--policy-reload-interval &lt;DUR&gt;</code></td><td><code>5s</code></td><td></td></tr>
+<tr><td><code>--policy-observe</code></td><td>off</td><td>log what policy <em>would</em> decide, allow every tunnel; feeds <code>skimasque policy learn</code></td></tr>
+<tr><td><code>--audit-log &lt;PATH&gt;</code></td><td>—</td><td>one JSON line per decision; the compliance artifact. Conflicts with <code>--policy-observe</code>.</td></tr>
+</tbody></table>
+<h3 id="control-plane-modes-23">Control plane (Modes 2–3)</h3>
+<table><thead><tr><th>Flag</th><th>Env</th><th>Default</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>--control-plane &lt;URL&gt;</code></td><td>—</td><td>—</td><td>pull policy from a control plane instead of files</td></tr>
+<tr><td><code>--control-plane-state &lt;DIR&gt;</code></td><td>—</td><td>—</td><td><strong>required</strong> with <code>--control-plane</code>; holds the identity + cached policy; <strong>must persist</strong></td></tr>
+<tr><td><code>--control-plane-token &lt;TOKEN&gt;</code></td><td><code>SKIMASQUE_CONTROL_TOKEN</code></td><td>—</td><td>one-time <code>skmreg_…</code>; not needed after first registration</td></tr>
+<tr><td><code>--control-plane-name &lt;NAME&gt;</code></td><td>—</td><td>listen address</td><td>fleet-view display name</td></tr>
+<tr><td><code>--control-plane-label &lt;KEY=VALUE&gt;</code></td><td>—</td><td>—</td><td>attributes for policy targeting; repeatable; re-sent every start</td></tr>
+<tr><td><code>--control-plane-interval &lt;DUR&gt;</code></td><td>—</td><td><code>30s</code></td><td>long-poll wait + heartbeat interval</td></tr>
+<tr><td><code>--control-plane-policy-lease &lt;DUR&gt;</code></td><td>—</td><td><code>15m</code></td><td>soft lease: report degraded past this, keep enforcing</td></tr>
+<tr><td><code>--control-plane-cache-ttl &lt;DUR&gt;</code></td><td>—</td><td><code>30m</code></td><td>hard TTL: escalate the alarm past this, still keep enforcing. ≥ the lease.</td></tr>
+<tr><td><code>--control-plane-signing-key-interval &lt;DUR&gt;</code></td><td>—</td><td><code>1h</code></td><td>re-fetch the org Ed25519 key (picks up rotation)</td></tr>
+<tr><td><code>--control-plane-no-credential-fallback</code></td><td>—</td><td>off</td><td>with <code>--oidc</code>: fail exchange (502) during an outage instead of local-signing</td></tr>
+</tbody></table>
+<h3 id="address-floor-ssrf">Address floor (SSRF)</h3>
+<table><thead><tr><th>Flag</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>--allow-cidr &lt;CIDR&gt;</code></td><td>permit one range past the private/loopback floor; repeatable; <strong>the precise instrument</strong></td></tr>
+<tr><td><code>--allow-private</code></td><td>permit all loopback / RFC 1918 / link-local; <strong>the blunt one</strong></td></tr>
+<tr><td><code>--allow-port &lt;PORT&gt;</code></td><td>restrict destinations to this port; repeatable</td></tr>
+</tbody></table>
+<h3 id="transport-and-resource-limits">Transport and resource limits</h3>
+<table><thead><tr><th>Flag</th><th>Default</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>--no-connect-tcp</code></td><td>off (TCP on)</td><td>UDP only — refuse TCP tunnels (classic <code>CONNECT</code>), which are on by default and needed for <code>curl</code>/<code>git</code>/databases via SOCKS</td></tr>
+<tr><td><code>--max-concurrent-requests &lt;N&gt;</code></td><td><code>1024</code></td><td>tunnels opening at once, across connections</td></tr>
+<tr><td><code>--max-connections &lt;N&gt;</code></td><td><code>1024</code></td><td>open QUIC connections; <code>0</code> = no cap</td></tr>
+<tr><td><code>--max-connection-rate &lt;N&gt;</code></td><td><code>50</code></td><td>new connections/s, global; <code>0</code> = off</td></tr>
+<tr><td><code>--max-connection-burst &lt;N&gt;</code></td><td><code>200</code></td><td>burst allowance</td></tr>
+<tr><td><code>--max-source-connection-rate &lt;N&gt;</code></td><td><code>20</code></td><td>new connections/s per remote IP — raise when runners share a NAT</td></tr>
+<tr><td><code>--max-source-connection-burst &lt;N&gt;</code></td><td><code>60</code></td><td></td></tr>
+<tr><td><code>--max-exchange-rate &lt;N&gt;</code></td><td><code>10</code></td><td>token-exchange requests/s per IP (with <code>--oidc</code>)</td></tr>
+<tr><td><code>--max-exchange-burst &lt;N&gt;</code></td><td><code>30</code></td><td></td></tr>
+<tr><td><code>--max-tunnels-per-connection &lt;N&gt;</code></td><td><code>256</code></td><td>tunnels on one connection; over → <code>503</code></td></tr>
+<tr><td><code>--tunnel-idle-timeout &lt;DUR&gt;</code></td><td><code>120s</code></td><td>reclaim an idle tunnel; <code>0</code> = off; matters most for TCP tunnels</td></tr>
+<tr><td><code>--shutdown-grace &lt;DUR&gt;</code></td><td><code>10s</code></td><td>let in-flight tunnels finish after <code>SIGTERM</code></td></tr>
+</tbody></table>
+<h3 id="ops">Ops</h3>
+<table><thead><tr><th>Flag</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>--metrics-listen &lt;ADDR&gt;</code></td><td>Prometheus <code>/metrics</code> + <code>/healthz</code> + <code>/readyz</code> on a plain-HTTP listener; keep internal</td></tr>
+<tr><td><code>-v</code> / <code>--verbose</code></td><td>repeatable</td></tr>
+</tbody></table>
+<h2 id="skimasque-client-the-tunnel-client"><code>skimasque-client</code> (the tunnel client)</h2>
+<table><thead><tr><th>Flag</th><th>Env</th><th>Default</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>--proxy &lt;HOST[:PORT]&gt;</code></td><td>—</td><td><code>gateway.skimasque.com</code></td><td>the gateway; port defaults to 443</td></tr>
+<tr><td><code>--authority &lt;HOST[:PORT]&gt;</code></td><td>—</td><td>proxy host</td><td>TLS server name + <code>:authority</code></td></tr>
+<tr><td><code>--template &lt;TEMPLATE&gt;</code></td><td>—</td><td>well-known CONNECT-UDP</td><td></td></tr>
+<tr><td><code>--ca &lt;PATH&gt;</code></td><td>—</td><td>system roots</td><td>trust this PEM instead</td></tr>
+<tr><td><code>--insecure</code></td><td>—</td><td>off</td><td>accept any cert — <strong>gives up MITM defence</strong>; use <code>--ca</code></td></tr>
+<tr><td><code>--auth-token &lt;TOKEN&gt;</code></td><td><code>SKIMASQUE_TOKEN</code></td><td>—</td><td>bearer token</td></tr>
+<tr><td><code>--auth-token-file &lt;PATH&gt;</code></td><td><code>SKIMASQUE_TOKEN_FILE</code></td><td>—</td><td>credential file, exclusive with other sources</td></tr>
+<tr><td><code>--org &lt;ORG&gt;</code></td><td>—</td><td>inferred for one org</td><td>mint from a signed-in developer session</td></tr>
+<tr><td><code>--github-oidc</code></td><td>—</td><td>off</td><td>fetch the runner's OIDC token and exchange it; needs <code>--oidc-audience</code></td></tr>
+<tr><td><code>--oidc-token &lt;JWT&gt;</code></td><td><code>SKIMASQUE_OIDC_TOKEN</code></td><td>—</td><td>supply a token instead of fetching one</td></tr>
+<tr><td><code>--oidc-audience &lt;AUD&gt;</code></td><td>—</td><td>—</td><td>must match a gateway <code>--oidc-audience</code></td></tr>
+<tr><td><code>--app &lt;NAME&gt;</code></td><td>—</td><td>—</td><td>declared application (<code>X-Masque-Application</code>); policy matches on it</td></tr>
+</tbody></table>
+<p>Subcommands: <code>capabilities --json</code>, <code>proxy --http-listen &lt;ADDR&gt; --socks-listen &lt;ADDR&gt;</code>
+(with optional <code>--ready-file &lt;PATH&gt;</code> and Linux <code>--tun-interface &lt;NAME&gt;</code>),
+<code>socks5 --listen &lt;ADDR&gt;</code>, <code>connect --target &lt;HOST:PORT&gt;</code>,
+<code>probe --target &lt;HOST:PORT&gt; [--text &lt;S&gt; | --dns &lt;NAME&gt;]</code>.</p>
+<h2 id="the-github-action-skimasque-devconnect">The GitHub Action (<code>skimasque-dev/connect</code>)</h2>
+<table><thead><tr><th>Input</th><th>Required</th><th>Default</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>proxy</code></td><td>yes</td><td>—</td><td>gateway <code>host:port</code></td></tr>
+<tr><td><code>audience</code></td><td>yes</td><td>—</td><td>gateway OIDC audience</td></tr>
+<tr><td><code>mode</code></td><td>no</td><td><code>transparent</code></td><td><code>transparent</code> or <code>proxy</code>; no automatic fallback</td></tr>
+<tr><td><code>routes</code></td><td>transparent</td><td>—</td><td>comma/newline-separated private IPv4/IPv6 CIDRs</td></tr>
+<tr><td><code>dns-servers</code></td><td>transparent</td><td>—</td><td>private resolver IPs; automatically routed</td></tr>
+<tr><td><code>dns-domains</code></td><td>transparent</td><td>—</td><td>split DNS domains, e.g. <code>~internal.example</code>; not <code>~.</code></td></tr>
+<tr><td><code>authority</code></td><td>no</td><td>proxy hostname</td><td>TLS name / HTTP authority</td></tr>
+<tr><td><code>application</code></td><td>no</td><td>—</td><td>declared context, not verified process identity</td></tr>
+<tr><td><code>ca</code></td><td>no</td><td>—</td><td>private CA PEM</td></tr>
+<tr><td><code>listen</code></td><td>no</td><td><code>127.0.0.1:1080</code></td><td>SOCKS listener; port 0 chooses a free port</td></tr>
+<tr><td><code>http-listen</code></td><td>no</td><td><code>127.0.0.1:8080</code></td><td>HTTP listener; port 0 chooses a free port</td></tr>
+<tr><td><code>version</code></td><td>no</td><td>action ref</td><td>exact client release; moving refs resolve to latest</td></tr>
+<tr><td><code>repository</code></td><td>no</td><td><code>skimasque-dev/skimasque</code></td><td>client release source</td></tr>
+<tr><td><code>client-bin</code></td><td>no</td><td>—</td><td>existing client; capabilities still checked</td></tr>
+<tr><td><code>probe-target</code></td><td>no</td><td>—</td><td>TCP <code>host:port</code> checked before readiness</td></tr>
+<tr><td><code>startup-timeout</code></td><td>no</td><td><code>30</code></td><td>seconds, 1–300</td></tr>
+</tbody></table>
+<p>Outputs: <code>mode</code>, <code>http-proxy</code>, <code>socks-proxy</code>, <code>state-file</code>. Proxy mode exports
+uppercase/lowercase HTTP, HTTPS and SOCKS variables. Transparent mode exports no
+global proxy variables. The post hook removes owned resources. See
+<a href="../github-actions/">GitHub Actions</a> for platform prerequisites and release compatibility.</p>
+<h2 id="run-gatewaysh-environment-docker"><code>run-gateway.sh</code> environment (Docker)</h2>
+<table><thead><tr><th>Var</th><th>Default</th><th>Notes</th></tr></thead><tbody>
+<tr><td><code>SKM_HOSTNAME</code></td><td>—</td><td><strong>required</strong> — the gateway's public DNS name</td></tr>
+<tr><td><code>SKM_ACME_EMAIL</code></td><td>—</td><td>Let's Encrypt contact</td></tr>
+<tr><td><code>SKM_STAGING</code></td><td>—</td><td>use Let's Encrypt staging</td></tr>
+<tr><td><code>SKM_IMAGE</code></td><td><code>ghcr.io/skimasque-dev/skimasque:latest</code></td><td></td></tr>
+<tr><td><code>SKM_ACME_DIR</code></td><td><code>$HOME/skimasque/acme</code></td><td>bind-mounted, chowned to 10001</td></tr>
+<tr><td><code>SKM_STATE_DIR</code></td><td><code>$HOME/skimasque/state</code></td><td>control-plane identity + cache</td></tr>
+<tr><td><code>SKM_PORT</code></td><td><code>443</code></td><td>host port → container 443</td></tr>
+<tr><td><code>SKM_CONTAINER</code></td><td><code>skimasque-gateway</code></td><td></td></tr>
+<tr><td><code>SKM_CONTROL_PLANE</code></td><td><code>https://control.skimasque.com</code> <em>(if <code>SKM_CONTROL_TOKEN</code> is set)</em></td><td>control-plane URL — set for Mode 3</td></tr>
+<tr><td><code>SKM_CONTROL_TOKEN</code></td><td>—</td><td><code>skmreg_…</code>, first run only; passed as <code>SKIMASQUE_CONTROL_TOKEN</code> env, not a flag</td></tr>
+<tr><td><code>SKM_CONTROL_NAME</code></td><td><code>SKM_HOSTNAME</code></td><td>fleet display name</td></tr>
+<tr><td><code>SKM_CONTROL_LABELS</code></td><td>—</td><td>space-separated <code>key=value</code></td></tr>
+</tbody></table>
+<p><code>./run-gateway.sh -- &lt;args&gt;</code> passes <code>&lt;args&gt;</code> straight to <code>skimasque-server</code>.</p>
+<h2 id="skimasque-control-environment-mode-3-control-plane"><code>skimasque-control</code> environment (Mode 3 control plane)</h2>
+<p>All <code>SKIMASQUE_CONTROL_*</code>: <code>STORE</code>, <code>CACHE_MB</code>, <code>LISTEN</code>, <code>ADMIN_TOKEN</code>,
+<code>GITHUB_CLIENT_ID</code> / <code>GITHUB_CLIENT_SECRET</code>, <code>DASHBOARD_URL</code>, <code>HOSTNAME</code>,
+<code>ACME</code> / <code>ACME_EMAIL</code> / <code>ACME_CACHE</code> / <code>ACME_STAGING</code>, <code>TLS_CERT</code> / <code>TLS_KEY</code>.
+See <a href="../self-hosting/"><code>self-hosting.md</code></a> and the control-plane distribution's
+own docs.</p>
+<h2 id="the-skimasque-cli-credential-file">The <code>skimasque</code> CLI credential file</h2>
+<p><code>skimasque login</code> stores a session (mode <code>0600</code>) at, in order of preference:
+<code>$SKIMASQUE_CONFIG_HOME</code>, <code>$XDG_CONFIG_HOME/skimasque/</code>,
+<code>~/.config/skimasque/</code> (Unix), <code>%APPDATA%\skimasque\</code> (Windows).
+<code>--control-plane</code> / <code>$SKIMASQUE_CONTROL_PLANE</code> selects the control plane
+(default: SkiMasque Cloud).</p>
+</article></div></section></main><footer class="v-site-footer"><div class="v-footer-art" aria-hidden="true"><svg class="v-contour" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M0 200 C120 160 200 210 320 170 S560 120 800 160"/><path d="M0 170 C120 130 200 180 320 140 S560 90 800 130"/><path d="M0 140 C120 100 200 150 320 110 S560 60 800 100"/><path d="M0 110 C120 70 200 120 320 80 S560 30 800 70"/><path d="M0 80 C120 40 200 90 320 50 S560 0 800 40"/></g></svg><svg class="v-mountain" viewBox="0 0 800 160" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="v-mountain-far" d="M0 160 L0 90 L120 40 L200 80 L300 20 L420 90 L520 50 L640 100 L720 60 L800 90 L800 160 Z"/><path class="v-mountain-near" d="M0 160 L0 120 L90 80 L180 115 L280 70 L380 120 L480 95 L590 125 L690 85 L800 120 L800 160 Z"/></svg></div><div class="v-wrap v-footer-grid"><div class="v-footer-brand"><p class="v-footer-name">SkiMasque</p><p>Identity-aware network access<br>for developers and workloads.</p></div><nav aria-label="Footer"><div class="v-footer-col"><p class="v-footer-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Resources</p><ul><li><a href="../../docs/">Documentation</a></li><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Company</p><ul><li><a href="../../about/">About</a></li><li><a href="../../contact/">Contact</a></li><li><a href="../../trust/">Trust</a></li><li><a href="../../status/">Status</a></li><li><a href="../../security/">Security</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Legal</p><ul><li>Privacy <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li><li>Terms <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li></ul></div></nav></div><p class="v-wrap v-footer-legal">© SkiMasque</p></footer></body></html>

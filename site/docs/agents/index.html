@@ -1,0 +1,252 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><script>(() => {
+  const key = 'skimasque-theme';
+  const root = document.documentElement;
+  let theme = 'system';
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === 'light' || saved === 'dark') theme = saved;
+  } catch (_) { /* Storage may be disabled; switching still works. */ }
+  function apply() {
+    if (theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+  }
+  apply();
+  document.addEventListener('DOMContentLoaded', () => {
+    const control = document.querySelector('.v-theme-control');
+    const picker = document.querySelector('#site-theme');
+    if (!control || !picker) return;
+    picker.value = theme;
+    control.hidden = false;
+    picker.addEventListener('change', () => {
+      theme = picker.value;
+      apply();
+      try { localStorage.setItem(key, theme); } catch (_) { /* Keep the current-page choice. */ }
+    });
+  });
+})();
+</script><title>Giving a coding agent network access · SkiMasque</title><meta name="description" content="Giving a coding agent network access"><meta property="og:title" content="Giving a coding agent network access · SkiMasque"><meta property="og:description" content="Giving a coding agent network access"><meta property="og:type" content="website"><link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href="../../assets/visual.css?v=1bc626f0340909d7"></head><body class="v-site"><svg class="v-sprite" aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-workload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></symbol>
+<symbol id="i-developer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 8v8M17 10c0 4-4 4-8 6"/></symbol>
+<symbol id="i-ci-job" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M4 12h16M4 17h10"/><path d="M17 4.5l3 2.5-3 2.5"/></symbol>
+<symbol id="i-application" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10l3 2-3 2M12 15h5"/></symbol>
+<symbol id="i-identity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M17 12v3M20 12v2"/></symbol>
+<symbol id="i-policy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 13l2 2 4-4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+<symbol id="i-gateway" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M2 8h9M8 5l3 3-3 3M22 16h-9M16 13l-3 3 3 3"/></symbol>
+<symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M11 6.8L6 16.2M13 6.8l5 9.4M7 18h10"/></symbol>
+<symbol id="i-service" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></symbol>
+<symbol id="i-api" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4C7 4 6 5 6 7v2c0 1-1 3-2 3 1 0 2 2 2 3v2c0 2 1 3 3 3M15 4c2 0 3 1 3 3v2c0 1 1 3 2 3-1 0-2 2-2 3v2c0 2-1 3-3 3"/></symbol>
+<symbol id="i-kubernetes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M12 14.5V20M4 12h5.5M14.5 12H20"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9a4.5 4.5 0 0 0 1 9z"/></symbol>
+<symbol id="i-firewall" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 10h18M3 15h18M9 5v5M15 10v5M9 15v4"/></symbol>
+<symbol id="i-internet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.5 2.5 13.5 0 16M12 4c-2.5 2.5-2.5 13.5 0 16"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-cross" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-control-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="7" rx="2"/><path d="M12 10v5M4 15h16M4 15v3M12 15v3M20 15v3"/><circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="2"/></symbol>
+<symbol id="i-cli" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l7 6-7 6M13 18h7"/></symbol>
+<symbol id="i-credential" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+<symbol id="i-audit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+</svg><a class="v-skip" href="#main">Skip to content</a><header class="v-site-header"><div class="v-wrap v-site-bar"><a class="v-brand" href="../../">SkiMasque</a><nav class="v-site-nav" aria-label="Primary"><details class="v-nav-group" name="site-nav"><summary>Product</summary><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Compare</summary><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Technology</summary><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Resources</summary><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul></details><a class="v-nav-top" href="../../pricing/">Pricing</a></nav><div class="v-site-actions"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel"><p class="v-menu-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul><p class="v-menu-title">Compare</p><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul><p class="v-menu-title">Technology</p><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul><p class="v-menu-title">Resources</p><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul><p class="v-menu-title">Pricing</p><ul><li><a href="../../pricing/">Pricing</a></li></ul><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></p></div></details></nav><label class="v-theme-control" hidden for="site-theme"><span>Theme</span><select id="site-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header><main id="main"><section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy"><h1>Giving a coding agent network access</h1><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="../">All guides</a><a class="v-btn" href="https://control.skimasque.com/app/sessions">Review agent sessions</a></p></div></div></section><section class="v-section"><div class="v-wrap"><h2>Guide</h2><article class="v-guide"><blockquote>
+<p><strong>Applies to:</strong> ✓ Mode 1 · ✓ Mode 2 · ✓ Mode 3 — wherever there is a control plane, because that is what issues and ends sessions. A standalone gateway with policy in files has none.</p>
+</blockquote>
+<p>A coding agent is a program that runs commands for you. You want it to reach a
+staging API, not production, for the length of one task, and you want to be able
+to stop it. SkiMasque does that in two parts:</p>
+<ul>
+<li><strong>An agent session</strong> — a short-lived, revocable grant of network access, issued
+to the agent on your behalf and enforced by the gateway.</li>
+<li><strong>A sandbox you provide</strong> — something that makes the agent use the gateway
+instead of connecting directly. SkiMasque decides <em>who may reach what</em>; it does
+not confine a process. See <a href="#what-skimasque-does-not-do">what SkiMasque does not do</a>.</li>
+</ul>
+<h2 id="what-a-session-is">What a session is</h2>
+<p><code>skimasque agent-session start</code> asks the control plane for a credential that
+asserts <strong>your own identity</strong> (your GitHub login as <code>actor</code>) plus
+<code>kind = agent</code> and a session id. Three consequences follow from that design:</p>
+<ol>
+<li><strong>The agent acts as the initiating user, with its own workload kind.</strong>
+Policies without a kind match both developer and agent credentials. Explicit
+<code>kind = agent</code> policies can grant different access from <code>kind = developer</code>
+policies; use baseline denials to set an organisation-wide ceiling.</li>
+<li><strong><code>kind</code> is a verified fact, not a claim.</strong> The control plane sets it, only on
+this path. A gateway cannot mint an <code>agent</code> or <code>developer</code> credential, and a
+token cannot name its own kind.</li>
+<li><strong>Labels are not identity.</strong> <code>--runtime claude-code</code> and <code>--run-id</code> are
+recorded for audit and shown in the console. They are never matched by
+policy. An agent that calls itself <code>deployment-agent</code> gains nothing.</li>
+</ol>
+<p>A session lasts 30 minutes unless you ask for longer, and never more than 4
+hours. It ends when it expires or when you end it, whichever is first. An org
+owner can set a lower ceiling for each kind of credential
+(<code>PUT /v1/orgs/{org}/credential-limits</code>, e.g. <code>{"agent": 3600}</code> to cap agent
+sessions at an hour); an org can lower the built-in ceiling but never raise it.</p>
+<h2 id="start-hand-over-end">Start, hand over, end</h2>
+<pre><code class="language-console">$ skimasque login
+$ SID=$(skimasque agent-session start --runtime claude-code --run-id fix-1432 \
+      --ttl 45m --token-file /run/agent/skimasque.token)
+Started agent session sess_3f9c… (ends in 45m).
+Credential written to /run/agent/skimasque.token (owner-only).
+End it any time: skimasque agent-session end sess_3f9c…
+
+$ skimasque agent-session list
+ID                       STARTED BY       RUNTIME        STATE    ENDS
+sess_3f9c…               octocat          claude-code    active   in 44m
+
+$ skimasque agent-session end $SID
+</code></pre>
+<p>The credential is a secret, so <code>start</code> never shows it unless you say where it
+goes: <code>--token-file</code> (a new file only you can read; it will not overwrite an
+existing one without <code>--force</code>) or <code>--print-token</code> (the token alone on stdout).
+If the file cannot be written, the session is ended again rather than left
+running with a lost credential.</p>
+<p>You can also inspect and end sessions in the console (<strong>Sessions → Agent
+sessions</strong>), which also shows what each session was allowed and refused.</p>
+<h3 id="delegating">Delegating</h3>
+<p><code>--parent &lt;session-id&gt;</code> starts a session delegated from one of yours (a sub-agent,
+say). A child never outlives its parent, and ending the parent ends the children.</p>
+<h2 id="a-policy-for-agents">A policy for agents</h2>
+<p>Because an agent is you plus <code>kind = agent</code>, a policy that does not mention
+<code>kind</code> applies to both. To give agents less than people, write one policy for
+each and name the kind:</p>
+<pre><code class="language-toml"># What an agent may reach: staging only.
+name = "agent-staging"
+[match]
+organization = "acme"
+actor = "octocat"
+kind = "agent"
+
+[session]
+max_duration = "1h"
+
+[[rules]]
+application = "*"
+action = "allow"
+destinations = ["api.staging.acme.dev:443", "github.com:443"]
+</code></pre>
+<p>A policy that names a <code>kind</code> never matches an identity with none (a credential
+from before kinds existed), and a policy that names none matches every kind.
+Check what a given identity would get before you rely on it:</p>
+<pre><code class="language-console">$ skimasque why db.prod:5432 --kind agent --actor octocat
+</code></pre>
+<p>To keep agents out of something regardless of what any policy allows, add a
+<a href="../policies/#baselines--guardrails-over-every-policy">baseline</a> — for example
+<code>kind = "agent"</code> denying <code>*.prod.acme.dev:*</code>, or denying UDP.</p>
+<p>When an agent is refused, the message names the policy that decided it, and the
+console's explanation says if a policy was missed only because of its <code>kind</code>.</p>
+<h2 id="making-the-agent-use-it">Making the agent use it</h2>
+<p>SkiMasque grants and audits access; <strong>a sandbox makes the agent unable to go
+around it.</strong></p>
+<h3 id="one-command-exec---agent---sandbox-srt">One command: <code>exec --agent --sandbox srt</code></h3>
+<pre><code class="language-console">$ npm install -g @anthropic-ai/sandbox-runtime     # once; Anthropic's sandbox runtime
+$ skimasque exec --agent --sandbox srt \
+      --allow-domain '*.acme.dev' --allow-domain github.com \
+      --runtime claude-code --ttl 45m -- claude
+</code></pre>
+<p>This starts an agent session, runs the command inside the sandbox runtime
+(<code>srt</code>) with SkiMasque as the only way out, and ends the session when the command
+exits, however it exits. In detail:</p>
+<ul>
+<li>The credential lives only in the <code>exec</code> process. It is not written to a file,
+not in the command's environment, not in any argument. <code>SKIMASQUE_TOKEN</code>,
+<code>SKIMASQUE_TOKEN_FILE</code> and proxy variables are removed from the environment
+the command inherits.</li>
+<li><code>srt</code>'s proxy is chained to <code>exec</code>'s own, so HTTPS and other TCP from the
+command (including through <code>srt</code>'s SOCKS5 proxy) reach the gateway, and the
+gateway's policy decides each connection. UDP is not available inside the
+sandbox.</li>
+<li><code>--allow-domain</code> is <code>srt</code>'s own allowlist, an outer fence, and it is required
+because <code>srt</code> accepts no bare <code>*</code> (nor a whole TLD like <code>*.com</code>). A domain
+allowed here but denied by policy is still denied, with the policy named in the
+message.</li>
+<li>Before the command starts, <code>exec</code> runs a probe <strong>inside</strong> the sandbox that tries
+a direct connection to this host's own network address. If that is not
+blocked, or the probe cannot run to completion, <code>exec</code> refuses to start the
+command. It never runs an agent it could not confirm was confined.</li>
+<li>The directory holding your <code>skimasque login</code> session is added to the sandbox's
+<code>denyRead</code>, so the command cannot read the login that started it. The sandbox
+may write to the working directory only; <code>--sandbox-settings &lt;file&gt;</code> merges
+your own <code>srt</code> settings (its <code>network.allowedDomains</code> and <code>network.parentProxy</code>
+are replaced, since a different parent proxy would send traffic elsewhere).</li>
+<li>An agent must choose: <code>--sandbox srt</code>, or <code>--unsandboxed</code> to run it with
+nothing stopping direct connections (for when something else confines it).</li>
+</ul>
+<p>What this was tried against: Linux (bubblewrap), <code>srt</code> 0.0.78, in a container.
+There, a request to an allowed host through the gateway succeeds; the same host
+on a port policy forbids is refused by the gateway; a direct connection with
+proxy variables bypassed fails; and the login directory is unreadable. macOS
+(Seatbelt) is <code>srt</code>'s documented behaviour and has not been tried here. On
+Windows <code>srt</code> needs a one-time administrator <code>windows-install</code> to set up its
+firewall rules; untried here too, and the probe is what tells you if it is
+working.</p>
+<p>Known limits: plain <code>http://</code> through the sandbox works, one request per
+connection (no keep-alive; see <code>docs/cli.md</code>). <code>--forward</code> cannot be combined with <code>--sandbox</code>, since the sandboxed command
+cannot reach loopback listeners outside it. The sandbox's DNS resolution, as <code>srt</code>
+documents, is not fenced on every platform.</p>
+<h3 id="doing-it-yourself">Doing it yourself</h3>
+<p>Anything that can confine a process and accept an external proxy works. The
+shape:</p>
+<pre><code>sandboxed agent ──▶ local proxy (outside the sandbox) ──▶ gateway ──▶ destination
+</code></pre>
+<ol>
+<li>Start the session and write its credential <strong>outside</strong> the sandbox.</li>
+<li>Run the network client outside the sandbox too, pointed at that file:
+<code>skimasque-client --auth-token-file /run/agent/skimasque.token … socks5</code>.
+<code>--auth-token-file</code> keeps the credential out of the process list and the
+environment.</li>
+<li>Give the sandboxed process only the proxy's address, and block its direct
+outbound networking.</li>
+</ol>
+<p>The agent must not be able to read the credential file, the session
+<code>skimasque login</code> stores (<code>credentials.json</code> under <code>$XDG_CONFIG_HOME/skimasque</code>,
+<code>~/.config/skimasque</code>, or <code>%APPDATA%\skimasque</code>), the client's process, or any
+control socket. Note that a client started with no token of its own falls back
+to that login session and mints a <em>developer</em> credential from it, so always give
+the agent's client a token file. A stolen credential works from anywhere until it expires or is ended.</p>
+<p>Proxy environment variables (<code>ALL_PROXY</code>, <code>HTTPS_PROXY</code>) help programs find the
+proxy; they do not enforce anything. What enforces it is the sandbox refusing
+everything else. When you set one up, test that each of these <strong>fails</strong> from
+inside it:</p>
+<ul>
+<li>a direct TCP or UDP connection to an outside address,</li>
+<li>the same with the proxy variables cleared,</li>
+<li>the same over IPv6,</li>
+<li>DNS to an outside resolver,</li>
+<li>the same from a child process the agent spawns.</li>
+</ul>
+<p>An existing sandbox that supports an external HTTP or SOCKS proxy (Anthropic's
+sandbox runtime does) is a good starting point, so you do not have to build one.</p>
+<h2 id="ending-a-session">Ending a session</h2>
+<p><code>agent-session end</code> (or the console button) does three things:</p>
+<ul>
+<li>the session's credential is refused for any new tunnel,</li>
+<li>tunnels already open for it are closed,</li>
+<li>every session delegated from it ends too.</li>
+</ul>
+<p>Gateways long-poll the control plane for the list of ended sessions, and the
+control plane answers the moment one is ended, so this takes about one network
+round trip. The list is kept on disk, so a gateway that restarts during an
+outage still refuses sessions it knew were ended. If a gateway <strong>cannot reach the
+control plane</strong>, it keeps enforcing the last list it has, and a session ended
+during the outage is bounded by the credential's own expiry (at most 4 hours).
+Tunnels for a session also close when its credential expires, so a tunnel opened
+a minute before expiry does not outlive the session.</p>
+<h2 id="what-skimasque-does-not-do">What SkiMasque does not do</h2>
+<ul>
+<li><strong>It does not sandbox the agent.</strong> Nothing here stops a process from
+connecting directly if the host lets it.</li>
+<li><strong>It does not authorize inside a destination.</strong> Reaching a database does not
+make an agent read-only. Keep database permissions and API scopes at the
+destination.</li>
+<li><strong>It does not prove which program is running.</strong> The runtime label is
+self-reported; the application name is session context, not proof.</li>
+<li><strong>It does not bind a credential to a machine.</strong> It is a bearer token.</li>
+<li><strong>It cuts a session's tunnels at expiry, but not other credentials'.</strong> CI and
+developer credentials are checked when a tunnel opens and are not cut mid-way
+(a job longer than the credential's lifetime would break). Agent sessions are.</li>
+<li><strong><code>[session] max_duration</code> is not enforced by the gateway.</strong> Use <code>--ttl</code> to
+bound an agent session.</li>
+</ul>
+</article></div></section></main><footer class="v-site-footer"><div class="v-footer-art" aria-hidden="true"><svg class="v-contour" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M0 200 C120 160 200 210 320 170 S560 120 800 160"/><path d="M0 170 C120 130 200 180 320 140 S560 90 800 130"/><path d="M0 140 C120 100 200 150 320 110 S560 60 800 100"/><path d="M0 110 C120 70 200 120 320 80 S560 30 800 70"/><path d="M0 80 C120 40 200 90 320 50 S560 0 800 40"/></g></svg><svg class="v-mountain" viewBox="0 0 800 160" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="v-mountain-far" d="M0 160 L0 90 L120 40 L200 80 L300 20 L420 90 L520 50 L640 100 L720 60 L800 90 L800 160 Z"/><path class="v-mountain-near" d="M0 160 L0 120 L90 80 L180 115 L280 70 L380 120 L480 95 L590 125 L690 85 L800 120 L800 160 Z"/></svg></div><div class="v-wrap v-footer-grid"><div class="v-footer-brand"><p class="v-footer-name">SkiMasque</p><p>Identity-aware network access<br>for developers and workloads.</p></div><nav aria-label="Footer"><div class="v-footer-col"><p class="v-footer-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Resources</p><ul><li><a href="../../docs/">Documentation</a></li><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Company</p><ul><li><a href="../../about/">About</a></li><li><a href="../../contact/">Contact</a></li><li><a href="../../trust/">Trust</a></li><li><a href="../../status/">Status</a></li><li><a href="../../security/">Security</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Legal</p><ul><li>Privacy <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li><li>Terms <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li></ul></div></nav></div><p class="v-wrap v-footer-legal">© SkiMasque</p></footer></body></html>

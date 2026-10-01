@@ -1,0 +1,304 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><script>(() => {
+  const key = 'skimasque-theme';
+  const root = document.documentElement;
+  let theme = 'system';
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === 'light' || saved === 'dark') theme = saved;
+  } catch (_) { /* Storage may be disabled; switching still works. */ }
+  function apply() {
+    if (theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+  }
+  apply();
+  document.addEventListener('DOMContentLoaded', () => {
+    const control = document.querySelector('.v-theme-control');
+    const picker = document.querySelector('#site-theme');
+    if (!control || !picker) return;
+    picker.value = theme;
+    control.hidden = false;
+    picker.addEventListener('change', () => {
+      theme = picker.value;
+      apply();
+      try { localStorage.setItem(key, theme); } catch (_) { /* Keep the current-page choice. */ }
+    });
+  });
+})();
+</script><title>The SkiMasque control protocol · SkiMasque</title><meta name="description" content="The SkiMasque control protocol"><meta property="og:title" content="The SkiMasque control protocol · SkiMasque"><meta property="og:description" content="The SkiMasque control protocol"><meta property="og:type" content="website"><link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href="../../assets/visual.css?v=1bc626f0340909d7"></head><body class="v-site"><svg class="v-sprite" aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-workload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></symbol>
+<symbol id="i-developer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 8v8M17 10c0 4-4 4-8 6"/></symbol>
+<symbol id="i-ci-job" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M4 12h16M4 17h10"/><path d="M17 4.5l3 2.5-3 2.5"/></symbol>
+<symbol id="i-application" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10l3 2-3 2M12 15h5"/></symbol>
+<symbol id="i-identity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M17 12v3M20 12v2"/></symbol>
+<symbol id="i-policy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 13l2 2 4-4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+<symbol id="i-gateway" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M2 8h9M8 5l3 3-3 3M22 16h-9M16 13l-3 3 3 3"/></symbol>
+<symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M11 6.8L6 16.2M13 6.8l5 9.4M7 18h10"/></symbol>
+<symbol id="i-service" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></symbol>
+<symbol id="i-api" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4C7 4 6 5 6 7v2c0 1-1 3-2 3 1 0 2 2 2 3v2c0 2 1 3 3 3M15 4c2 0 3 1 3 3v2c0 1 1 3 2 3-1 0-2 2-2 3v2c0 2-1 3-3 3"/></symbol>
+<symbol id="i-kubernetes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M12 14.5V20M4 12h5.5M14.5 12H20"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9a4.5 4.5 0 0 0 1 9z"/></symbol>
+<symbol id="i-firewall" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 10h18M3 15h18M9 5v5M15 10v5M9 15v4"/></symbol>
+<symbol id="i-internet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.5 2.5 13.5 0 16M12 4c-2.5 2.5-2.5 13.5 0 16"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-cross" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-control-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="7" rx="2"/><path d="M12 10v5M4 15h16M4 15v3M12 15v3M20 15v3"/><circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="2"/></symbol>
+<symbol id="i-cli" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l7 6-7 6M13 18h7"/></symbol>
+<symbol id="i-credential" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+<symbol id="i-audit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+</svg><a class="v-skip" href="#main">Skip to content</a><header class="v-site-header"><div class="v-wrap v-site-bar"><a class="v-brand" href="../../">SkiMasque</a><nav class="v-site-nav" aria-label="Primary"><details class="v-nav-group" name="site-nav"><summary>Product</summary><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Compare</summary><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Technology</summary><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Resources</summary><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul></details><a class="v-nav-top" href="../../pricing/">Pricing</a></nav><div class="v-site-actions"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel"><p class="v-menu-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul><p class="v-menu-title">Compare</p><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul><p class="v-menu-title">Technology</p><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul><p class="v-menu-title">Resources</p><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul><p class="v-menu-title">Pricing</p><ul><li><a href="../../pricing/">Pricing</a></li></ul><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></p></div></details></nav><label class="v-theme-control" hidden for="site-theme"><span>Theme</span><select id="site-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header><main id="main"><section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy"><h1>The SkiMasque control protocol</h1><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="../">All guides</a></p></div></div></section><section class="v-section"><div class="v-wrap"><h2>Guide</h2><article class="v-guide"><blockquote>
+<p><strong>Applies to:</strong> ✓ Mode 1 · ✓ Mode 2 · ✓ Mode 3 (you implement the server side)</p>
+</blockquote>
+<p>The contract between a gateway (<code>skimasque-server --control-plane &lt;url&gt;</code>) and a
+control plane. SkiMasque publishes this so that a fully self-hosted deployment
+is possible without SkiMasque Cloud: <strong>anything that serves these endpoints with
+these JSON shapes can drive a stock open-source gateway.</strong></p>
+<p>The Rust types are the <a href="https://crates.io/crates/skimasque-protocol"><code>skimasque-protocol</code></a>
+crate; this page is the human-readable reference. <code>PROTOCOL_VERSION</code> is <code>"v1"</code>.</p>
+<h2 id="shape">Shape</h2>
+<ul>
+<li>Plain HTTPS, JSON request and response bodies.</li>
+<li>Two audiences:
+<ul>
+<li><strong>Gateway ↔ control plane</strong> (documented here) — the enforcement-relevant
+surface.</li>
+<li><strong>Client ↔ control plane</strong> — <code>skimasque login</code>, org and policy management,
+usage and audit queries. Management-only, off the enforcement path;
+<a href="#client--control-plane-endpoints">summarised below</a> but not part of the
+stable contract yet.</li>
+</ul>
+</li>
+<li>After registration a gateway authenticates every call with
+<code>Authorization: Bearer &lt;secret&gt;</code>, where <code>&lt;secret&gt;</code> is the value it received in
+the registration response. <code>POST /v1/gateways/register</code> and
+<code>GET /v1/orgs/{org}/signing-key</code> are unauthenticated (a one-time token and a
+public key, respectively).</li>
+</ul>
+<h2 id="invariant">Invariant</h2>
+<p>The control plane decides <em>desired</em> state; the gateway enforces. A gateway that
+loses the control plane keeps enforcing its last cached policy and never fails
+open. Nothing here lets a control plane reach into live enforcement — the most a
+control plane does is publish policy the gateway then pulls, and sign
+credentials the gateway then verifies.</p>
+<hr />
+<h2 id="gateway--control-plane-endpoints">Gateway ↔ control plane endpoints</h2>
+<h3 id="post-v1gatewaysregister"><code>POST /v1/gateways/register</code></h3>
+<p>Register a new gateway. Unauthenticated; the one-time token is the credential.</p>
+<p>Request:</p>
+<pre><code class="language-json">{
+  "registration_token": "skmreg_…",
+  "name": "gw-eu-west-1",
+  "labels": { "env": "prod", "region": "eu-west-1" }
+}
+</code></pre>
+<p><code>labels</code> may be omitted. Response <code>200</code>:</p>
+<pre><code class="language-json">{ "gateway_id": "gw_…", "org_id": "org_…", "secret": "…" }
+</code></pre>
+<p>The gateway persists all three under <code>--control-plane-state</code>. The token is spent;
+a restart reuses the stored identity. A spent or expired token → <code>403</code>
+<code>bad_registration_token</code>.</p>
+<h3 id="get-v1gatewaysidpolicy"><code>GET /v1/gateways/{id}/policy</code></h3>
+<p>Poll for policy. <code>Authorization: Bearer &lt;secret&gt;</code>.</p>
+<ul>
+<li><code>If-None-Match: "&lt;version&gt;"</code> makes it conditional on the revision the gateway
+already holds.</li>
+<li><code>?wait=&lt;seconds&gt;</code> long-polls: the control plane holds the request open up to
+that long, answering as soon as a newer revision is published.</li>
+</ul>
+<p>Responses:</p>
+<table><thead><tr><th>Status</th><th>Meaning</th></tr></thead><tbody>
+<tr><td><code>200</code> + body</td><td>a newer revision; body below</td></tr>
+<tr><td><code>304</code></td><td>nothing newer than <code>If-None-Match</code></td></tr>
+<tr><td><code>204</code></td><td>the org has never published a policy — the gateway <strong>exits</strong> ("the control plane has no policy for this gateway's organisation yet") and restart-loops until one exists</td></tr>
+</tbody></table>
+<p><code>200</code> body:</p>
+<pre><code class="language-json">{
+  "version": 7,
+  "documents": [
+    { "name": "production.toml", "text": "name = \"production\"\n[match]\n…" }
+  ]
+}
+</code></pre>
+<p><code>version</code> is also the next <code>ETag</code> value. The gateway writes each document to its
+policy-dir cache atomically and enforces the set.</p>
+<h3 id="post-v1gatewaysidheartbeat"><code>POST /v1/gateways/{id}/heartbeat</code></h3>
+<p>Liveness and usage counters. <code>Authorization: Bearer &lt;secret&gt;</code>.</p>
+<pre><code class="language-json">{
+  "status": "online",
+  "policy_version": 7,
+  "usage": { "tunnels_opened": 128, "bytes_to_target": 9000000, "bytes_to_client": 4000000 }
+}
+</code></pre>
+<p><code>status</code> is <code>"online"</code> or <code>"degraded"</code> (the latter once the gateway has been
+past its soft policy lease with the control plane unreachable — it is still
+enforcing). <code>usage</code> is cumulative-since-start and may be omitted. The control
+plane marks a gateway <code>offline</code> in the fleet view if heartbeats lapse.</p>
+<h3 id="put-v1gatewaysidlabels"><code>PUT /v1/gateways/{id}/labels</code></h3>
+<p>Declare (or update) the gateway's labels for policy targeting. Idempotent.</p>
+<pre><code class="language-json">{ "labels": { "env": "prod", "region": "eu-west-1" } }
+</code></pre>
+<h3 id="post-v1gatewaysidcredentials"><code>POST /v1/gateways/{id}/credentials</code></h3>
+<p>Ask the control plane to sign a platform credential for a workload identity the
+gateway <strong>has already verified</strong> from the runner's OIDC token. <code>Authorization:  Bearer &lt;secret&gt;</code>.</p>
+<pre><code class="language-json">{
+  "identity": { "organization": "acme", "repository": "acme/widget", "workflow": "deploy.yml", "git_ref": "refs/heads/main" },
+  "subject": "repo:acme/widget:ref:refs/heads/main",
+  "ttl_seconds": 3600
+}
+</code></pre>
+<p>Response:</p>
+<pre><code class="language-json">{ "credential": "&lt;JWT&gt;", "expires_in": 3600 }
+</code></pre>
+<p>The credential is signed with the org's Ed25519 private key. <code>expires_in</code> is the
+actual lifetime after any server-side cap. The gateway may fall back to a
+locally signed HS256 credential if this endpoint is unreachable (unless
+<code>--control-plane-no-credential-fallback</code>).</p>
+<h3 id="get-v1gatewaysidrevocations"><code>GET /v1/gateways/{id}/revocations</code></h3>
+<p>The agent sessions that have been ended and whose credentials could still be
+presented. Long-polls like the policy endpoint: <code>?generation=&lt;n&gt;</code> is the
+<code>generation</code> from the last answer, <code>?wait=&lt;seconds&gt;</code> holds the request open
+(capped at 60), and <code>304</code> means nothing has changed. A <code>200</code> is always the
+<strong>complete</strong> current list, never a delta:</p>
+<pre><code class="language-json">{ "generation": 7, "revoked": [ { "sid": "sess_3f9c…", "expires_at_ms": 1790000000000 } ] }
+</code></pre>
+<p>A gateway refuses new tunnels for a listed <code>sid</code>, closes its open ones, and
+persists the list. A platform gateway uses
+<code>GET /v1/platform/gateways/{id}/revocations</code>, which covers every org it serves.</p>
+<h3 id="get-v1orgsorgsigning-key"><code>GET /v1/orgs/{org}/signing-key</code></h3>
+<p>The org's Ed25519 public key. Unauthenticated. The gateway verifies
+control-plane-minted credentials against this <strong>offline</strong>, with no further calls.</p>
+<pre><code class="language-json">{
+  "org_id": "org_…",
+  "algorithm": "ed25519",
+  "public_key_b64": "…",            // raw 32-byte key, standard base64
+  "previous_public_key_b64": "…"     // present across a rotation, until old credentials expire
+}
+</code></pre>
+<p>The gateway re-fetches this on <code>--control-plane-signing-key-interval</code> (default
+1h) so an in-place rotation is picked up without a restart.</p>
+<h3 id="get-v1gatewaysidaudithead"><code>GET /v1/gateways/{id}/audit/head</code></h3>
+<p>The tail of this gateway's audit chain, so a restart resumes its sequence.</p>
+<pre><code class="language-json">{ "seq": 4210, "hash": "…" }        // seq 0, hash = 64 zeros, before anything is shipped
+</code></pre>
+<h3 id="post-v1gatewaysidaudit"><code>POST /v1/gateways/{id}/audit</code></h3>
+<p>Ship a hash-chained batch of audit events. <code>Authorization: Bearer &lt;secret&gt;</code>.</p>
+<pre><code class="language-json">{
+  "events": [
+    { "seq": 4211, "prev_hash": "&lt;hash of 4210&gt;", "event_json": "{…the audit event verbatim…}" }
+  ]
+}
+</code></pre>
+<p>Each link is <code>sha256(seq_be || prev_hash || event_json)</code> as lowercase hex
+(<code>skimasque_protocol::audit_hash</code>). The control plane recomputes the chain and
+<strong>rejects a break</strong> (<code>409</code>). Response:</p>
+<pre><code class="language-json">{ "head_seq": 4211 }
+</code></pre>
+<p>Audit shipping is fail-static: a ship failure never blocks enforcement, and the
+gateway's local JSONL sink stays authoritative.</p>
+<hr />
+<h2 id="platform-gateway-endpoints-mode-1">Platform gateway endpoints (Mode 1)</h2>
+<p>A <strong>platform gateway</strong> is SkiMasque Cloud's shared, multi-tenant gateway. It
+belongs to no single organisation. Types live in <code>skimasque_protocol::platform</code>.
+A customer-operated gateway (Mode 2) never calls these endpoints, and a
+platform gateway is refused by the single-org endpoints above
+(<code>403 platform_gateway</code>).</p>
+<p>Every refusal is <code>403</code> or <code>422</code> with a body
+<code>{ "code": "&lt;code&gt;", "message": "&lt;sentence for a person&gt;" }</code>. The codes are
+<code>owner_not_verified</code>, <code>over_cap</code>, <code>unknown_org</code>, <code>not_platform_gateway</code> and
+<code>platform_gateway</code>.</p>
+<h3 id="post-v1platformregister"><code>POST /v1/platform/register</code></h3>
+<p>Register with a one-time <strong>platform</strong> registration token, issued by the
+operator (admin token). Unauthenticated.</p>
+<pre><code class="language-json">{ "registration_token": "skmreg_…", "name": "shared-1", "labels": { "region": "us" } }
+</code></pre>
+<p>Response: <code>{ "gateway_id": "gw_…", "secret": "…" }</code>. There is no <code>org_id</code>.</p>
+<h3 id="get-v1platformgatewaysidtenants"><code>GET /v1/platform/gateways/{id}/tenants</code></h3>
+<p>The tenant list, with the same <code>If-None-Match: "&lt;version&gt;"</code> and <code>?wait=&lt;seconds&gt;</code>
+long-poll semantics as the policy poll.</p>
+<pre><code class="language-json">{
+  "version": 42,
+  "tenants": [
+    {
+      "org_id": "org_…",
+      "slug": "acme",
+      "owners": ["acme", "octocat"],
+      "policy": { "version": 7, "documents": [ { "name": "prod.toml", "text": "…" } ] },
+      "signing_key": { "org_id": "org_…", "algorithm": "ed25519", "public_key_b64": "…" }
+    }
+  ]
+}
+</code></pre>
+<p><code>policy</code> is <code>null</code> until the organisation publishes, and every request for it
+is then denied. Documents are already filtered to those whose label target the
+gateway satisfies. <code>owners</code> are lowercase GitHub logins.</p>
+<ul>
+<li><code>owner_ids</code> maps each owner login to GitHub's numeric account id when one is
+recorded. A gateway must match the OIDC <code>repository_owner_id</code> against it.</li>
+</ul>
+<p>A job is resolved to a tenant at token exchange:</p>
+<ul>
+<li>its OIDC audience must be exactly <code>https://&lt;gateway host&gt;/o/&lt;slug&gt;</code>;</li>
+<li>its GitHub owner (<code>repository_owner</code>, carried as the identity's
+<code>organization</code>) must be in that tenant's <code>owners</code>.</li>
+</ul>
+<h3 id="post-v1platformgatewaysidcredentials"><code>POST /v1/platform/gateways/{id}/credentials</code></h3>
+<pre><code class="language-json">{ "org_id": "org_…", "identity": { "organization": "acme", "repository": "acme/widget" }, "ttl_seconds": 900 }
+</code></pre>
+<p>The control plane re-checks the owner and the plan allowance, then signs with
+<strong>that organisation's</strong> key. The credential carries a top-level <code>org_id</code> claim.
+The response is the same as the single-org mint:
+<code>{ "credential": "&lt;JWT&gt;", "expires_in": 900 }</code>.</p>
+<ul>
+<li><code>owner_id</code> carries the OIDC <code>repository_owner_id</code>. The control plane refuses
+the mint (<code>owner_not_verified</code>) when the owner's claim records an id and this
+is different or absent.</li>
+</ul>
+<p>A platform gateway has <strong>no local fallback</strong>. If this endpoint is unreachable,
+token exchange fails.</p>
+<h3 id="get-v1platformgatewaysidaudithead-and-post-v1platformgatewaysidaudit"><code>GET /v1/platform/gateways/{id}/audit/head</code> and <code>POST /v1/platform/gateways/{id}/audit</code></h3>
+<p>As the single-org audit endpoints, but each event names its organisation:</p>
+<pre><code class="language-json">{ "events": [ { "org_id": "org_…", "seq": 12, "prev_hash": "…", "event_json": "{…}" } ] }
+</code></pre>
+<p>The chain is per gateway and hashed exactly as in the single-org protocol. The
+control plane files each event under its <code>org_id</code>, and rejects the whole batch
+(<code>422 unknown_org</code>) if any event names an organisation that is not a tenant.</p>
+<h3 id="post-v1platformgatewaysidheartbeat"><code>POST /v1/platform/gateways/{id}/heartbeat</code></h3>
+<pre><code class="language-json">{ "status": "online", "tenants_version": 42, "usage_by_org": { "org_…": { "tunnels_opened": 3, "bytes_to_target": 0, "bytes_to_client": 0 } } }
+</code></pre>
+<p>Usage counters are cumulative since the gateway process started, per
+organisation, as in the single-org heartbeat.</p>
+<h2 id="client--control-plane-endpoints">Client ↔ control plane endpoints</h2>
+<p>Not part of the stable contract; listed so a self-hosted control plane knows the
+surface <code>skimasque login</code> / <code>org</code> / <code>audit</code> / <code>status</code> and the dashboard expect.</p>
+<table><thead><tr><th>Method + path</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>POST /v1/auth/device</code>, <code>/v1/auth/device/poll</code>, <code>/v1/auth/logout</code></td><td>the GitHub OAuth device flow, brokered by the control plane</td></tr>
+<tr><td><code>GET /v1/me</code></td><td>the signed-in developer</td></tr>
+<tr><td><code>POST /v1/orgs</code>, <code>GET /v1/orgs</code>, <code>GET /v1/orgs/{org}</code></td><td>organisations</td></tr>
+<tr><td><code>POST/GET /v1/orgs/{org}/members</code>, <code>DELETE /v1/orgs/{org}/members/{user}</code>, <code>PUT …/role</code></td><td>membership and roles</td></tr>
+<tr><td><code>POST /v1/orgs/{org}/registration-tokens</code></td><td>mint a one-time gateway token</td></tr>
+<tr><td><code>POST /v1/orgs/{org}/policy</code>, <code>GET …/policy</code></td><td>publish / read a policy revision</td></tr>
+<tr><td><code>POST /v1/orgs/{org}/policy/simulate</code></td><td>evaluate a hypothetical request against a revision</td></tr>
+<tr><td><code>GET/POST /v1/orgs/{org}/signing-key</code>, <code>…/signing-key/rotate</code></td><td>the org signing key</td></tr>
+<tr><td><code>GET /v1/orgs/{org}/gateways</code></td><td>the fleet</td></tr>
+<tr><td><code>GET /v1/orgs/{org}/usage</code>, <code>…/usage/history</code></td><td>usage totals and the daily series</td></tr>
+<tr><td><code>GET /v1/orgs/{org}/audit</code></td><td>query shipped decisions (<code>{ events, next_cursor }</code>)</td></tr>
+<tr><td><code>POST/GET /v1/orgs/{org}/agent-sessions</code></td><td>start an agent session (<code>AgentSessionRequest</code> → <code>AgentSessionResponse</code>, with the credential) / list recent ones (<code>AgentSessionView</code>)</td></tr>
+<tr><td><code>GET/PUT /v1/orgs/{org}/credential-limits</code></td><td>how long credentials of each kind may live: read (any member) / lower the per-kind ceiling, in seconds (owner-only; above the built-in ceiling is refused)</td></tr>
+<tr><td><code>POST /v1/orgs/{org}/agent-sessions/{sid}/end</code></td><td>end one now, and the sessions delegated from it (<code>EndedSession</code>)</td></tr>
+</tbody></table>
+<h2 id="tunnel-request-headers">Tunnel request headers</h2>
+<p>A client opening a tunnel (<code>CONNECT</code> for TCP, extended <code>CONNECT</code> with
+<code>:protocol connect-udp</code> for UDP) may send, besides <code>Proxy-Authorization</code>:</p>
+<table><thead><tr><th>Header</th><th>Meaning</th></tr></thead><tbody>
+<tr><td><code>X-Masque-Application: &lt;name&gt;</code></td><td>WHAT — the application the client declares. Policy rules match on it. Session context, not an authenticated fact.</td></tr>
+<tr><td><code>X-Masque-Policy: &lt;name&gt;</code></td><td>A pin. The gateway selects the policy for the client's identity exactly as it would without the header; if the selected policy is not <code>&lt;name&gt;</code> the tunnel is refused <code>403</code> with <code>Proxy-Status: …; error=destination_prohibited; details="Policy \"&lt;name&gt;\" does not apply to this identity; …"</code>. The header never selects a policy, so it can only narrow access. Audit events carry it as <code>requested_policy</code>.</td></tr>
+</tbody></table>
+<p>Both are part of the open protocol: any gateway, SkiMasque Cloud or
+self-hosted, honours them the same way.</p>
+<h2 id="health">Health</h2>
+<p><code>GET /healthz</code> and <code>GET /readyz</code> are unauthenticated. <code>GET /metrics</code> (Prometheus)
+is gated by the admin token.</p>
+</article></div></section></main><footer class="v-site-footer"><div class="v-footer-art" aria-hidden="true"><svg class="v-contour" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M0 200 C120 160 200 210 320 170 S560 120 800 160"/><path d="M0 170 C120 130 200 180 320 140 S560 90 800 130"/><path d="M0 140 C120 100 200 150 320 110 S560 60 800 100"/><path d="M0 110 C120 70 200 120 320 80 S560 30 800 70"/><path d="M0 80 C120 40 200 90 320 50 S560 0 800 40"/></g></svg><svg class="v-mountain" viewBox="0 0 800 160" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="v-mountain-far" d="M0 160 L0 90 L120 40 L200 80 L300 20 L420 90 L520 50 L640 100 L720 60 L800 90 L800 160 Z"/><path class="v-mountain-near" d="M0 160 L0 120 L90 80 L180 115 L280 70 L380 120 L480 95 L590 125 L690 85 L800 120 L800 160 Z"/></svg></div><div class="v-wrap v-footer-grid"><div class="v-footer-brand"><p class="v-footer-name">SkiMasque</p><p>Identity-aware network access<br>for developers and workloads.</p></div><nav aria-label="Footer"><div class="v-footer-col"><p class="v-footer-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Resources</p><ul><li><a href="../../docs/">Documentation</a></li><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Company</p><ul><li><a href="../../about/">About</a></li><li><a href="../../contact/">Contact</a></li><li><a href="../../trust/">Trust</a></li><li><a href="../../status/">Status</a></li><li><a href="../../security/">Security</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Legal</p><ul><li>Privacy <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li><li>Terms <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li></ul></div></nav></div><p class="v-wrap v-footer-legal">© SkiMasque</p></footer></body></html>

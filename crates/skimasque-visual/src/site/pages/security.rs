@@ -1,5 +1,5 @@
 //! Security (`/security`): canonical spec §20. Every claim here is backed by
-//! `docs/security.md` or `docs/threat-model.md`; the voice is "is designed to",
+//! `docs/security/` or `docs/threat-model/`; the voice is "is designed to",
 //! never an absolute guarantee.
 
 use super::{doc, DocLinks};
@@ -190,8 +190,8 @@ mod tests {
             "identified by the stream it ships on",
             "while the control plane is unreachable",
             "How the gateway enforces it",
-            "docs/security.md",
-            "docs/threat-model.md",
+            "docs/security/",
+            "docs/threat-model/",
             "has not had an independent security review",
         ] {
             assert!(s.contains(want), "missing {want:?}");

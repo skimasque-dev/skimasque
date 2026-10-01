@@ -1,6 +1,6 @@
 //! Open source (`/open-source`): canonical spec §24. What is open, and under
-//! which licence, comes from `README.md`, `docs/architecture.md`,
-//! `docs/self-hosting.md` and the workspace `Cargo.toml` (MIT OR Apache-2.0).
+//! which licence, comes from `README.md`, `docs/architecture/`,
+//! `docs/self-hosting/` and the workspace `Cargo.toml` (MIT OR Apache-2.0).
 //! There is no open-source control-plane server, and this page never implies one.
 
 use super::{doc, DocLinks};
@@ -120,7 +120,7 @@ mod tests {
             "https://crates.io/crates/skimasque-protocol",
             "https://crates.io/crates/skimasque-policy",
             "https://crates.io/crates/skimasque-core",
-            "docs/architecture.md",
+            "docs/architecture/",
             "OPEN SOURCE",
             "CORE NETWORKING",
             "SELF-HOSTED",

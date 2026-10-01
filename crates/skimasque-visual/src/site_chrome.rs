@@ -111,14 +111,13 @@ impl SiteNav {
     fn sign_in(&self) -> &'static str {
         SIGN_IN_URL
     }
-    fn get_started(&self) -> &'static str {
-        GET_STARTED_URL
+    fn get_started(&self) -> String {
+        link(&self.root, "docs/getting-started")
     }
 }
 impl Component for SiteNav {}
 
-pub const GET_STARTED_URL: &str =
-    "https://github.com/skimasque-dev/skimasque/blob/main/docs/getting-started.md";
+pub const GET_STARTED_URL: &str = "../docs/getting-started/";
 
 #[derive(Template, Debug, Clone)]
 #[template(path = "site_footer.html")]
@@ -248,10 +247,9 @@ mod tests {
     #[test]
     fn the_home_page_marks_the_brand_current() {
         let s = SiteNav::new("", "").html();
-        assert!(
-            s.as_str()
-                .contains(r#"class="v-brand" aria-current="page""#)
-        );
+        assert!(s
+            .as_str()
+            .contains(r#"class="v-brand" aria-current="page""#));
     }
 
     #[test]

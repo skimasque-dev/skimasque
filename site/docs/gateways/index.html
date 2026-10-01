@@ -1,0 +1,284 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><script>(() => {
+  const key = 'skimasque-theme';
+  const root = document.documentElement;
+  let theme = 'system';
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === 'light' || saved === 'dark') theme = saved;
+  } catch (_) { /* Storage may be disabled; switching still works. */ }
+  function apply() {
+    if (theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+  }
+  apply();
+  document.addEventListener('DOMContentLoaded', () => {
+    const control = document.querySelector('.v-theme-control');
+    const picker = document.querySelector('#site-theme');
+    if (!control || !picker) return;
+    picker.value = theme;
+    control.hidden = false;
+    picker.addEventListener('change', () => {
+      theme = picker.value;
+      apply();
+      try { localStorage.setItem(key, theme); } catch (_) { /* Keep the current-page choice. */ }
+    });
+  });
+})();
+</script><title>Running a gateway · SkiMasque</title><meta name="description" content="Running a gateway"><meta property="og:title" content="Running a gateway · SkiMasque"><meta property="og:description" content="Running a gateway"><meta property="og:type" content="website"><link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href="../../assets/visual.css?v=1bc626f0340909d7"></head><body class="v-site"><svg class="v-sprite" aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-workload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></symbol>
+<symbol id="i-developer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 8v8M17 10c0 4-4 4-8 6"/></symbol>
+<symbol id="i-ci-job" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M4 12h16M4 17h10"/><path d="M17 4.5l3 2.5-3 2.5"/></symbol>
+<symbol id="i-application" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10l3 2-3 2M12 15h5"/></symbol>
+<symbol id="i-identity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M17 12v3M20 12v2"/></symbol>
+<symbol id="i-policy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 13l2 2 4-4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+<symbol id="i-gateway" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M2 8h9M8 5l3 3-3 3M22 16h-9M16 13l-3 3 3 3"/></symbol>
+<symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M11 6.8L6 16.2M13 6.8l5 9.4M7 18h10"/></symbol>
+<symbol id="i-service" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></symbol>
+<symbol id="i-api" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4C7 4 6 5 6 7v2c0 1-1 3-2 3 1 0 2 2 2 3v2c0 2 1 3 3 3M15 4c2 0 3 1 3 3v2c0 1 1 3 2 3-1 0-2 2-2 3v2c0 2-1 3-3 3"/></symbol>
+<symbol id="i-kubernetes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M12 14.5V20M4 12h5.5M14.5 12H20"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9a4.5 4.5 0 0 0 1 9z"/></symbol>
+<symbol id="i-firewall" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 10h18M3 15h18M9 5v5M15 10v5M9 15v4"/></symbol>
+<symbol id="i-internet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.5 2.5 13.5 0 16M12 4c-2.5 2.5-2.5 13.5 0 16"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-cross" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-control-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="7" rx="2"/><path d="M12 10v5M4 15h16M4 15v3M12 15v3M20 15v3"/><circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="2"/></symbol>
+<symbol id="i-cli" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l7 6-7 6M13 18h7"/></symbol>
+<symbol id="i-credential" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+<symbol id="i-audit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+</svg><a class="v-skip" href="#main">Skip to content</a><header class="v-site-header"><div class="v-wrap v-site-bar"><a class="v-brand" href="../../">SkiMasque</a><nav class="v-site-nav" aria-label="Primary"><details class="v-nav-group" name="site-nav"><summary>Product</summary><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Compare</summary><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Technology</summary><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Resources</summary><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul></details><a class="v-nav-top" href="../../pricing/">Pricing</a></nav><div class="v-site-actions"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel"><p class="v-menu-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul><p class="v-menu-title">Compare</p><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul><p class="v-menu-title">Technology</p><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul><p class="v-menu-title">Resources</p><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul><p class="v-menu-title">Pricing</p><ul><li><a href="../../pricing/">Pricing</a></li></ul><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></p></div></details></nav><label class="v-theme-control" hidden for="site-theme"><span>Theme</span><select id="site-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header><main id="main"><section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy"><h1>Running a gateway</h1><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="../">All guides</a><a class="v-btn" href="https://control.skimasque.com/app/gateways">Register a gateway</a></p></div></div></section><section class="v-section"><div class="v-wrap"><h2>Guide</h2><article class="v-guide"><blockquote>
+<p><strong>Applies to:</strong> ✓ Mode 2 · ✓ Mode 3 · (Mode 1 — SkiMasque runs the gateway)</p>
+</blockquote>
+<p>The gateway (<code>skimasque-server</code>) is one stateless process. It holds no database;
+its policy and TLS material are files it re-reads in place, and every tunnel is
+ephemeral. That makes it cheap to run several and to replace them without
+cutting a running job.</p>
+<p>The onboarding flow, whichever target you pick:</p>
+<pre><code>deploy the gateway
+      ↓
+allow the gateway → the resources it should reach   (your firewall)
+      ↓
+give it an identity source        (--github-oidc, or --auth-token)
+      ↓
+policy                            (a file, or --control-plane)
+      ↓
+point CI at it                    (skimasque-dev/connect@v2)
+</code></pre>
+<p>Your firewall stays the outer boundary — it decides what the gateway <em>can</em>
+reach. SkiMasque decides <em>who</em> may use that reachability.</p>
+<h2 id="ports">Ports</h2>
+<table><thead><tr><th>Port</th><th>For</th></tr></thead><tbody>
+<tr><td><code>443/udp</code> (or <code>4433/udp</code> in examples)</td><td>MASQUE over QUIC. <strong>UDP</strong> — any load balancer must forward UDP.</td></tr>
+<tr><td><code>443/tcp</code></td><td>only with <code>--acme</code>: the Let's Encrypt TLS-ALPN-01 challenge.</td></tr>
+<tr><td><code>&lt;metrics&gt;/tcp</code></td><td><code>/healthz</code>, <code>/readyz</code>, <code>/metrics</code> when <code>--metrics-listen</code> is set. Keep on an internal interface.</td></tr>
+</tbody></table>
+<h2 id="tls">TLS</h2>
+<p>Easiest first:</p>
+<ul>
+<li><strong><code>--acme</code> + <code>--hostname &lt;name&gt;</code></strong> (default <code>gateway.skimasque.com</code>) — the
+gateway obtains a Let's Encrypt certificate over TLS-ALPN-01 and renews it
+~30 days before expiry. Needs <code>--hostname</code> to resolve to the box, TCP+UDP 443
+reachable, and <code>--acme-cache &lt;dir&gt;</code> on a persistent volume. Clients then need
+no <code>--ca</code>.</li>
+<li><strong><code>--cert</code>/<code>--key</code> + <code>--tls-reload</code></strong> — bring your own certificate
+(cert-manager, an internal CA); the gateway re-reads it in place on change.</li>
+<li><strong>neither</strong> — a throwaway self-signed certificate, dev only; the client pins
+it with <code>--ca</code>.</li>
+</ul>
+<h2 id="the-ssrf-floor">The SSRF floor</h2>
+<p>Independent of policy, the gateway refuses tunnels to loopback, RFC 1918, CGNAT,
+link-local (including <code>169.254.169.254</code>), and multicast — checked against the
+<strong>resolved</strong> address, so a hostname that resolves into private space does not
+walk past it. To reach an internal target, name its range:</p>
+<pre><code>--allow-cidr 10.0.5.0/24        # repeatable; the precise instrument
+--allow-private                 # opens every private range at once; the blunt one
+</code></pre>
+<h2 id="container">Container</h2>
+<p>Every release publishes a <code>linux/amd64</code> gateway image (<code>linux/arm64</code> is
+dropped for now — QEMU-emulated compilation of this workspace's release
+profile did not finish in a reasonable time on the Actions runner; a
+native-arm64 runner is the likely fix) to <code>ghcr.io/skimasque-dev/skimasque</code>,
+tagged <code>vX.Y.Z</code> / <code>X.Y</code> / <code>X</code> / <code>latest</code>. While the repo is private the
+package is private too — make the
+package public (it is only compiled binaries on a Debian base), authenticate
+with a classic <code>read:packages</code> PAT, or <code>docker load</code> the
+<code>skimasque-image-amd64.tar.gz</code> attached to the release. Once the repo is public,
+each image carries a Sigstore provenance attestation.</p>
+<h3 id="standalone-gateway-policy-in-a-file">Standalone gateway, policy in a file</h3>
+<pre><code class="language-console">$ mkdir -p "$PWD/acme" &amp;&amp; sudo chown 10001:10001 "$PWD/acme"   # the image runs as uid 10001
+
+$ docker run -d --name skimasque-gateway --restart unless-stopped \
+    -p 443:443/udp -p 443:443/tcp \
+    -v "$PWD/acme:/acme" \
+    -v "$PWD/.masque/policies:/etc/skimasque/policies:ro" \
+    ghcr.io/skimasque-dev/skimasque:latest \
+      --listen 0.0.0.0:443 --hostname gw.example.com \
+      --acme --acme-email you@example.com --acme-cache /acme \
+      --github-oidc --oidc-audience https://gw.example.com \
+      --allow-cidr 10.0.0.0/8 \
+      --policy-dir /etc/skimasque/policies --policy-reload \
+      --audit-log /dev/stdout
+</code></pre>
+<p><code>docker logs -f skimasque-gateway</code> shows <code>ACME certificate issued/renewed and  now being served</code> within a minute (issuance needs inbound TCP 443 to the box — a
+cloud firewall has to allow it, not just <code>-p</code>).</p>
+<h3 id="with-a-control-plane-mode-23">With a control plane (Mode 2/3)</h3>
+<p><a href="https://github.com/skimasque-dev/skimasque/blob/main/deploy/docker/run-gateway.sh"><code>deploy/docker/run-gateway.sh</code></a> wraps the ACME
+setup (the <code>chown</code>, both port publishes, a staging/prod guard) and the
+control-plane enrolment:</p>
+<pre><code class="language-console">$ SKM_HOSTNAME=gw.example.com \
+  SKM_CONTROL_PLANE=https://control.skimasque.com \    # or your own (Mode 3)
+  SKM_CONTROL_TOKEN=skmreg_… \                          # from `skimasque gateway register`
+  ./deploy/docker/run-gateway.sh
+$ docker logs -f skimasque-gateway     # -&gt; "registered …" then "pulled policy version 1"
+</code></pre>
+<p>Or add <code>--control-plane &lt;url&gt; --control-plane-state &lt;persistent-dir&gt;</code> and
+<code>SKIMASQUE_CONTROL_TOKEN</code> to your own <code>docker run</code>. The token goes in as an env
+var so it stays out of <code>docker inspect</code>.</p>
+<ul>
+<li><strong>Do not</strong> run <code>skimasque login</code> inside the gateway container — it runs one
+server process and has no writable home. Enrol with a token instead.</li>
+<li>Publish a policy revision before the first <code>--control-plane</code> boot, or the
+gateway exits with <em>"the control plane has no policy for this gateway's
+organisation yet"</em> and restart-loops until one exists.</li>
+</ul>
+<h2 id="linux-host-systemd">Linux host (systemd)</h2>
+<p><a href="https://github.com/skimasque-dev/skimasque/blob/main/deploy/systemd/skimasque-gateway.service"><code>deploy/systemd/skimasque-gateway.service</code></a>
+— a hardened unit (<code>DynamicUser</code>, <code>ProtectSystem=strict</code>, no capabilities,
+seccomp <code>@system-service</code>). Flags go in
+<a href="https://github.com/skimasque-dev/skimasque/blob/main/deploy/systemd/gateway.env.example"><code>gateway.env.example</code></a> →
+<code>/etc/skimasque/gateway.env</code>. No <code>systemctl reload</code> needed: <code>--policy-reload</code>
+and <code>--tls-reload</code> watch <code>/etc/skimasque/</code>, and <code>SIGTERM</code> drains gracefully.</p>
+<h2 id="kubernetes-helm">Kubernetes (Helm)</h2>
+<p><a href="https://github.com/skimasque-dev/skimasque/blob/main/deploy/helm/skimasque-gateway"><code>deploy/helm/skimasque-gateway</code></a> — a hardened
+Deployment (<code>runAsNonRoot</code>, <code>readOnlyRootFilesystem</code>, drop all capabilities,
+seccomp <code>RuntimeDefault</code>), liveness/readiness against <code>/healthz</code> and <code>/readyz</code>,
+a PodDisruptionBudget, an optional <code>ServiceMonitor</code>, policy from a ConfigMap
+picked up by <code>--policy-reload</code>, and TLS from a <code>kubernetes.io/tls</code> secret
+rotated in place by <code>--tls-reload</code>.</p>
+<pre><code class="language-console">$ helm install gw deploy/helm/skimasque-gateway -f gateway-values.yaml
+</code></pre>
+<p>The QUIC Service is <code>ClusterIP</code> by default (in-cluster runners). For runners
+outside the cluster, use <code>service.type=LoadBalancer</code> with a UDP-capable cloud
+LB, or a NodePort.</p>
+<h2 id="aws-terraform">AWS (Terraform)</h2>
+<p><a href="https://github.com/skimasque-dev/skimasque/blob/main/deploy/terraform"><code>deploy/terraform</code></a> — a single-instance starting point
+(instance + security group + Elastic IP). Its README lists what a production
+module would add (an autoscaling group behind a UDP NLB, secrets from SSM).</p>
+<h2 id="shared-platform-gateway---platform">Shared platform gateway (<code>--platform</code>)</h2>
+<blockquote>
+<p>Operated by SkiMasque (or a self-hosted control plane operator); customers do
+not run this.</p>
+</blockquote>
+<p><code>skimasque-server --platform</code> runs one process that serves many SkiMasque
+organisations ("tenants"), each isolated from the others. Without the flag
+nothing changes.</p>
+<pre><code class="language-console">$ skimasque-server --platform --github-oidc \
+    --hostname gateway.skimasque.com \
+    --control-plane https://control.skimasque.com \
+    --control-plane-state /var/lib/skimasque/platform \
+    --audit-log /var/lib/skimasque/audit.jsonl
+</code></pre>
+<p>The first start needs a <strong>platform registration token</strong> in
+<code>SKIMASQUE_CONTROL_TOKEN</code> (<code>--control-plane-token</code>); the identity it yields is
+stored in <code>--control-plane-state</code>. A platform gateway needs its own state
+directory: it refuses to start on one that holds a single-organisation
+gateway's identity.</p>
+<h3 id="flags">Flags</h3>
+<ul>
+<li>Required: <code>--control-plane</code> (with <code>--control-plane-state</code>) and <code>--github-oidc</code>
+(<code>--oidc</code>). The server will not start without them.</li>
+<li>Refused: <code>--oidc-issuer</code>; <code>--oidc-provider</code> other than <code>github</code> (owners are
+verified on github.com, so a token from another issuer, such as GitHub
+Enterprise Server, could name a colliding owner); <code>--policy-dir</code>,
+<code>--policy-file</code>, <code>--policy-reload</code>, <code>--policy-observe</code>; and <code>--auth-token</code>.
+Policy comes from the tenant list only.</li>
+<li>Ignored, with a startup warning: <code>--oidc-audience</code> and <code>--credential-secret</code>.</li>
+<li>Ignored in platform mode: <code>--control-plane-signing-key-interval</code> and
+<code>--control-plane-no-credential-fallback</code> (there is no local minting to fall
+back to, and tenant keys arrive with the tenant list).</li>
+<li>Still honoured: <code>--control-plane-interval</code> (tenant poll and heartbeat),
+<code>--control-plane-name</code>, <code>--audit-log</code>, <code>--metrics-listen</code>, the TLS and ACME
+flags and the SSRF-floor flags. <code>--control-plane-label</code> is sent only when the
+gateway first registers.</li>
+</ul>
+<h3 id="the-audience">The audience</h3>
+<p>Each organisation has its own OIDC audience:</p>
+<pre><code>https://&lt;--hostname&gt;/o/&lt;org-slug&gt;
+</code></pre>
+<p>For example <code>https://gateway.skimasque.com/o/acme</code>. A <code>:443</code> suffix on
+<code>--hostname</code> is dropped; any other port stays. The slug is matched exactly:
+<strong>case is not folded</strong>. <code>--hostname</code> must be the name CI jobs request
+tokens for, since the audience is built from it. At startup the gateway logs how many organisations it
+serves and the audience pattern (<code>-v</code> lists each slug's audience).</p>
+<h3 id="token-exchange-and-refusals">Token exchange and refusals</h3>
+<p>An exchange resolves the slug in the audience to a tenant, verifies the GitHub
+token for that audience, checks the job's <code>repository_owner</code> (and its numeric
+id, when the control plane has one recorded) against the tenant's verified
+owners, and then asks the control plane to mint the credential with that
+organisation's key. There is no default tenant: an audience that names no
+tenant is refused.</p>
+<table><thead><tr><th>Code</th><th>HTTP</th><th>Raised by</th><th>Meaning</th></tr></thead><tbody>
+<tr><td><code>unknown_org</code></td><td>403</td><td>gateway</td><td>no tenant has that slug in the audience</td></tr>
+<tr><td><code>owner_not_verified</code></td><td>403</td><td>gateway; also relayed from the control plane</td><td>the job's GitHub owner is not verified for the org; the gateway's message points at the owner-settings page</td></tr>
+<tr><td><code>over_cap</code></td><td>403</td><td>control plane, relayed</td><td>the org used its plan's shared-gateway allowance</td></tr>
+<tr><td><code>temporarily_unavailable</code></td><td>502</td><td>gateway</td><td>the control plane (or GitHub's signing keys) could not be reached; retry</td></tr>
+</tbody></table>
+<p>The gateway raises <code>unknown_org</code> and <code>owner_not_verified</code> itself; any refusal
+the control plane returns (<code>over_cap</code>, and others) is relayed verbatim, code and
+message, to the CI log. A wrong or expired OIDC token is a
+403 <code>invalid_grant</code>.</p>
+<h3 id="outages-no-local-minting">Outages: no local minting</h3>
+<p>A platform gateway never signs a credential itself. If the control plane is
+down, <strong>new</strong> exchanges fail with <code>502 temporarily_unavailable</code>; credentials
+already issued keep verifying and tunnels keep being enforced against the last
+tenant list. A gateway that restarts while the control plane is down enforces
+the cached list, and refuses to start only if it has neither.</p>
+<h3 id="the-tenant-list-and-its-cache">The tenant list and its cache</h3>
+<p>The gateway pulls the tenant list (slug, verified owners, signing keys and
+policy per organisation) from the control plane and keeps polling it. The
+current list is written atomically to <code>&lt;--control-plane-state&gt;/tenants.json</code>.
+A <strong>removed tenant</strong> is cut off at the next refresh: every tunnel resolves its
+organisation from the current list, so its existing credentials stop working
+with no TTL grace. A <strong>removed owner</strong> takes effect for new exchanges at the
+next refresh (owners are checked at exchange time); credentials that owner's
+jobs already hold stay valid until they expire (<code>--credential-ttl</code>).</p>
+<h3 id="isolation">Isolation</h3>
+<p>Every tunnel is verified against the key of the organisation its credential
+names, evaluated against that organisation's policy only, limited per tenant
+(two orgs that both name a policy <code>prod</code> do not share a limit), and audited and
+metered under it. The audit trail is one hash chain per gateway, with each
+event filed under the org it names; an event naming no org is not shipped. The
+local <code>--audit-log</code> stays authoritative. See
+<a href="../threat-model/#b7--shared-platform-gateway---platform"><code>threat-model.md</code></a>.</p>
+<h3 id="what-to-monitor">What to monitor</h3>
+<table><thead><tr><th>Metric</th><th>Labels</th><th>Watch for</th></tr></thead><tbody>
+<tr><td><code>skimasque_platform_tenants</code></td><td></td><td>tenants in force; an unexpected drop</td></tr>
+<tr><td><code>skimasque_platform_tenant_sync_total</code></td><td><code>outcome</code> = <code>applied</code>, <code>error</code></td><td>rising <code>error</code>: the control plane is unreachable and the list is going stale</td></tr>
+<tr><td><code>skimasque_platform_tenant_policy_total</code></td><td><code>outcome</code> = <code>applied</code>, <code>rejected</code></td><td><code>rejected</code>: a tenant's policy did not load</td></tr>
+<tr><td><code>skimasque_platform_mint_total</code></td><td><code>outcome</code> = <code>minted</code>, <code>owner_not_verified</code>, <code>refused</code>, <code>unavailable</code>, <code>oidc_keys_unavailable</code></td><td><code>unavailable</code> is a control-plane outage; <code>refused</code> carries the control plane's refusals, such as <code>over_cap</code></td></tr>
+<tr><td><code>skimasque_control_plane_audit_total</code></td><td><code>outcome</code> = <code>shipped</code>, <code>error</code>, <code>dropped</code>, <code>dropped_no_org</code></td><td><code>error</code> and <code>dropped</code> are lost audit events</td></tr>
+<tr><td><code>skimasque_control_plane_heartbeat_total</code></td><td><code>outcome</code></td><td>the control plane seeing this gateway</td></tr>
+<tr><td><code>skimasque_control_plane_policy_age_seconds</code>, <code>skimasque_control_plane_policy_expired</code></td><td></td><td>the tenant list's age against <code>--control-plane-policy-lease</code> and <code>--control-plane-cache-ttl</code></td></tr>
+</tbody></table>
+<h2 id="firewall-and-egress-ip">Firewall and egress IP</h2>
+<p>The gateway needs an outbound path to the destinations your policy allows. In
+Modes 2–3 you control its egress IP — allowlist it on the target's firewall.
+SkiMasque does not bypass your network controls; it decides <em>who</em> may use the
+reachability your firewall already grants.</p>
+<h2 id="draining-and-rollout">Draining and rollout</h2>
+<p>On <code>SIGINT</code> / <code>SIGTERM</code> the gateway stops accepting connections, sends every
+live HTTP/3 connection a GOAWAY, and lets in-flight tunnels finish until
+<code>--shutdown-grace</code> (default <code>10s</code>) elapses. Set the orchestrator's grace period
+a little higher (the systemd unit and Helm chart already do) so a routine
+deploy never cuts a running job.</p>
+<h2 id="ops">Ops</h2>
+<p><code>--metrics-listen &lt;addr&gt;</code> serves Prometheus <code>/metrics</code> (connection and tunnel
+counters, bytes relayed, reload outcomes, ACME lifecycle events), <code>/healthz</code>,
+and <code>/readyz</code> on a plain-HTTP listener separate from the QUIC data plane.
+<code>--audit-log &lt;path&gt;</code> appends one JSON line per policy decision.</p>
+<h2 id="full-flag-reference">Full flag reference</h2>
+<p><a href="../configuration/"><code>configuration.md</code></a> and <code>skimasque-server --help</code>.</p>
+</article></div></section></main><footer class="v-site-footer"><div class="v-footer-art" aria-hidden="true"><svg class="v-contour" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M0 200 C120 160 200 210 320 170 S560 120 800 160"/><path d="M0 170 C120 130 200 180 320 140 S560 90 800 130"/><path d="M0 140 C120 100 200 150 320 110 S560 60 800 100"/><path d="M0 110 C120 70 200 120 320 80 S560 30 800 70"/><path d="M0 80 C120 40 200 90 320 50 S560 0 800 40"/></g></svg><svg class="v-mountain" viewBox="0 0 800 160" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="v-mountain-far" d="M0 160 L0 90 L120 40 L200 80 L300 20 L420 90 L520 50 L640 100 L720 60 L800 90 L800 160 Z"/><path class="v-mountain-near" d="M0 160 L0 120 L90 80 L180 115 L280 70 L380 120 L480 95 L590 125 L690 85 L800 120 L800 160 Z"/></svg></div><div class="v-wrap v-footer-grid"><div class="v-footer-brand"><p class="v-footer-name">SkiMasque</p><p>Identity-aware network access<br>for developers and workloads.</p></div><nav aria-label="Footer"><div class="v-footer-col"><p class="v-footer-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Resources</p><ul><li><a href="../../docs/">Documentation</a></li><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Company</p><ul><li><a href="../../about/">About</a></li><li><a href="../../contact/">Contact</a></li><li><a href="../../trust/">Trust</a></li><li><a href="../../status/">Status</a></li><li><a href="../../security/">Security</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Legal</p><ul><li>Privacy <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li><li>Terms <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li></ul></div></nav></div><p class="v-wrap v-footer-legal">© SkiMasque</p></footer></body></html>

@@ -1,0 +1,265 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><script>(() => {
+  const key = 'skimasque-theme';
+  const root = document.documentElement;
+  let theme = 'system';
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === 'light' || saved === 'dark') theme = saved;
+  } catch (_) { /* Storage may be disabled; switching still works. */ }
+  function apply() {
+    if (theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+  }
+  apply();
+  document.addEventListener('DOMContentLoaded', () => {
+    const control = document.querySelector('.v-theme-control');
+    const picker = document.querySelector('#site-theme');
+    if (!control || !picker) return;
+    picker.value = theme;
+    control.hidden = false;
+    picker.addEventListener('change', () => {
+      theme = picker.value;
+      apply();
+      try { localStorage.setItem(key, theme); } catch (_) { /* Keep the current-page choice. */ }
+    });
+  });
+})();
+</script><title>GitHub Actions · SkiMasque</title><meta name="description" content="GitHub Actions"><meta property="og:title" content="GitHub Actions · SkiMasque"><meta property="og:description" content="GitHub Actions"><meta property="og:type" content="website"><link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href="../../assets/visual.css?v=1bc626f0340909d7"></head><body class="v-site"><svg class="v-sprite" aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-workload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></symbol>
+<symbol id="i-developer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 8v8M17 10c0 4-4 4-8 6"/></symbol>
+<symbol id="i-ci-job" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M4 12h16M4 17h10"/><path d="M17 4.5l3 2.5-3 2.5"/></symbol>
+<symbol id="i-application" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10l3 2-3 2M12 15h5"/></symbol>
+<symbol id="i-identity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M17 12v3M20 12v2"/></symbol>
+<symbol id="i-policy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 13l2 2 4-4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+<symbol id="i-gateway" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M2 8h9M8 5l3 3-3 3M22 16h-9M16 13l-3 3 3 3"/></symbol>
+<symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M11 6.8L6 16.2M13 6.8l5 9.4M7 18h10"/></symbol>
+<symbol id="i-service" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></symbol>
+<symbol id="i-api" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4C7 4 6 5 6 7v2c0 1-1 3-2 3 1 0 2 2 2 3v2c0 2 1 3 3 3M15 4c2 0 3 1 3 3v2c0 1 1 3 2 3-1 0-2 2-2 3v2c0 2-1 3-3 3"/></symbol>
+<symbol id="i-kubernetes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M12 14.5V20M4 12h5.5M14.5 12H20"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9a4.5 4.5 0 0 0 1 9z"/></symbol>
+<symbol id="i-firewall" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 10h18M3 15h18M9 5v5M15 10v5M9 15v4"/></symbol>
+<symbol id="i-internet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.5 2.5 13.5 0 16M12 4c-2.5 2.5-2.5 13.5 0 16"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-cross" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-control-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="7" rx="2"/><path d="M12 10v5M4 15h16M4 15v3M12 15v3M20 15v3"/><circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="2"/></symbol>
+<symbol id="i-cli" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l7 6-7 6M13 18h7"/></symbol>
+<symbol id="i-credential" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+<symbol id="i-audit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+</svg><a class="v-skip" href="#main">Skip to content</a><header class="v-site-header"><div class="v-wrap v-site-bar"><a class="v-brand" href="../../">SkiMasque</a><nav class="v-site-nav" aria-label="Primary"><details class="v-nav-group" name="site-nav"><summary>Product</summary><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Compare</summary><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Technology</summary><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Resources</summary><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul></details><a class="v-nav-top" href="../../pricing/">Pricing</a></nav><div class="v-site-actions"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel"><p class="v-menu-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul><p class="v-menu-title">Compare</p><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul><p class="v-menu-title">Technology</p><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul><p class="v-menu-title">Resources</p><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul><p class="v-menu-title">Pricing</p><ul><li><a href="../../pricing/">Pricing</a></li></ul><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></p></div></details></nav><label class="v-theme-control" hidden for="site-theme"><span>Theme</span><select id="site-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header><main id="main"><section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy"><h1>GitHub Actions</h1><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="../">All guides</a><a class="v-btn" href="https://control.skimasque.com/app/settings/identity">Verify GitHub owners</a></p></div></div></section><section class="v-section"><div class="v-wrap"><h2>Guide</h2><article class="v-guide"><blockquote>
+<p><strong>Applies to:</strong> ✓ Mode 1 · ✓ Mode 2 · ✓ Mode 3 — the workflow is identical in
+all three; only the gateway's <code>proxy</code> / <code>audience</code> change.</p>
+</blockquote>
+<p>A workflow job proves its identity to a SkiMasque gateway with a <strong>GitHub OIDC
+token</strong>, and exchanges it for a short-lived <strong>platform credential</strong> that
+its tunnels present. The gateway evaluates policy against the identity in that
+credential, so a policy can say "the <code>deploy.yml</code> workflow on <code>main</code> of
+<code>acme/widget</code> may reach <code>db.production:5432</code>" and nothing else can borrow the
+access.</p>
+<p>GitHub Actions is the first-class path; GitLab CI, Buildkite, and generic OIDC
+issuers work the same way — see <a href="#other-ci-systems">Other CI systems</a>.</p>
+<h2 id="the-flow">The flow</h2>
+<pre><code>runner  ──OIDC token──▶  gateway /.well-known/masque/skimasque-credential
+                              │  verify RS256 · iss · aud · exp
+                              │  claims ─▶ WorkloadIdentity
+                         ◀──credential──  standalone: HS256; managed: org Ed25519 credential
+runner  ──credential──▶  gateway  (every tunnel, in Proxy-Authorization: Bearer)
+                              │  verify locally — no network
+                              │  WorkloadIdentity ─▶ policy ─▶ ALLOW / DENY
+</code></pre>
+<p>Verifying OIDC costs a JWKS lookup and an RSA check, and the token is minted for
+a broad audience. The exchange pays that once; tunnels then carry a credential
+the gateway verifies locally.</p>
+<h3 id="what-the-gateway-checks-at-the-exchange">What the gateway checks at the exchange</h3>
+<p><code>skimasque-server --oidc</code> (or <code>--github-oidc</code>):</p>
+<ol>
+<li>reads the <code>kid</code> from the JWT header and finds the matching key in the
+issuer's JWK Set (discovered from <code>--oidc-issuer</code>, cached for an hour,
+refetched once on an unknown <code>kid</code>);</li>
+<li>verifies the RS256 signature;</li>
+<li>checks <code>iss</code> equals <code>--oidc-issuer</code>
+(<code>https://token.actions.githubusercontent.com</code> by default);</li>
+<li>checks <code>aud</code> is one of the <code>--oidc-audience</code> values;</li>
+<li>checks <code>exp</code> / <code>nbf</code> with 60s of leeway.</li>
+</ol>
+<p>On success the claims become a <code>WorkloadIdentity</code>:</p>
+<table><thead><tr><th>Claim</th><th>Identity field</th><th>Example</th></tr></thead><tbody>
+<tr><td><code>repository_owner</code></td><td><code>organization</code></td><td><code>acme</code></td></tr>
+<tr><td><code>repository</code></td><td><code>repository</code></td><td><code>acme/widget</code></td></tr>
+<tr><td><code>workflow_ref</code> (file name)</td><td><code>workflow</code></td><td><code>deploy.yml</code></td></tr>
+<tr><td><code>ref</code></td><td><code>git_ref</code> (→ <code>branch</code>)</td><td><code>refs/heads/main</code></td></tr>
+<tr><td><code>environment</code></td><td><code>environment</code></td><td><code>production</code></td></tr>
+<tr><td><code>actor</code></td><td><code>actor</code></td><td><code>octocat</code></td></tr>
+</tbody></table>
+<h2 id="running-the-gateway">Running the gateway</h2>
+<pre><code class="language-console">$ skimasque-server \
+    --listen 0.0.0.0:4433 --authority masque.example:4433 \
+    --github-oidc --oidc-audience https://masque.example \
+    --policy-dir .masque/policies
+</code></pre>
+<p>TCP tunnels (classic <code>CONNECT</code>, which is what carries HTTPS, git and database
+traffic) are served by default alongside UDP; pass <code>--no-connect-tcp</code> for a
+UDP-only gateway.</p>
+<p><code>--github-oidc</code> replaces <code>--auth-token</code> and turns on the exchange endpoint. A
+tunnel without a verifiable credential is refused.</p>
+<ul>
+<li><strong><code>--oidc-audience &lt;AUD&gt;</code></strong> (repeatable, required) — the value the OIDC token's
+<code>aud</code> must carry. Pick a stable name for the gateway; its public URL is a good
+choice. Every workflow requests its token for exactly this string.</li>
+<li><strong><code>--credential-secret &lt;HEX&gt;</code></strong> (or <code>SKIMASQUE_CREDENTIAL_SECRET</code>) — the HS256
+key credentials are signed with. Set the same value on every gateway in a
+fleet so a credential one issues is accepted by another. Unset means a random
+key per start: fine for a single gateway, and clients just re-exchange after a
+restart.</li>
+<li><strong><code>--credential-ttl &lt;DURATION&gt;</code></strong> — credential lifetime, default <code>1h</code>. The
+client re-runs the exchange ahead of each expiry and installs the new
+credential on the live session, so a job that outlasts the TTL keeps working;
+a longer TTL just means fewer refreshes.</li>
+<li><strong><code>--oidc-issuer &lt;URL&gt;</code></strong> — defaults to the provider's hosted issuer. For
+GitHub Enterprise Server, point it at <code>https://&lt;host&gt;/_services/token</code>.</li>
+</ul>
+<p><code>--github-oidc</code> is an alias for <code>--oidc</code> (with <code>--oidc-provider github</code>, the
+default).</p>
+<h2 id="other-ci-systems">Other CI systems</h2>
+<p>The gateway maps a different set of claims for each provider; verification (the
+RS256 signature and <code>iss</code> / <code>aud</code> / <code>exp</code> checks) is identical.</p>
+<pre><code class="language-console">$ skimasque-server --oidc --oidc-provider gitlab \
+    --oidc-audience https://masque.example ...
+</code></pre>
+<table><thead><tr><th><code>--oidc-provider</code></th><th>Default issuer</th><th>Identity from</th></tr></thead><tbody>
+<tr><td><code>github</code></td><td><code>token.actions.githubusercontent.com</code></td><td><code>repository_owner</code> / <code>repository</code> / <code>workflow_ref</code> / <code>ref</code> / <code>environment</code> / <code>actor</code></td></tr>
+<tr><td><code>gitlab</code></td><td><code>gitlab.com</code></td><td><code>namespace_path</code> / <code>project_path</code> / <code>ci_config_ref_uri</code> / <code>ref</code>+<code>ref_type</code> / <code>environment</code> / <code>user_login</code></td></tr>
+<tr><td><code>buildkite</code></td><td><code>agent.buildkite.com</code></td><td><code>organization_slug</code> / <code>pipeline_slug</code> / <code>build_branch</code></td></tr>
+<tr><td><code>generic</code></td><td><em>(none — pass <code>--oidc-issuer</code>)</em></td><td>the claims named by <code>--oidc-claim FIELD=CLAIM</code></td></tr>
+</tbody></table>
+<ul>
+<li><strong>Self-managed GitLab / GitHub Enterprise Server:</strong> the provider stays the
+same, pass <code>--oidc-issuer https://&lt;your-host&gt;</code>.</li>
+<li><strong>Generic:</strong> <code>--oidc-provider generic --oidc-issuer &lt;URL&gt; --oidc-claim  repository=&lt;claim&gt; --oidc-claim ref=&lt;claim&gt; ...</code> for any OIDC issuer. Fields:
+<code>organization</code>, <code>repository</code>, <code>workflow</code>, <code>ref</code>, <code>environment</code>, <code>actor</code>.</li>
+</ul>
+<p>The client side: <code>--github-oidc</code> auto-fetches the runner's token. For anything
+else, hand <code>skimasque-client</code> the token you obtained from your CI's OIDC feature:</p>
+<pre><code class="language-yaml"># GitLab .gitlab-ci.yml
+deploy:
+  id_tokens:
+    SKIMASQUE_OIDC: { aud: https://masque.example }
+  script:
+    - skimasque-client --proxy masque.example:4433
+        --oidc-token "$SKIMASQUE_OIDC" --oidc-audience https://masque.example
+        --app terraform socks5 --listen 127.0.0.1:1080 &amp;
+    - ALL_PROXY=socks5h://127.0.0.1:1080 terraform apply
+</code></pre>
+<h2 id="in-the-workflow">In the workflow</h2>
+<p>The <a href="https://github.com/skimasque-dev/connect">connect Action</a> is a Node 24 action
+with a supervised client and an always-running post hook. Use a runner supporting
+Node 24 and coordinated Action/client releases with <code>proxy-ready-v1</code>; transparent
+mode also requires <code>proxy-tun-v1</code>.</p>
+<h3 id="proxy-aware-tools">Proxy-aware tools</h3>
+<pre><code class="language-yaml">jobs:
+  check-api:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: skimasque-dev/connect@v2
+        with:
+          mode: proxy
+          proxy: gateway.skimasque.com:443
+          audience: https://gateway.skimasque.com
+          application: curl
+      - run: curl --fail https://api.staging.example.com/health
+</code></pre>
+<p>Proxy mode exports uppercase/lowercase HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and
+NO_PROXY. HTTP/HTTPS use the HTTP proxy (<code>http://127.0.0.1:8080</code>); SOCKS uses
+<code>socks5h://127.0.0.1:1080</code> with gateway-side hostname resolution. Raw sockets are
+not intercepted. Use transparent mode or <code>skimasque exec --forward</code> for <code>psql</code>.</p>
+<h3 id="private-tcpudp-without-proxy-support">Private TCP/UDP without proxy support</h3>
+<p>Transparent mode is the default. Configure all private destination CIDRs and
+split DNS explicitly:</p>
+<pre><code class="language-yaml">- uses: skimasque-dev/connect@v2
+  with:
+    mode: transparent
+    proxy: gateway.example.com:443
+    audience: https://gateway.example.com
+    application: psql
+    routes: 10.42.0.0/16,fd42::/48
+    dns-servers: 10.43.0.53,fd43::53
+    dns-domains: ~internal.example
+    probe-target: db.internal.example:5432
+- run: psql -h db.internal.example -d app -f migrations/latest.sql
+</code></pre>
+<p>Replace every network setting and configure a gateway inside, or connected to,
+that network. The gateway currently needs an IPv4 address. Destinations can use
+IPv4 and IPv6: list both families where services have A and AAAA records.</p>
+<p>Use a dedicated Ubuntu runner with <code>/dev/net/tun</code>, <code>ip</code>, <code>unzip</code>, <code>flock</code>, a
+working systemd-resolved stub at <code>127.0.0.53</code>, and root or passwordless sudo.
+Remove inherited proxy variables. Unsupported transparent runners fail before
+network changes; select <code>mode: proxy</code> explicitly to use proxies instead.</p>
+<p>The Action owns the TUN link, routing rules/table and per-link DNS. DNS servers
+receive routes even outside <code>routes</code>. Default routes, <code>~.</code>, loopback, link-local
+and gateway-overlapping ranges are rejected. Native forwarding carries IP
+destinations: allow the private IP/CIDR and ports in policy, including DNS over
+TCP/UDP, and permit these ranges with the gateway's <code>--allow-cidr</code> address floor.
+Hostname-only rules cannot authorize native IP flows. ICMP and arbitrary IP
+protocols are unsupported. Public traffic remains on ordinary runner routing.</p>
+<h3 id="readiness-releases-and-cleanup">Readiness, releases and cleanup</h3>
+<p>The Action checks client capabilities, authentication and listener readiness.
+Transparent mode also checks TUN attachment, routes and DNS; <code>probe-target</code> adds
+a real TCP connection check. It supervises the client through the job. Private
+routes become unreachable if the client dies, until cleanup removes them.</p>
+<p>The post hook cleans up owned processes, DNS, rules, routes and links, and restores
+previous proxy variables in proxy mode. Startup failures roll back. Forced runner
+kills can prevent hooks; use ephemeral runners or the Action's <code>stop.cjs</code> and
+<code>state-file</code> manifest before reusing a persistent runner.</p>
+<p>Inputs and defaults are listed in <a href="../configuration/">configuration</a>. Outputs are
+<code>mode</code>, <code>http-proxy</code>, <code>socks-proxy</code> and <code>state-file</code>. Pin <code>version</code> to a compatible
+client release or pass <code>client-bin</code> for a local build. Named connection profiles
+(<code>connection: staging</code>) are planned; current workflows use explicit inputs.</p>
+<h3 id="other-clients">Other clients</h3>
+<p>The client fetches GitHub OIDC with <code>--github-oidc</code>; other providers supply
+<code>--oidc-token</code>. Run <code>proxy</code> for HTTP/SOCKS listeners, <code>connect --target HOST:PORT</code>
+for a raw TCP stream, or <code>probe</code> for UDP diagnostics. <code>probe --text ping</code> is not
+a Postgres connectivity test. See <a href="../cli/">CLI</a>.</p>
+<h2 id="policy">Policy</h2>
+<p>The identity fields above are what <code>[match]</code> constrains:</p>
+<pre><code class="language-toml">name = "widget-production"
+
+[match]
+repository = "acme/widget"
+workflow = "deploy.yml"
+branch = "main"
+
+[[rules]]
+application = "terraform"
+action = "allow"
+destinations = ["db.production.example.com:5432", "*.terraform.io:443"]
+
+[[rules]]
+application = "terraform"
+transport = "udp"                       # a separate rule for DNS over the tunnel
+action = "allow"
+destinations = ["10.0.0.2:53"]
+</code></pre>
+<p>A rule with no <code>transport</code> matches both TCP and UDP tunnels; add
+<code>transport = "tcp"</code> or <code>"udp"</code> to scope it. A token from a pull-request branch,
+a different workflow, or another repository does not match this policy, and —
+with no other policy matching — is denied.</p>
+<p>Because the <code>[match]</code> block <em>is</em> the authorization boundary, a match that is
+too loose silently widens access. <code>skimasque policy validate</code> flags the common
+cases — an empty <code>[match]</code>, one with no <code>repository</code>, or one that pins a
+<code>repository</code> but no <code>branch</code> / <code>ref</code> (so a fork's pull-request branch would
+match) — and the gateway logs the same warnings when it loads a policy set. Run
+<code>skimasque policy validate --strict</code> in the pipeline that publishes policies to
+fail the build on them.</p>
+<h2 id="proving-it">Proving it</h2>
+<p><code>.github/workflows/e2e-oidc.yml</code> runs the whole path on every push: it starts a
+gateway with <code>--github-oidc</code>, which does real discovery and JWKS verification
+against <code>token.actions.githubusercontent.com</code>, and drives traffic through it
+with the runner's own OIDC token — including the negative cases (wrong audience,
+unlisted destination).</p>
+</article></div></section></main><footer class="v-site-footer"><div class="v-footer-art" aria-hidden="true"><svg class="v-contour" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M0 200 C120 160 200 210 320 170 S560 120 800 160"/><path d="M0 170 C120 130 200 180 320 140 S560 90 800 130"/><path d="M0 140 C120 100 200 150 320 110 S560 60 800 100"/><path d="M0 110 C120 70 200 120 320 80 S560 30 800 70"/><path d="M0 80 C120 40 200 90 320 50 S560 0 800 40"/></g></svg><svg class="v-mountain" viewBox="0 0 800 160" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="v-mountain-far" d="M0 160 L0 90 L120 40 L200 80 L300 20 L420 90 L520 50 L640 100 L720 60 L800 90 L800 160 Z"/><path class="v-mountain-near" d="M0 160 L0 120 L90 80 L180 115 L280 70 L380 120 L480 95 L590 125 L690 85 L800 120 L800 160 Z"/></svg></div><div class="v-wrap v-footer-grid"><div class="v-footer-brand"><p class="v-footer-name">SkiMasque</p><p>Identity-aware network access<br>for developers and workloads.</p></div><nav aria-label="Footer"><div class="v-footer-col"><p class="v-footer-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Resources</p><ul><li><a href="../../docs/">Documentation</a></li><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Company</p><ul><li><a href="../../about/">About</a></li><li><a href="../../contact/">Contact</a></li><li><a href="../../trust/">Trust</a></li><li><a href="../../status/">Status</a></li><li><a href="../../security/">Security</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Legal</p><ul><li>Privacy <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li><li>Terms <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li></ul></div></nav></div><p class="v-wrap v-footer-legal">© SkiMasque</p></footer></body></html>
