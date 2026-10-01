@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for a newly promoted SkiMasque release
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=2min
+AccuracySec=10s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

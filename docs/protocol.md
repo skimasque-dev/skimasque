@@ -241,6 +241,9 @@ long-poll semantics as the policy poll.
 is then denied. Documents are already filtered to those whose label target the
 gateway satisfies. `owners` are lowercase GitHub logins.
 
+- `owner_ids` maps each owner login to GitHub's numeric account id when one is
+  recorded. A gateway must match the OIDC `repository_owner_id` against it.
+
 A job is resolved to a tenant at token exchange:
 
 - its OIDC audience must be exactly `https://<gateway host>/o/<slug>`;
@@ -257,6 +260,10 @@ The control plane re-checks the owner and the plan allowance, then signs with
 **that organisation's** key. The credential carries a top-level `org_id` claim.
 The response is the same as the single-org mint:
 `{ "credential": "<JWT>", "expires_in": 900 }`.
+
+- `owner_id` carries the OIDC `repository_owner_id`. The control plane refuses
+  the mint (`owner_not_verified`) when the owner's claim records an id and this
+  is different or absent.
 
 A platform gateway has **no local fallback**. If this endpoint is unreachable,
 token exchange fails.
@@ -300,6 +307,19 @@ surface `skimasque login` / `org` / `audit` / `status` and the dashboard expect.
 | `GET /v1/orgs/{org}/gateways` | the fleet |
 | `GET /v1/orgs/{org}/usage`, `…/usage/history` | usage totals and the daily series |
 | `GET /v1/orgs/{org}/audit` | query shipped decisions (`{ events, next_cursor }`) |
+
+## Tunnel request headers
+
+A client opening a tunnel (`CONNECT` for TCP, extended `CONNECT` with
+`:protocol connect-udp` for UDP) may send, besides `Proxy-Authorization`:
+
+| Header | Meaning |
+|---|---|
+| `X-Masque-Application: <name>` | WHAT — the application the client declares. Policy rules match on it. Session context, not an authenticated fact. |
+| `X-Masque-Policy: <name>` | A pin. The gateway selects the policy for the client's identity exactly as it would without the header; if the selected policy is not `<name>` the tunnel is refused `403` with `Proxy-Status: …; error=destination_prohibited; details="Policy \"<name>\" does not apply to this identity; …"`. The header never selects a policy, so it can only narrow access. Audit events carry it as `requested_policy`. |
+
+Both are part of the open protocol: any gateway, SkiMasque Cloud or
+self-hosted, honours them the same way.
 
 ## Health
 

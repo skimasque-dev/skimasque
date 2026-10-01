@@ -206,7 +206,9 @@ impl IdentityArgs {
 
 /// Evaluate one request. When `policy_name` is given, that policy is used
 /// directly (as `masque policy check production ...` does); otherwise the set
-/// selects one from the identity.
+/// selects one from the identity. `requested_policy` is the `X-Masque-Policy`
+/// pin; it applies only when the set selects the policy (`policy_name` is
+/// `None`).
 pub fn evaluate(
     loaded: &Loaded,
     policy_name: Option<&str>,
@@ -214,6 +216,7 @@ pub fn evaluate(
     transport: Transport,
     destination: &str,
     identity: WorkloadIdentity,
+    requested_policy: Option<&str>,
 ) -> anyhow::Result<Decision> {
     let destination = Destination::parse(destination)
         .with_context(|| format!("parsing the destination {destination:?}"))?;
@@ -222,6 +225,7 @@ pub fn evaluate(
         application: application.to_owned(),
         transport,
         destination,
+        requested_policy: requested_policy.map(str::to_owned),
     };
 
     match policy_name {
@@ -459,6 +463,7 @@ mod tests {
             Transport::Tcp,
             "api.production.example.com:443",
             WorkloadIdentity::default(),
+            None,
         )
         .unwrap();
         assert!(decision.is_allow());
@@ -474,9 +479,31 @@ mod tests {
             Transport::Tcp,
             "api.production.example.com:443",
             WorkloadIdentity::default(),
+            None,
         )
         .unwrap();
         assert!(decision.is_deny());
+    }
+
+    #[test]
+    fn evaluate_applies_a_pin_when_the_set_selects() {
+        let identity = WorkloadIdentity {
+            repository: Some("acme/widget".into()),
+            git_ref: Some("refs/heads/main".into()),
+            ..Default::default()
+        };
+        let d = evaluate(
+            &loaded(), None, "terraform", Transport::Tcp,
+            "api.production.example.com:443", identity.clone(), Some("staging"),
+        )
+        .unwrap();
+        assert!(d.is_deny());
+        let d = evaluate(
+            &loaded(), None, "terraform", Transport::Tcp,
+            "api.production.example.com:443", identity, Some("production"),
+        )
+        .unwrap();
+        assert!(d.is_allow());
     }
 
     #[test]

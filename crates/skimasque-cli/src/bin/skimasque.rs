@@ -8,6 +8,7 @@
 //! | `skimasque why`     | explain whether an identity may reach a destination -- local policy set, or `--control-plane` for the org's published policy |
 //! | `skimasque gateway` | run the MASQUE gateway -- delegates to `skimasque-server` |
 //! | `skimasque connect` | open a tunnel to a destination -- delegates to `skimasque-client` |
+//! | `skimasque exec`    | run a command with policy-scoped network access through a gateway, dropped when it exits |
 //! | `skimasque init`    | scaffold `.masque/policies/` for a new project |
 //! | `skimasque status`  | the local policy set, plus the control-plane fleet when signed in |
 //! | `skimasque login` / `logout` / `whoami` | sign in to a control plane via GitHub (device flow) |
@@ -131,6 +132,14 @@ enum Command {
         args: Vec<OsString>,
     },
 
+    /// Run a command with the network access your policy grants, through a
+    /// gateway, and drop the access when the command exits.
+    ///
+    /// Sets HTTPS_PROXY / HTTP_PROXY / ALL_PROXY for the command; use
+    /// `--forward` for tools that ignore them. Exits with the command's status
+    /// (125 if exec itself fails, 126/127 if the command cannot be run).
+    Exec(skimasque_cli::exec::ExecArgs),
+
     /// Work with network-access policies.
     #[command(subcommand)]
     Policy(PolicyCommand),
@@ -147,6 +156,10 @@ enum Command {
         destination: String,
         #[command(flatten)]
         request: RequestArgs,
+        /// Simulate `skimasque exec --policy NAME`: deny unless the policy
+        /// selected for the identity is NAME. Local policy only.
+        #[arg(long, value_name = "NAME", conflicts_with = "control_plane")]
+        policy: Option<String>,
         /// Evaluate against your org's published policy on the control plane
         /// instead of local files (needs `skimasque login`).
         #[arg(long)]
@@ -431,6 +444,7 @@ fn run() -> anyhow::Result<ExitCode> {
         Command::Why {
             destination,
             request,
+            policy,
             control_plane,
             org,
             revision,
@@ -441,10 +455,11 @@ fn run() -> anyhow::Result<ExitCode> {
             if control_plane {
                 run_why_remote(&destination, &request, org, revision, draft, gateway)
             } else {
-                run_why(&destination, &request, &source)
+                run_why(&destination, &request, &source, policy.as_deref())
             }
         }
         Command::Status { source } => run_status(&source),
+        Command::Exec(args) => run_exec(args),
         Command::Policy(command) => run_policy(command),
     }
 }
@@ -465,6 +480,7 @@ fn run_policy(command: PolicyCommand) -> anyhow::Result<ExitCode> {
                 request.transport,
                 &destination,
                 request.identity().into_identity(),
+                None,
             )?;
             println!("{decision}");
             Ok(exit_for(&decision))
@@ -484,6 +500,7 @@ fn run_policy(command: PolicyCommand) -> anyhow::Result<ExitCode> {
                 request.transport,
                 &destination,
                 request.identity().into_identity(),
+                None,
             )?;
             println!("Application: {}", request.app);
             println!("Transport: {}", request.transport);
@@ -965,6 +982,27 @@ fn shell_join(parts: &[String]) -> String {
         .join(" ")
 }
 
+fn run_exec(args: skimasque_cli::exec::ExecArgs) -> anyhow::Result<ExitCode> {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("starting the async runtime")?;
+    let code = runtime.block_on(skimasque_cli::exec::run(args));
+    // Windows exit codes are 32-bit (e.g. STATUS_CONTROL_C_EXIT) and
+    // `ExitCode` only carries a byte, so exit directly with the whole code
+    // once the runtime (and with it the session) is gone.
+    #[cfg(windows)]
+    {
+        drop(runtime);
+        std::process::exit(code);
+    }
+    // On Unix the command's status is already 0..=255.
+    #[cfg(not(windows))]
+    Ok(ExitCode::from(
+        u8::try_from(code).unwrap_or(skimasque_cli::exec::EXIT_FAILED as u8),
+    ))
+}
+
 fn run_connect(destination: &str, passthrough: &[OsString]) -> anyhow::Result<ExitCode> {
     Target::parse(destination)
         .with_context(|| format!("the destination {destination:?} is not a valid host:port"))?;
@@ -986,6 +1024,7 @@ fn run_why(
     destination: &str,
     request: &RequestArgs,
     source: &SourceArgs,
+    requested_policy: Option<&str>,
 ) -> anyhow::Result<ExitCode> {
     let loaded = source.load()?;
     let identity = request.identity().into_identity();
@@ -996,6 +1035,7 @@ fn run_why(
         request.transport,
         destination,
         identity.clone(),
+        requested_policy,
     )?;
 
     println!("{}\n", if decision.is_allow() { "ALLOW" } else { "DENY" });
@@ -1458,9 +1498,9 @@ mod tests {
             },
         };
 
-        let allow = run_why("api.example.com:443", &request, &source).unwrap();
+        let allow = run_why("api.example.com:443", &request, &source, None).unwrap();
         assert_eq!(allow, ExitCode::SUCCESS);
-        let deny = run_why("evil.example.com:443", &request, &source).unwrap();
+        let deny = run_why("evil.example.com:443", &request, &source, None).unwrap();
         assert_eq!(deny, ExitCode::FAILURE);
 
         std::fs::remove_dir_all(&dir).ok();

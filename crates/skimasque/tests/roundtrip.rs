@@ -145,6 +145,11 @@ impl CredentialMinter for StubMinter {
                     credential: "issued-credential".to_owned(),
                     expires_in: Duration::from_secs(900),
                 })
+            } else if identity_token == "unverified-owner" {
+                Err(MintError::Refused {
+                    code: "owner_not_verified".to_owned(),
+                    message: "acme is not verified for widgets".to_owned(),
+                })
             } else {
                 Err(MintError::Unauthorized(
                     "unrecognised identity token".to_owned(),
@@ -424,6 +429,24 @@ async fn an_exchanged_credential_opens_a_tunnel() {
     match session.exchange_credential("bogus").await.unwrap_err() {
         skimasque::Error::ExchangeFailed { status, .. } => {
             assert_eq!(status, http::StatusCode::FORBIDDEN);
+        }
+        other => panic!("expected an exchange failure, got {other:?}"),
+    }
+
+    // A refusal with its own code is a 403 that carries that code and message.
+    match session
+        .exchange_credential("unverified-owner")
+        .await
+        .unwrap_err()
+    {
+        skimasque::Error::ExchangeFailed { status, detail } => {
+            assert_eq!(status, http::StatusCode::FORBIDDEN);
+            let body: serde_json::Value = serde_json::from_str(&detail.unwrap()).unwrap();
+            assert_eq!(body["error"], "owner_not_verified");
+            assert_eq!(
+                body["error_description"],
+                "acme is not verified for widgets"
+            );
         }
         other => panic!("expected an exchange failure, got {other:?}"),
     }

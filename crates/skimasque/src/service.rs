@@ -340,6 +340,50 @@ impl TunnelLimits {
     }
 }
 
+/// One tenant's usage counters: tunnels opened and payload bytes relayed in
+/// each direction, cumulative since process start.
+///
+/// A [`TenantMeterLayer`] attaches the tenant's meter to an [`Accepted`]; the
+/// server bumps it wherever it bumps the process-wide totals in
+/// [`crate::metrics`], which it keeps doing either way. Obtain one per org from
+/// [`TenantUsage::meter_for`](crate::tenant::TenantUsage::meter_for).
+#[derive(Debug, Default)]
+pub struct TunnelMeter {
+    tunnels_opened: std::sync::atomic::AtomicU64,
+    bytes_to_target: std::sync::atomic::AtomicU64,
+    bytes_to_client: std::sync::atomic::AtomicU64,
+}
+
+impl TunnelMeter {
+    /// A tunnel metered here was accepted and is about to start relaying.
+    pub fn tunnel_opened(&self) {
+        self.tunnels_opened
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// `bytes` of payload moved from the client to the target.
+    pub fn add_to_target(&self, bytes: u64) {
+        self.bytes_to_target
+            .fetch_add(bytes, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// `bytes` of payload moved from the target to the client.
+    pub fn add_to_client(&self, bytes: u64) {
+        self.bytes_to_client
+            .fetch_add(bytes, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// The current totals.
+    pub fn snapshot(&self) -> crate::metrics::UsageSnapshot {
+        use std::sync::atomic::Ordering::Relaxed;
+        crate::metrics::UsageSnapshot {
+            tunnels_opened: self.tunnels_opened.load(Relaxed),
+            bytes_to_target: self.bytes_to_target.load(Relaxed),
+            bytes_to_client: self.bytes_to_client.load(Relaxed),
+        }
+    }
+}
+
 /// An opaque resource kept alive for a tunnel's lifetime.
 ///
 /// A layer that reserves something for a tunnel -- a quota permit, most often
@@ -361,6 +405,7 @@ pub struct Accepted {
     headers: Option<Box<HeaderMap>>,
     guards: Vec<TunnelGuard>,
     limits: TunnelLimits,
+    meter: Option<Arc<TunnelMeter>>,
 }
 
 /// What the proxy will use to carry a tunnel's traffic.
@@ -391,6 +436,7 @@ impl Accepted {
             headers: None,
             guards: Vec::new(),
             limits: TunnelLimits::default(),
+            meter: None,
         }
     }
 
@@ -402,6 +448,7 @@ impl Accepted {
             headers: None,
             guards: Vec::new(),
             limits: TunnelLimits::default(),
+            meter: None,
         }
     }
 
@@ -413,6 +460,7 @@ impl Accepted {
             headers: None,
             guards: Vec::new(),
             limits: TunnelLimits::default(),
+            meter: None,
         }
     }
 
@@ -438,9 +486,21 @@ impl Accepted {
         self
     }
 
+    /// Count this tunnel's traffic against `meter` as well as the process-wide
+    /// totals. [`TenantMeterLayer`] attaches the tenant's meter here.
+    pub fn with_meter(mut self, meter: Arc<TunnelMeter>) -> Self {
+        self.meter = Some(meter);
+        self
+    }
+
     #[cfg(test)]
     pub(crate) fn limits(&self) -> &TunnelLimits {
         &self.limits
+    }
+
+    #[cfg(test)]
+    pub(crate) fn meter(&self) -> Option<&Arc<TunnelMeter>> {
+        self.meter.as_ref()
     }
 
     /// The address the tunnel's socket is connected to, for UDP and TCP.
@@ -460,8 +520,15 @@ impl Accepted {
         Option<Box<HeaderMap>>,
         Vec<TunnelGuard>,
         TunnelLimits,
+        Option<Arc<TunnelMeter>>,
     ) {
-        (self.kind, self.headers, self.guards, self.limits)
+        (
+            self.kind,
+            self.headers,
+            self.guards,
+            self.limits,
+            self.meter,
+        )
     }
 }
 
@@ -855,6 +922,11 @@ impl Service<TunnelRequest> for Dispatch {
 /// is "session context" until stronger application identity exists.
 pub const APPLICATION_HEADER: &str = "x-masque-application";
 
+/// The header a client pins a policy with. The gateway denies the tunnel
+/// unless the policy selected for the client's identity has this name; it
+/// never selects a policy by it. Part of the open tunnel protocol.
+pub const POLICY_HEADER: &str = "x-masque-policy";
+
 /// Turns a bearer credential into a verified
 /// [`WorkloadIdentity`](skimasque_policy::WorkloadIdentity).
 ///
@@ -980,6 +1052,132 @@ where
     }
 }
 
+/// Verifies a presented credential and resolves the tenant it belongs to.
+///
+/// The multi-tenant counterpart of [`IdentityVerifier`]. The implementation
+/// must only return a [`TenantId`](crate::tenant::TenantId) it obtained from a
+/// [`TenantSnapshot`](crate::tenant::TenantSnapshot) -- that is the only place
+/// one can come from -- and must derive it from the credential itself, never
+/// from anything else in the request.
+pub trait TenantVerifier: Send + Sync + std::fmt::Debug {
+    #[allow(clippy::type_complexity)]
+    fn verify(
+        &self,
+        token: String,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<
+                        (crate::tenant::TenantId, skimasque_policy::WorkloadIdentity),
+                        String,
+                    >,
+                > + Send,
+        >,
+    >;
+}
+
+/// [`IdentityLayer`] for a multi-tenant gateway: verifies the bearer credential
+/// with a [`TenantVerifier`] and puts both the
+/// [`TenantId`](crate::tenant::TenantId) and the
+/// [`WorkloadIdentity`](skimasque_policy::WorkloadIdentity) it names into the
+/// request extensions, where [`PolicyLayer::tenants`], [`QuotaLayer`] and
+/// [`TenantMeterLayer`] read them.
+///
+/// Fail-closed in the same way: no bearer token is `407`, a credential that
+/// does not verify (or names no tenant) is `403`, and neither reaches the inner
+/// service.
+#[derive(Clone)]
+pub struct TenantLayer {
+    verifier: Arc<dyn TenantVerifier>,
+}
+
+impl TenantLayer {
+    pub fn new(verifier: Arc<dyn TenantVerifier>) -> Self {
+        Self { verifier }
+    }
+}
+
+impl std::fmt::Debug for TenantLayer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TenantLayer").finish_non_exhaustive()
+    }
+}
+
+impl<S> Layer<S> for TenantLayer {
+    type Service = TenantIdentify<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        TenantIdentify {
+            inner,
+            verifier: self.verifier.clone(),
+        }
+    }
+}
+
+/// The service [`TenantLayer`] produces.
+#[derive(Clone, Debug)]
+pub struct TenantIdentify<S> {
+    inner: S,
+    verifier: Arc<dyn TenantVerifier>,
+}
+
+impl<S> Service<TunnelRequest> for TenantIdentify<S>
+where
+    S: Service<TunnelRequest, Response = Accepted, Error = Rejection> + Clone + Send + 'static,
+    S::Future: Send + 'static,
+{
+    type Response = Accepted;
+    type Error = Rejection;
+    type Future = TunnelFuture;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, mut request: TunnelRequest) -> Self::Future {
+        let token = request
+            .headers()
+            .get(http::header::PROXY_AUTHORIZATION)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.strip_prefix("Bearer "))
+            .map(str::to_owned);
+
+        let Some(token) = token else {
+            return Box::pin(std::future::ready(Err(Rejection::proxy_auth_required(
+                "Bearer",
+            ))));
+        };
+
+        let verifier = self.verifier.clone();
+        let clone = self.inner.clone();
+        let mut inner = std::mem::replace(&mut self.inner, clone);
+
+        Box::pin(async move {
+            match verifier.verify(token).await {
+                Ok((tenant, identity)) => {
+                    debug!(
+                        org_id = tenant.as_str(),
+                        organization = ?identity.organization,
+                        repository = ?identity.repository,
+                        "verified tenant credential"
+                    );
+                    request.extensions_mut().insert(tenant);
+                    request.extensions_mut().insert(identity);
+                    inner.call(request).await
+                }
+                Err(reason) => {
+                    debug!(%reason, "tenant credential rejected");
+                    Err(Rejection::new(
+                        StatusCode::FORBIDDEN,
+                        format!("credential rejected: {reason}"),
+                    )
+                    .with_proxy_error("http_request_denied"))
+                }
+            }
+        })
+    }
+}
+
 /// A live handle to the policy set a [`PolicyLayer`] enforces.
 ///
 /// A [`PolicyLayer`] evaluates every request against whatever set this handle
@@ -1059,9 +1257,16 @@ impl std::fmt::Debug for PolicyHandle {
 /// [`store`](PolicyHandle::store) swaps in a new set for every subsequent
 /// request, which is how a gateway hot-reloads policy from disk without a
 /// restart.
+///
+/// Built with [`tenants`](Self::tenants) instead, it serves many organisations
+/// from one gateway: each request is evaluated against the policy set of the
+/// tenant its credential resolved to, and nothing else.
 #[derive(Clone)]
 pub struct PolicyLayer {
     handle: PolicyHandle,
+    /// `Some` in tenant mode, where it replaces `handle` as the source of
+    /// policy.
+    tenants: Option<crate::tenant::TenantTable>,
     mode: Mode,
     audit: Option<Arc<dyn AuditSink>>,
 }
@@ -1082,8 +1287,29 @@ impl PolicyLayer {
     pub fn from_handle(handle: PolicyHandle) -> Self {
         Self {
             handle,
+            tenants: None,
             mode: Mode::Enforce,
             audit: None,
+        }
+    }
+
+    /// A multi-tenant layer: every request is evaluated against the policy set
+    /// of the tenant named by the [`TenantId`](crate::tenant::TenantId) a
+    /// [`TenantLayer`] put in its extensions, read from `table`'s current
+    /// snapshot, and audit events carry that tenant's `org_id`.
+    ///
+    /// There is no default tenant. A request with no `TenantId` is refused
+    /// `403`, as is one whose tenant is no longer in the table; neither is
+    /// evaluated or audited.
+    ///
+    /// Policy comes from `table` alone. The [`handle`](Self::handle) of a layer
+    /// built this way is seeded with an empty set and ignored: storing into it
+    /// changes nothing. Reload tenant policy with
+    /// [`TenantTable::store`](crate::tenant::TenantTable::store).
+    pub fn tenants(table: crate::tenant::TenantTable) -> Self {
+        Self {
+            tenants: Some(table),
+            ..Self::new(skimasque_policy::PolicySet::new(Vec::new()))
         }
     }
 
@@ -1109,8 +1335,12 @@ impl PolicyLayer {
 
 impl std::fmt::Debug for PolicyLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PolicyLayer")
-            .field("policies", &self.handle.current().policies().len())
+        let mut debug = f.debug_struct("PolicyLayer");
+        match &self.tenants {
+            None => debug.field("policies", &self.handle.current().policies().len()),
+            Some(table) => debug.field("tenants", &table.snapshot().tenants().count()),
+        };
+        debug
             .field("mode", &self.mode)
             .field("audit", &self.audit.is_some())
             .finish()
@@ -1121,13 +1351,26 @@ impl<S> Layer<S> for PolicyLayer {
     type Service = Enforce<S>;
 
     fn layer(&self, inner: S) -> Self::Service {
+        let policies = match &self.tenants {
+            None => PolicySource::Single(self.handle.subscribe()),
+            Some(table) => PolicySource::Tenants(table.subscribe()),
+        };
         Enforce {
             inner,
-            policies: self.handle.subscribe(),
+            policies,
             mode: self.mode,
             audit: self.audit.clone(),
         }
     }
+}
+
+/// Where an [`Enforce`] reads its policy from.
+#[derive(Clone, Debug)]
+enum PolicySource {
+    /// One organisation's set, from a [`PolicyHandle`].
+    Single(watch::Receiver<Arc<skimasque_policy::PolicySet>>),
+    /// Per-tenant sets, from a [`TenantTable`](crate::tenant::TenantTable).
+    Tenants(watch::Receiver<Arc<crate::tenant::TenantSnapshot>>),
 }
 
 /// The service [`PolicyLayer`] produces.
@@ -1138,9 +1381,18 @@ impl<S> Layer<S> for PolicyLayer {
 #[derive(Clone, Debug)]
 pub struct Enforce<S> {
     inner: S,
-    policies: watch::Receiver<Arc<skimasque_policy::PolicySet>>,
+    policies: PolicySource,
     mode: Mode,
     audit: Option<Arc<dyn AuditSink>>,
+}
+
+/// A tenant-mode request that cannot be tied to a served organisation.
+fn tenant_rejection(detail: &'static str) -> TunnelFuture {
+    Box::pin(std::future::ready(Err(Rejection::new(
+        StatusCode::FORBIDDEN,
+        detail,
+    )
+    .with_proxy_error("http_request_denied"))))
 }
 
 impl<S> Service<TunnelRequest> for Enforce<S>
@@ -1164,12 +1416,42 @@ where
             ))));
         };
 
+        // Choose the one set this request may be evaluated against, reading the
+        // live source once so a reload mid-call cannot mix two versions. In
+        // tenant mode that is the resolved tenant's set and nobody else's: there
+        // is no default tenant to fall back on.
+        let (policies, org_id) = match &self.policies {
+            PolicySource::Single(set) => (set.borrow().clone(), None),
+            PolicySource::Tenants(snapshot) => {
+                let Some(tenant_id) = request.extensions().get::<crate::tenant::TenantId>() else {
+                    debug!("no tenant resolved for the request; refusing");
+                    return tenant_rejection("no organisation resolved for this request");
+                };
+                let snapshot = snapshot.borrow().clone();
+                let Some(tenant) = snapshot.resolve_org(tenant_id.as_str()) else {
+                    debug!(
+                        org_id = tenant_id.as_str(),
+                        "tenant is no longer served; refusing"
+                    );
+                    return tenant_rejection("organisation is not served by this gateway");
+                };
+                (tenant.policy().clone(), Some(tenant_id.as_str().to_owned()))
+            }
+        };
+
         let application = request
             .headers()
             .get(APPLICATION_HEADER)
             .and_then(|value| value.to_str().ok())
             .unwrap_or_default()
             .to_owned();
+
+        let requested_policy = request
+            .headers()
+            .get(POLICY_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned);
 
         let workload = request
             .extensions()
@@ -1183,16 +1465,15 @@ where
             application: application.clone(),
             transport,
             destination: policy_destination(&target),
+            requested_policy: requested_policy.clone(),
         };
-        // Read the live set once, so this request is evaluated against a single
-        // consistent snapshot even if a reload lands mid-call.
-        let policies = self.policies.borrow().clone();
         let decision = policies.evaluate(&ctx);
 
         if self.mode == Mode::Observe {
             let would = if decision.is_allow() { "allow" } else { "deny" };
             tracing::info!(
                 target: "masque::observe",
+                org_id = org_id.as_deref(),
                 application = %application,
                 transport = transport.as_str(),
                 destination = %target,
@@ -1209,14 +1490,17 @@ where
         // later quota, resolution or address-floor failure can still stop an
         // `allow` from becoming a tunnel, and that is a separate event.
         if let Some(sink) = &self.audit {
-            sink.record(&AuditEvent::from_decision(
+            let mut event = AuditEvent::from_decision(
                 &decision,
                 request.protocol().upgrade_token(),
                 application.as_str(),
                 target.to_string(),
                 request.client_addr().to_string(),
                 &ctx.workload,
-            ));
+            );
+            event.requested_policy = ctx.requested_policy.clone();
+            event.org_id = org_id;
+            sink.record(&event);
         }
 
         match decision {
@@ -1258,7 +1542,11 @@ fn policy_destination(target: &Target) -> skimasque_policy::Destination {
 /// Render a policy denial as a `403` a client can act on, carrying the reason
 /// and the fix in `Proxy-Status`.
 fn denial_rejection(denied: &skimasque_policy::Denied) -> Rejection {
-    let detail = format!("{} suggested rule: {}", denied.reason.summary(), denied.suggested_rule);
+    // A pin mismatch is not fixed by adding a rule, so it carries no suggestion.
+    let detail = match denied.reason {
+        skimasque_policy::DenyReason::PolicyMismatch { .. } => denied.reason.summary(),
+        _ => format!("{} suggested rule: {}", denied.reason.summary(), denied.suggested_rule),
+    };
     Rejection::new(StatusCode::FORBIDDEN, detail).with_proxy_error("destination_prohibited")
 }
 
@@ -1280,6 +1568,10 @@ fn denial_rejection(denied: &skimasque_policy::Denied) -> Rejection {
 /// restarts. `limits.connections`/`bandwidth`/`packets_per_second` are aggregate
 /// across the policy -- the stand-in for per-session until issued credentials
 /// carry a session -- while `total_bytes` is per-tunnel for now.
+///
+/// When the request carries a [`TenantId`](crate::tenant::TenantId) the key is
+/// `<org_id>/<policy>` instead of the bare policy name, so two tenants whose
+/// policies share a name never share a permit pool or a rate limiter.
 #[derive(Clone, Default)]
 pub struct QuotaLayer {
     permits: Arc<std::sync::Mutex<std::collections::HashMap<String, Arc<tokio::sync::Semaphore>>>>,
@@ -1367,21 +1659,33 @@ where
         let decision = request
             .authorized_destination()
             .and_then(|authorized| authorized.decision());
+        // Policy names are only unique within one organisation: two tenants may
+        // both call theirs `prod`. In tenant mode the limiter key is therefore
+        // `<org_id>/<policy>`, so no tenant shares another's permits or
+        // buckets. Without a tenant the key is the bare policy name, as ever.
+        let scope = request
+            .extensions()
+            .get::<crate::tenant::TenantId>()
+            .map(|tenant| tenant.as_str().to_owned());
+        let key = |policy: &str| match &scope {
+            Some(scope) => format!("{scope}/{policy}"),
+            None => policy.to_owned(),
+        };
         let permit = decision.and_then(|allowed| {
             allowed
                 .limits
                 .concurrent_connections
-                .map(|max| (allowed.policy.clone(), max))
+                .map(|max| (key(&allowed.policy), max))
         });
         let tunnel_limits = decision.map_or_else(TunnelLimits::default, |allowed| TunnelLimits {
             bandwidth: allowed
                 .limits
                 .bandwidth_bits_per_sec
-                .map(|bits| self.layer.bandwidth_for(&allowed.policy, bits)),
+                .map(|bits| self.layer.bandwidth_for(&key(&allowed.policy), bits)),
             packet_rate: allowed
                 .limits
                 .packets_per_sec
-                .map(|pps| self.layer.packets_for(&allowed.policy, pps)),
+                .map(|pps| self.layer.packets_for(&key(&allowed.policy), pps)),
             total_bytes: allowed.limits.total_bytes,
         });
 
@@ -1413,6 +1717,73 @@ where
                 accepted = accepted.with_limits(tunnel_limits);
             }
             Ok(accepted)
+        })
+    }
+}
+
+/// Attaches each accepted tunnel's tenant [`TunnelMeter`] to the [`Accepted`],
+/// so the server counts the tunnel and its bytes against that tenant as well
+/// as the process-wide totals.
+///
+/// It reads the [`TenantId`](crate::tenant::TenantId) a [`TenantLayer`] put in
+/// the request extensions. It is accounting, not enforcement: a request with
+/// no `TenantId` is forwarded unmetered (in tenant mode [`PolicyLayer::tenants`]
+/// has already refused it). The tunnel is counted as opened by the server once
+/// it actually starts relaying, beside the global counter, not here.
+#[derive(Clone, Debug)]
+pub struct TenantMeterLayer {
+    usage: Arc<crate::tenant::TenantUsage>,
+}
+
+impl TenantMeterLayer {
+    pub fn new(usage: Arc<crate::tenant::TenantUsage>) -> Self {
+        Self { usage }
+    }
+}
+
+impl<S> Layer<S> for TenantMeterLayer {
+    type Service = TenantMetered<S>;
+
+    fn layer(&self, inner: S) -> Self::Service {
+        TenantMetered {
+            inner,
+            usage: self.usage.clone(),
+        }
+    }
+}
+
+/// The service [`TenantMeterLayer`] produces.
+#[derive(Clone, Debug)]
+pub struct TenantMetered<S> {
+    inner: S,
+    usage: Arc<crate::tenant::TenantUsage>,
+}
+
+impl<S> Service<TunnelRequest> for TenantMetered<S>
+where
+    S: Service<TunnelRequest, Response = Accepted, Error = Rejection>,
+    S::Future: Send + 'static,
+{
+    type Response = Accepted;
+    type Error = Rejection;
+    type Future = TunnelFuture;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, request: TunnelRequest) -> Self::Future {
+        let meter = request
+            .extensions()
+            .get::<crate::tenant::TenantId>()
+            .map(|tenant| self.usage.meter_for(tenant));
+        let future = self.inner.call(request);
+        Box::pin(async move {
+            let accepted = future.await?;
+            Ok(match meter {
+                Some(meter) => accepted.with_meter(meter),
+                None => accepted,
+            })
         })
     }
 }
@@ -1519,6 +1890,22 @@ mod tests {
             builder = builder.header(APPLICATION_HEADER, app);
         }
         let parts = builder.body(()).unwrap().into_parts().0;
+        TunnelRequest::new(
+            Protocol::ConnectUdp,
+            Destination::Udp(Target::parse(target).unwrap()),
+            "203.0.113.1:9000".parse().unwrap(),
+            parts,
+        )
+    }
+
+    fn pinned_udp_request(target: &str, app: &str, policy: &str) -> TunnelRequest {
+        let parts = http::Request::builder()
+            .header(APPLICATION_HEADER, app)
+            .header(POLICY_HEADER, policy)
+            .body(())
+            .unwrap()
+            .into_parts()
+            .0;
         TunnelRequest::new(
             Protocol::ConnectUdp,
             Destination::Udp(Target::parse(target).unwrap()),
@@ -1654,6 +2041,60 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].decision, "deny");
         assert_eq!(events[0].reason.as_deref(), Some("No matching allow rule."));
+    }
+
+    #[tokio::test]
+    async fn a_matching_pin_is_allowed_and_audited_with_the_requested_policy() {
+        let sink = Arc::new(RecordingSink::default());
+        let mut service = PolicyLayer::new(policy_set(ALLOW_TF))
+            .with_audit(sink.clone())
+            .layer(Spy::default());
+        let _ = service
+            .call(pinned_udp_request("api.production.example.com:443", "terraform", "prod"))
+            .await;
+        let events = sink.0.lock().unwrap();
+        assert_eq!(events[0].decision, "allow");
+        assert_eq!(events[0].requested_policy.as_deref(), Some("prod"));
+    }
+
+    #[tokio::test]
+    async fn a_mismatched_pin_is_denied_403_and_audited() {
+        let sink = Arc::new(RecordingSink::default());
+        let spy = Spy::default();
+        let mut service = PolicyLayer::new(policy_set(ALLOW_TF))
+            .with_audit(sink.clone())
+            .layer(spy.clone());
+        let rejection = service
+            .call(pinned_udp_request("api.production.example.com:443", "terraform", "staging"))
+            .await
+            .unwrap_err();
+        assert_eq!(rejection.status(), StatusCode::FORBIDDEN);
+        assert!(spy.0.lock().unwrap().is_none(), "inner must not be called");
+        let events = sink.0.lock().unwrap();
+        assert_eq!(events[0].decision, "deny");
+        assert_eq!(events[0].requested_policy.as_deref(), Some("staging"));
+        assert_eq!(
+            events[0].reason.as_deref(),
+            Some(r#"Policy "staging" does not apply to this identity; "prod" does."#)
+        );
+    }
+
+    #[test]
+    fn a_mismatch_rejection_carries_no_suggested_rule() {
+        let denied = skimasque_policy::Denied {
+            policy: Some("prod".into()),
+            reason: skimasque_policy::DenyReason::PolicyMismatch {
+                requested: "staging".into(),
+                selected: Some("prod".into()),
+            },
+            suggested_rule: "allow terraform x:1".into(),
+            closest: Vec::new(),
+        };
+        let rejection = denial_rejection(&denied);
+        assert_eq!(
+            rejection.detail(),
+            r#"Policy "staging" does not apply to this identity; "prod" does."#
+        );
     }
 
     #[tokio::test]
@@ -2026,6 +2467,438 @@ mod tests {
     async fn sockets_are_bound_in_the_targets_family() {
         let v4 = connect_socket("127.0.0.1:9".parse().unwrap()).await.unwrap();
         assert!(v4.local_addr().unwrap().is_ipv4());
+    }
+
+    /// Cross-tenant isolation: the tenant identity, policy, quota and meter
+    /// layers of a multi-tenant gateway.
+    mod tenant_layers {
+        use super::*;
+        use crate::tenant::{TenantId, TenantSpec, TenantTable, TenantUsage};
+        use std::collections::BTreeMap;
+
+        const POLICY_A: &str = r#"
+            name = "prod"
+            [[rules]]
+            application = "dns"
+            action = "allow"
+            destinations = ["10.0.0.1:443"]
+        "#;
+
+        const POLICY_B: &str = r#"
+            name = "prod"
+            [[rules]]
+            application = "dns"
+            action = "allow"
+            destinations = ["10.0.0.2:443"]
+        "#;
+
+        /// Both tenants name their policy `prod`, with a concurrency limit of 1.
+        const LIMITED_A: &str = r#"
+            name = "prod"
+            [limits]
+            connections = 1
+            [[rules]]
+            application = "dns"
+            action = "allow"
+            destinations = ["10.0.0.1:443"]
+        "#;
+
+        const LIMITED_B: &str = r#"
+            name = "prod"
+            [limits]
+            connections = 1
+            [[rules]]
+            application = "dns"
+            action = "allow"
+            destinations = ["10.0.0.2:443"]
+        "#;
+
+        fn tenant(org: &str, slug: &str, policy: skimasque_policy::PolicySet) -> TenantSpec {
+            TenantSpec {
+                org_id: org.to_owned(),
+                slug: slug.to_owned(),
+                owners: vec![slug.to_owned()],
+                owner_ids: BTreeMap::new(),
+                policy: Arc::new(policy),
+            }
+        }
+
+        fn two_tenants(a: &str, b: &str) -> TenantTable {
+            let table = TenantTable::new();
+            table.store(
+                1,
+                vec![
+                    tenant("org_a", "acme", policy_set(a)),
+                    tenant("org_b", "beta", policy_set(b)),
+                ],
+            );
+            table
+        }
+
+        fn tenant_id(table: &TenantTable, org: &str) -> TenantId {
+            table.snapshot().resolve_org(org).unwrap().id().clone()
+        }
+
+        /// Maps token `a` to `org_a` and `b` to `org_b`, resolving the
+        /// `TenantId` from the live table the way a real verifier must.
+        #[derive(Debug)]
+        struct StubTenantVerifier(TenantTable);
+
+        impl TenantVerifier for StubTenantVerifier {
+            fn verify(
+                &self,
+                token: String,
+            ) -> Pin<
+                Box<
+                    dyn Future<
+                            Output = Result<(TenantId, skimasque_policy::WorkloadIdentity), String>,
+                        > + Send,
+                >,
+            > {
+                let org = match token.as_str() {
+                    "a" => "org_a",
+                    "b" => "org_b",
+                    _ => "",
+                };
+                let result = self
+                    .0
+                    .snapshot()
+                    .resolve_org(org)
+                    .map(|tenant| {
+                        (
+                            tenant.id().clone(),
+                            skimasque_policy::WorkloadIdentity {
+                                organization: Some(tenant.slug().to_owned()),
+                                ..Default::default()
+                            },
+                        )
+                    })
+                    .ok_or_else(|| format!("no tenant for token {token:?}"));
+                Box::pin(std::future::ready(result))
+            }
+        }
+
+        fn tenant_request(token: &str, target: &str) -> TunnelRequest {
+            let parts = http::Request::builder()
+                .header(http::header::PROXY_AUTHORIZATION, format!("Bearer {token}"))
+                .header(APPLICATION_HEADER, "dns")
+                .body(())
+                .unwrap()
+                .into_parts()
+                .0;
+            TunnelRequest::new(
+                Protocol::ConnectUdp,
+                Destination::Udp(Target::parse(target).unwrap()),
+                "203.0.113.1:9000".parse().unwrap(),
+                parts,
+            )
+        }
+
+        /// A request with a `TenantId` already in its extensions, as if a
+        /// `TenantLayer` had verified it earlier.
+        fn resolved_request(id: &TenantId, target: &str) -> TunnelRequest {
+            let mut request = udp_request(target, Some("dns"));
+            request.extensions_mut().insert(id.clone());
+            request
+        }
+
+        #[tokio::test]
+        async fn a_request_resolved_to_a_is_denied_by_as_policy_even_if_bs_policy_would_allow_it() {
+            let table = two_tenants(POLICY_A, POLICY_B);
+            let spy = Spy::default();
+            let mut service = TenantLayer::new(Arc::new(StubTenantVerifier(table.clone())))
+                .layer(PolicyLayer::tenants(table.clone()).layer(spy.clone()));
+
+            let rejection = service
+                .call(tenant_request("a", "10.0.0.2:443"))
+                .await
+                .unwrap_err();
+            assert_eq!(rejection.status(), StatusCode::FORBIDDEN);
+            assert!(
+                spy.0.lock().unwrap().is_none(),
+                "A's policy denies; inner untouched"
+            );
+
+            let _ = service.call(tenant_request("b", "10.0.0.2:443")).await;
+            let seen = spy.0.lock().unwrap().clone();
+            assert_eq!(
+                seen.expect("B's request reached the inner service")
+                    .expect("B's policy authorized it")
+                    .to_string(),
+                "10.0.0.2:443"
+            );
+        }
+
+        #[tokio::test]
+        async fn an_audit_event_is_tagged_with_the_tenant_the_credential_named() {
+            let table = two_tenants(POLICY_A, POLICY_B);
+            let sink = Arc::new(RecordingSink::default());
+            let mut service = TenantLayer::new(Arc::new(StubTenantVerifier(table.clone()))).layer(
+                PolicyLayer::tenants(table.clone())
+                    .with_audit(sink.clone())
+                    .layer(Spy::default()),
+            );
+
+            let _ = service.call(tenant_request("a", "10.0.0.1:443")).await;
+            let _ = service.call(tenant_request("b", "10.0.0.1:443")).await;
+
+            let events = sink.0.lock().unwrap();
+            assert_eq!(events.len(), 2);
+            assert_eq!(events[0].decision, "allow");
+            assert_eq!(events[0].org_id.as_deref(), Some("org_a"));
+            assert_eq!(events[1].decision, "deny");
+            assert_eq!(events[1].org_id.as_deref(), Some("org_b"));
+        }
+
+        #[tokio::test]
+        async fn a_request_with_no_resolved_tenant_is_refused_never_defaulted() {
+            let table = two_tenants(POLICY_A, POLICY_B);
+            let sink = Arc::new(RecordingSink::default());
+            let spy = Spy::default();
+            let mut service = PolicyLayer::tenants(table)
+                .with_audit(sink.clone())
+                .layer(spy.clone());
+
+            // Allowed by A's policy, so a fall-through to any tenant's set would
+            // let it through.
+            let rejection = service
+                .call(udp_request("10.0.0.1:443", Some("dns")))
+                .await
+                .unwrap_err();
+            assert_eq!(rejection.status(), StatusCode::FORBIDDEN);
+            assert_eq!(
+                rejection.detail(),
+                "no organisation resolved for this request"
+            );
+            assert!(spy.0.lock().unwrap().is_none(), "inner must not be called");
+            assert!(
+                sink.0.lock().unwrap().is_empty(),
+                "nothing is audited under any org"
+            );
+        }
+
+        #[tokio::test]
+        async fn a_removed_tenant_is_refused_for_new_tunnels() {
+            let table = two_tenants(POLICY_A, POLICY_B);
+            let a = tenant_id(&table, "org_a");
+            let b = tenant_id(&table, "org_b");
+            let spy = Spy::default();
+            let mut service = PolicyLayer::tenants(table.clone()).layer(spy.clone());
+
+            table.store(2, vec![tenant("org_b", "beta", policy_set(POLICY_B))]);
+
+            let rejection = service
+                .call(resolved_request(&a, "10.0.0.1:443"))
+                .await
+                .unwrap_err();
+            assert_eq!(rejection.status(), StatusCode::FORBIDDEN);
+            assert_eq!(
+                rejection.detail(),
+                "organisation is not served by this gateway"
+            );
+            assert!(spy.0.lock().unwrap().is_none(), "inner must not be called");
+
+            let _ = service.call(resolved_request(&b, "10.0.0.2:443")).await;
+            assert!(
+                spy.0.lock().unwrap().clone().flatten().is_some(),
+                "B is still served"
+            );
+        }
+
+        #[tokio::test]
+        async fn a_tenant_with_no_policy_denies_everything() {
+            let table = TenantTable::new();
+            table.store(
+                1,
+                vec![tenant(
+                    "org_a",
+                    "acme",
+                    skimasque_policy::PolicySet::new(Vec::new()),
+                )],
+            );
+            let a = tenant_id(&table, "org_a");
+            let spy = Spy::default();
+            let mut service = PolicyLayer::tenants(table).layer(spy.clone());
+
+            for target in ["10.0.0.1:443", "10.0.0.2:443", "1.1.1.1:53"] {
+                let rejection = service
+                    .call(resolved_request(&a, target))
+                    .await
+                    .unwrap_err();
+                assert_eq!(rejection.status(), StatusCode::FORBIDDEN, "{target}");
+            }
+            assert!(
+                spy.0.lock().unwrap().is_none(),
+                "inner must never be called"
+            );
+        }
+
+        #[tokio::test]
+        async fn two_tenants_with_the_same_policy_name_get_independent_concurrency_limits() {
+            let table = two_tenants(LIMITED_A, LIMITED_B);
+            let a = tenant_id(&table, "org_a");
+            let b = tenant_id(&table, "org_b");
+            let mut service = PolicyLayer::tenants(table).layer(QuotaLayer::new().layer(AcceptAll));
+
+            let _held = service
+                .call(resolved_request(&a, "10.0.0.1:443"))
+                .await
+                .expect("A's first tunnel is under its limit");
+
+            let _b = service
+                .call(resolved_request(&b, "10.0.0.2:443"))
+                .await
+                .expect("B's `prod` limit is its own, not A's");
+
+            let rejection = service
+                .call(resolved_request(&a, "10.0.0.1:443"))
+                .await
+                .unwrap_err();
+            assert_eq!(rejection.status(), StatusCode::SERVICE_UNAVAILABLE);
+            assert_eq!(rejection.into_parts().1, Some("connection_limit_reached"));
+        }
+
+        #[tokio::test]
+        async fn two_tenants_with_the_same_policy_name_get_independent_rate_limiters() {
+            let limited = |dest: &str| {
+                format!(
+                    r#"
+                    name = "prod"
+                    [limits]
+                    bandwidth = "1Mbps"
+                    packets_per_second = 500
+                    [[rules]]
+                    application = "dns"
+                    action = "allow"
+                    destinations = ["{dest}"]
+                "#
+                )
+            };
+            let table = two_tenants(&limited("10.0.0.1:443"), &limited("10.0.0.2:443"));
+            let a = tenant_id(&table, "org_a");
+            let b = tenant_id(&table, "org_b");
+            let mut service = PolicyLayer::tenants(table).layer(QuotaLayer::new().layer(AcceptAll));
+
+            let one = service
+                .call(resolved_request(&a, "10.0.0.1:443"))
+                .await
+                .unwrap();
+            let two = service
+                .call(resolved_request(&a, "10.0.0.1:443"))
+                .await
+                .unwrap();
+            let other = service
+                .call(resolved_request(&b, "10.0.0.2:443"))
+                .await
+                .unwrap();
+
+            let bw = |accepted: &Accepted| accepted.limits().bandwidth.clone().unwrap();
+            let pk = |accepted: &Accepted| accepted.limits().packet_rate.clone().unwrap();
+            assert!(
+                Arc::ptr_eq(&bw(&one), &bw(&two)),
+                "one tenant's tunnels share"
+            );
+            assert!(Arc::ptr_eq(&pk(&one), &pk(&two)));
+            assert!(!Arc::ptr_eq(&bw(&one), &bw(&other)), "tenants do not share");
+            assert!(!Arc::ptr_eq(&pk(&one), &pk(&other)));
+        }
+
+        #[tokio::test]
+        async fn the_tenant_meter_counts_only_its_own_tenants_traffic() {
+            let table = two_tenants(POLICY_A, POLICY_B);
+            let a = tenant_id(&table, "org_a");
+            let b = tenant_id(&table, "org_b");
+            let usage = Arc::new(TenantUsage::new());
+
+            usage.meter_for(&a).add_to_target(100);
+            usage.meter_for(&a).add_to_client(40);
+            usage.meter_for(&a).tunnel_opened();
+            let _ = usage.meter_for(&b);
+
+            let snapshot = usage.snapshot();
+            let get = |org: &str| {
+                snapshot
+                    .iter()
+                    .find(|(id, _)| id == org)
+                    .map(|(_, usage)| *usage)
+                    .unwrap()
+            };
+            assert_eq!(get("org_a").bytes_to_target, 100);
+            assert_eq!(get("org_a").bytes_to_client, 40);
+            assert_eq!(get("org_a").tunnels_opened, 1);
+            assert_eq!(get("org_b"), crate::metrics::UsageSnapshot::default());
+
+            // The meter layer hands each tunnel its own tenant's meter.
+            let mut service = TenantMeterLayer::new(usage.clone()).layer(AcceptAll);
+            let accepted = service
+                .call(resolved_request(&b, "10.0.0.2:443"))
+                .await
+                .unwrap();
+            let meter = accepted.meter().expect("a tenant tunnel carries a meter");
+            assert!(Arc::ptr_eq(meter, &usage.meter_for(&b)));
+            assert!(!Arc::ptr_eq(meter, &usage.meter_for(&a)));
+
+            // With no tenant resolved there is nothing to meter against.
+            let plain = service
+                .call(udp_request("10.0.0.2:443", Some("dns")))
+                .await
+                .unwrap();
+            assert!(plain.meter().is_none());
+        }
+
+        #[tokio::test]
+        async fn the_tenant_layer_inserts_both_the_tenant_and_the_identity() {
+            type Extensions = (Option<TenantId>, Option<skimasque_policy::WorkloadIdentity>);
+
+            #[derive(Clone, Default)]
+            struct Seen(Arc<Mutex<Option<Extensions>>>);
+            impl Service<TunnelRequest> for Seen {
+                type Response = Accepted;
+                type Error = Rejection;
+                type Future = TunnelFuture;
+                fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+                    Poll::Ready(Ok(()))
+                }
+                fn call(&mut self, request: TunnelRequest) -> Self::Future {
+                    *self.0.lock().unwrap() = Some((
+                        request.extensions().get::<TenantId>().cloned(),
+                        request
+                            .extensions()
+                            .get::<skimasque_policy::WorkloadIdentity>()
+                            .cloned(),
+                    ));
+                    Box::pin(std::future::ready(Err(Rejection::unavailable("seen"))))
+                }
+            }
+
+            let table = two_tenants(POLICY_A, POLICY_B);
+            let seen = Seen::default();
+            let mut service =
+                TenantLayer::new(Arc::new(StubTenantVerifier(table.clone()))).layer(seen.clone());
+
+            let _ = service.call(tenant_request("b", "10.0.0.2:443")).await;
+            let (tenant, identity) = seen.0.lock().unwrap().clone().expect("inner was called");
+            assert_eq!(tenant.expect("a TenantId").as_str(), "org_b");
+            assert_eq!(
+                identity.expect("an identity").organization.as_deref(),
+                Some("beta")
+            );
+
+            // No bearer: 407, inner untouched. A token naming no tenant: 403.
+            *seen.0.lock().unwrap() = None;
+            let no_bearer = udp_request("10.0.0.2:443", Some("dns"));
+            let rejection = service.call(no_bearer).await.unwrap_err();
+            assert_eq!(
+                rejection.status(),
+                StatusCode::PROXY_AUTHENTICATION_REQUIRED
+            );
+            let rejection = service
+                .call(tenant_request("zzz", "10.0.0.2:443"))
+                .await
+                .unwrap_err();
+            assert_eq!(rejection.status(), StatusCode::FORBIDDEN);
+            assert!(seen.0.lock().unwrap().is_none(), "inner must not be called");
+        }
     }
 }
 

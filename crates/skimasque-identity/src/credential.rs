@@ -363,6 +363,24 @@ pub fn peek_org_id(token: &str) -> Option<String> {
     serde_json::from_slice::<OrgOnly>(&bytes).ok()?.org_id
 }
 
+/// The identity a platform credential carries, read **without verifying the
+/// signature or expiry**. For display and for asking a control plane what a
+/// gateway would decide — never for an authorization decision; a gateway
+/// verifies with [`CredentialVerifier`] or [`CredentialIssuer`].
+pub fn peek_identity(token: &str) -> Result<WorkloadIdentity, Error> {
+    use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+    let payload = token
+        .split('.')
+        .nth(1)
+        .ok_or_else(|| Error::Malformed("not a JWT".to_owned()))?;
+    let bytes = BASE64_URL_SAFE_NO_PAD
+        .decode(payload)
+        .map_err(|e| Error::Malformed(e.to_string()))?;
+    serde_json::from_slice::<Claims>(&bytes)
+        .map(|claims| claims.identity)
+        .map_err(|e| Error::Malformed(e.to_string()))
+}
+
 fn unix_now() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -625,5 +643,21 @@ mod tests {
         for junk in ["", "abc", "a.b.c", "a.!!!.c", "a..c"] {
             assert_eq!(peek_org_id(junk), None, "{junk:?}");
         }
+    }
+
+    #[test]
+    fn peek_identity_reads_the_claims_without_a_key() {
+        let issuer = CredentialIssuer::generate(Duration::from_secs(900));
+        let issued = issuer.issue(&identity(), Some("sub")).unwrap();
+        assert_eq!(peek_identity(&issued.token).unwrap(), identity());
+    }
+
+    #[test]
+    fn peek_identity_rejects_something_that_is_not_a_jwt() {
+        assert!(matches!(
+            peek_identity("not-a-token"),
+            Err(Error::Malformed(_))
+        ));
+        assert!(matches!(peek_identity("a.%%%.c"), Err(Error::Malformed(_))));
     }
 }

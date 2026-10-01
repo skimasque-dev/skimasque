@@ -1,0 +1,81 @@
+#cloud-config
+# Rendered by Terraform (deploy/terraform/gcp-gateway). cloud-init runs once per
+# instance; a change here replaces the VM, which is safe because the gateway's
+# state is on a separate disk.
+package_update: true
+packages:
+  - ca-certificates
+  - python3
+
+write_files:
+  # --- the deploy agent -------------------------------------------------------
+  - path: /usr/local/sbin/skimasque-deploy
+    owner: root:root
+    permissions: "0755"
+    encoding: b64
+    content: ${deploy_script_b64}
+  - path: /usr/local/sbin/skimasque-prepare-disk
+    owner: root:root
+    permissions: "0755"
+    encoding: b64
+    content: ${prepare_disk_script_b64}
+  - path: /etc/systemd/system/skimasque-deploy.service
+    owner: root:root
+    permissions: "0644"
+    encoding: b64
+    content: ${deploy_service_b64}
+  - path: /etc/systemd/system/skimasque-deploy.timer
+    owner: root:root
+    permissions: "0644"
+    encoding: b64
+    content: ${deploy_timer_b64}
+  - path: /etc/skimasque/deploy.env
+    owner: root:root
+    permissions: "0600"
+    content: |
+      SKIMASQUE_ROLE=gateway
+      SKIMASQUE_RELEASE_SOURCE=${release_source}
+      SKIMASQUE_SERVICE=skimasque-gateway.service
+      SKIMASQUE_BINARY=skimasque-server
+      SKIMASQUE_HEALTH=http://127.0.0.1:9090/healthz
+      SKIMASQUE_GCP_PROJECT=${project_id}
+      SKIMASQUE_SECRETS_FILE=/etc/skimasque/gateway-secrets.env
+      # Optional: the one-time token is needed only until the gateway has enrolled.
+      SKIMASQUE_SECRET_MAP=${secret_id}=SKIMASQUE_CONTROL_TOKEN?
+
+  # --- the gateway ------------------------------------------------------------
+  - path: /etc/systemd/system/skimasque-gateway.service
+    owner: root:root
+    permissions: "0644"
+    encoding: b64
+    content: ${gateway_unit_b64}
+  - path: /etc/systemd/system/skimasque-gateway.service.d/deploy.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Unit]
+      # Do not start until the deploy agent has installed a release...
+      ConditionPathExists=/opt/skimasque/current/skimasque-server
+      # ...and never run on the boot disk if the state disk failed to mount.
+      RequiresMountsFor=/var/lib/private/skimasque
+
+      [Service]
+      EnvironmentFile=-/etc/skimasque/gateway-secrets.env
+  - path: /etc/skimasque/gateway.env
+    owner: root:root
+    permissions: "0600"
+    content: |
+      SKIMASQUE_ARGS=${server_args}
+
+runcmd:
+  # One script that stops at the first failure: if the state disk cannot be
+  # prepared, neither the gateway nor the deploy timer is enabled.
+  - |
+    set -e
+    # systemd keeps a DynamicUser's StateDirectory under /var/lib/private.
+    install -d -m 0700 /var/lib/private
+    /usr/local/sbin/skimasque-prepare-disk /dev/disk/by-id/google-skimasque-state /var/lib/private/skimasque skimasque-state
+    ln -sfn /opt/skimasque/current/skimasque-server /usr/local/bin/skimasque-server
+    systemctl daemon-reload
+    systemctl enable skimasque-gateway.service
+    systemctl enable --now skimasque-deploy.timer

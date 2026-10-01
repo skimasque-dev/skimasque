@@ -88,6 +88,12 @@ pub struct Tenant {
     pub slug: String,
     /// Verified GitHub owners, already normalised with [`normalize_owner`].
     pub owners: Vec<String>,
+    /// GitHub's numeric account id for each owner in `owners` that has one
+    /// recorded (login → id). A gateway matches the OIDC `repository_owner_id`
+    /// against it, so a login renamed away and re-registered by someone else
+    /// is not the same owner.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub owner_ids: BTreeMap<String, u64>,
     /// `None` until the organisation publishes a policy; every request is
     /// then denied.
     pub policy: Option<TenantPolicy>,
@@ -113,6 +119,11 @@ pub struct PlatformMintRequest {
     pub identity: WorkloadIdentity,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
+    /// GitHub's numeric id for `identity.organization`: the OIDC
+    /// `repository_owner_id`. The control plane refuses the mint when the
+    /// owner's verified claim records an id and this is different or absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner_id: Option<u64>,
     pub ttl_seconds: u64,
 }
 
@@ -270,6 +281,7 @@ mod tests {
             org_id: "org_1".into(),
             slug: "acme".into(),
             owners: vec!["acme".into()],
+            owner_ids: BTreeMap::new(),
             policy: None,
             signing_key: key(),
         };
@@ -287,6 +299,7 @@ mod tests {
                 org_id: "org_1".into(),
                 slug: "acme".into(),
                 owners: vec!["acme".into(), "octocat".into()],
+                owner_ids: BTreeMap::new(),
                 policy: Some(TenantPolicy {
                     version: 7,
                     documents: vec![PolicyDocument {
@@ -303,11 +316,51 @@ mod tests {
     }
 
     #[test]
+    fn owner_ids_are_optional_on_the_wire() {
+        // Old JSON (before the fields existed) still reads.
+        let tenant: Tenant = serde_json::from_value(serde_json::json!({
+            "org_id": "org_1",
+            "slug": "acme",
+            "owners": ["acme"],
+            "policy": null,
+            "signing_key": key(),
+        }))
+        .unwrap();
+        assert!(tenant.owner_ids.is_empty());
+        let mint: PlatformMintRequest = serde_json::from_value(serde_json::json!({
+            "org_id": "org_1",
+            "identity": {},
+            "ttl_seconds": 900,
+        }))
+        .unwrap();
+        assert_eq!(mint.owner_id, None);
+
+        // Empty values are omitted; set values round-trip.
+        let json = serde_json::to_value(&tenant).unwrap();
+        assert!(json.get("owner_ids").is_none(), "{json}");
+        assert!(serde_json::to_value(&mint).unwrap().get("owner_id").is_none());
+        let with = Tenant {
+            owner_ids: [("acme".to_owned(), 900)].into_iter().collect(),
+            ..tenant
+        };
+        let back: Tenant = serde_json::from_value(serde_json::to_value(&with).unwrap()).unwrap();
+        assert_eq!(back.owner_ids.get("acme"), Some(&900));
+        let mint = PlatformMintRequest {
+            owner_id: Some(900),
+            ..mint
+        };
+        let back: PlatformMintRequest =
+            serde_json::from_value(serde_json::to_value(&mint).unwrap()).unwrap();
+        assert_eq!(back.owner_id, Some(900));
+    }
+
+    #[test]
     fn platform_mint_request_omits_an_absent_subject() {
         let req = PlatformMintRequest {
             org_id: "org_1".into(),
             identity: Default::default(),
             subject: None,
+            owner_id: None,
             ttl_seconds: 900,
         };
         let json = serde_json::to_string(&req).unwrap();

@@ -270,6 +270,12 @@ async fn serve_connect(
         Ok(tunnel) => tunnel,
         Err(error) => {
             let reply = connect_reply_for(&error);
+            if reply == REPLY_NOT_ALLOWED {
+                eprintln!(
+                    "skimasque: {}",
+                    crate::session::refusal_line(&requested.to_string(), &error)
+                );
+            }
             debug!(%client, %requested, %error, reply, "CONNECT refused by the gateway");
             send_reply(&mut stream, reply, &unspecified_address()).await?;
             return Ok(());

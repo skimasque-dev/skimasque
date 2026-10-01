@@ -64,6 +64,7 @@ let ctx = RequestContext {
     application: "terraform".into(),
     transport: Transport::Tcp,
     destination: Destination::parse("api.production.example.com:443").unwrap(),
+    requested_policy: None,
 };
 
 assert!(policy.evaluate(&ctx).is_allow());

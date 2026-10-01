@@ -57,6 +57,13 @@ pub struct AuditEvent {
     /// On a deny: the rule text that would have allowed the tunnel.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub suggested_rule: Option<String>,
+    /// The policy the client pinned with `x-masque-policy`, if it sent one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requested_policy: Option<String>,
+    /// The organisation the decision belongs to, on a multi-tenant gateway.
+    /// Omitted on a single-org gateway.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub org_id: Option<String>,
 }
 
 impl AuditEvent {
@@ -82,6 +89,8 @@ impl AuditEvent {
             rule: None,
             reason: None,
             suggested_rule: None,
+            requested_policy: None,
+            org_id: None,
         };
 
         let mut event = match decision {
@@ -236,6 +245,7 @@ mod tests {
             application: application.to_owned(),
             transport: skimasque_policy::Transport::Tcp,
             destination: skimasque_policy::Destination::parse(destination).unwrap(),
+            requested_policy: None,
         })
     }
 
@@ -282,6 +292,42 @@ mod tests {
         assert_eq!(event.rule.as_deref(), Some("tf-api"));
         assert!(event.reason.is_none());
         assert!(event.suggested_rule.is_none());
+    }
+
+    #[test]
+    fn requested_policy_is_omitted_when_absent_and_serialised_when_set() {
+        let d = decision(ALLOW_TF, "terraform", "api.production.example.com:443");
+        let mut event = AuditEvent::from_decision(
+            &d,
+            "connect-tcp",
+            "terraform",
+            "api.production.example.com:443",
+            "127.0.0.1:1",
+            &WorkloadIdentity::default(),
+        );
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(!json.contains("requested_policy"), "{json}");
+        event.requested_policy = Some("prod".into());
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains(r#""requested_policy":"prod""#), "{json}");
+    }
+
+    #[test]
+    fn org_id_is_omitted_from_single_org_events_and_present_when_set() {
+        let d = decision(ALLOW_TF, "terraform", "api.production.example.com:443");
+        let mut event = AuditEvent::from_decision(
+            &d,
+            "connect-tcp",
+            "terraform",
+            "api.production.example.com:443",
+            "127.0.0.1:1",
+            &WorkloadIdentity::default(),
+        );
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(!json.contains("org_id"), "{json}");
+        event.org_id = Some("org_a".into());
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains(r#""org_id":"org_a""#), "{json}");
     }
 
     #[test]

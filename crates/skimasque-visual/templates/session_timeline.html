@@ -1,0 +1,1 @@
+{% if events.is_empty() %}<p class="v-timeline-empty">No events</p>{% else %}<ol class="v-timeline">{% for e in events %}<li class="v-timeline-event v-tone-{{ e.tone.class() }}"><span class="v-timeline-dot" aria-hidden="true"></span><time class="v-timeline-time">{{ e.time }}</time><span class="v-timeline-label">{{ e.label }}</span></li>{% endfor %}</ol>{% endif %}

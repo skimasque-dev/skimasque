@@ -1,0 +1,1 @@
+<figure class="v-flow-wrap"><ol class="v-flow" data-layout="{{ self.layout() }}">{% for s in steps %}<li class="v-flow-step">{{ s.body|safe }}{% if !loop.last %}{% if let Some(c) = Self::conn_html(s) %}{{ c|safe }}{% endif %}{% endif %}</li>{% endfor %}</ol><figcaption class="v-sr">{{ caption }}</figcaption></figure>

@@ -1,0 +1,1 @@
+<article class="v-card v-policy-card"><header class="v-card-head"><h{{ level }} class="v-card-title">{% if let Some(h) = href %}<a href="{{ h }}">{{ name }}</a>{% else %}{{ name }}{% endif %}</h{{ level }}>{{ self.status_html()|safe }}</header>{{ self.summary_html()|safe }}{% if let Some(m) = meta %}<footer class="v-card-meta">{{ m }}</footer>{% endif %}</article>

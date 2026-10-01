@@ -1,0 +1,1 @@
+<div class="v-audit-event">{{ self.card_html()|safe }}<p class="v-audit-reason">{{ reason }}</p>{% if let Some(e) = self.explainer_html() %}<details class="v-audit-why"><summary>Why?</summary>{{ e|safe }}</details>{% endif %}</div>

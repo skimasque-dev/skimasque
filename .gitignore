@@ -10,3 +10,14 @@ deploy/**/*.env
 
 # Control-plane backup archives (deploy/docker/backup-control.sh).
 skimasque-control-backup-*.tar.gz
+
+# Terraform working files (the modules under deploy/terraform are consumed, never applied here).
+**/.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+
+# Python bytecode (the deploy agent's tests).
+__pycache__/
+*.pyc

@@ -22,11 +22,11 @@ use crate::control::{audit_hash, AuditHead, ChainedAuditEvent, ControlPlane, Gat
 /// Room for a burst of decisions before the shipper catches up.
 pub const AUDIT_BUFFER: usize = 4096;
 /// Events per `POST .../audit`.
-const BATCH_MAX: usize = 256;
+pub(crate) const BATCH_MAX: usize = 256;
 /// Cap on unshipped events held in memory during a control-plane outage. Beyond
 /// it the oldest are dropped from the *control-plane copy* -- the local sink
 /// still has every event.
-const MAX_PENDING: usize = 10_000;
+pub(crate) const MAX_PENDING: usize = 10_000;
 
 /// An [`AuditSink`] that records locally and also queues for the control plane.
 pub struct ControlPlaneAuditSink {
@@ -36,7 +36,8 @@ pub struct ControlPlaneAuditSink {
 
 impl std::fmt::Debug for ControlPlaneAuditSink {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ControlPlaneAuditSink").finish_non_exhaustive()
+        f.debug_struct("ControlPlaneAuditSink")
+            .finish_non_exhaustive()
     }
 }
 
@@ -148,8 +149,20 @@ pub async fn run_audit_shipping(
 
 /// Where to resume the chain: the control plane's head, else the persisted
 /// local tail, else genesis.
-async fn resume(control: &ControlPlane, identity: &GatewayIdentity, chain_path: &std::path::Path) -> AuditHead {
-    match control.audit_head(identity).await {
+async fn resume(
+    control: &ControlPlane,
+    identity: &GatewayIdentity,
+    chain_path: &std::path::Path,
+) -> AuditHead {
+    resume_from(control.audit_head(identity).await, chain_path)
+}
+
+/// [`resume`] given the outcome of asking the control plane for its head.
+pub(crate) fn resume_from(
+    fetched: anyhow::Result<AuditHead>,
+    chain_path: &std::path::Path,
+) -> AuditHead {
+    match fetched {
         Ok(head) => head,
         Err(error) => match std::fs::read(chain_path)
             .ok()
@@ -178,23 +191,46 @@ fn chain_batch(
     first_seq: u64,
     prev_hash: &str,
 ) -> (Vec<ChainedAuditEvent>, String) {
+    chain_with(
+        events,
+        first_seq,
+        prev_hash,
+        |_, seq, prev_hash, event_json| {
+            Some(ChainedAuditEvent {
+                seq,
+                prev_hash,
+                event_json,
+            })
+        },
+    )
+}
+
+/// The chaining both shippers share: each event is serialised, given the next
+/// sequence number and the previous hash, and hashed with [`audit_hash`].
+/// `make` builds the wire event, or returns `None` to skip the event, which
+/// consumes no sequence number and leaves the chain unbroken.
+pub(crate) fn chain_with<T>(
+    events: &[AuditEvent],
+    first_seq: u64,
+    prev_hash: &str,
+    mut make: impl FnMut(&AuditEvent, u64, String, String) -> Option<T>,
+) -> (Vec<T>, String) {
     let mut batch = Vec::with_capacity(events.len());
     let mut hash = prev_hash.to_owned();
-    for (i, event) in events.iter().enumerate() {
-        let seq = first_seq + i as u64;
+    let mut seq = first_seq;
+    for event in events {
         let event_json = serde_json::to_string(event).unwrap_or_default();
         let this = audit_hash(seq, &hash, &event_json);
-        batch.push(ChainedAuditEvent {
-            seq,
-            prev_hash: hash,
-            event_json,
-        });
-        hash = this;
+        if let Some(item) = make(event, seq, hash.clone(), event_json) {
+            batch.push(item);
+            hash = this;
+            seq += 1;
+        }
     }
     (batch, hash)
 }
 
-fn persist(chain_path: &std::path::Path, seq: u64, hash: &str) {
+pub(crate) fn persist(chain_path: &std::path::Path, seq: u64, hash: &str) {
     let head = AuditHead {
         seq,
         hash: hash.to_owned(),
@@ -221,6 +257,8 @@ mod tests {
             rule: None,
             reason: None,
             suggested_rule: None,
+            requested_policy: None,
+            org_id: None,
         }
     }
 
@@ -237,6 +275,9 @@ mod tests {
             audit_hash(1, genesis, &batch[0].event_json)
         );
         assert_eq!(batch[2].seq, 3);
-        assert_eq!(tail, audit_hash(3, &batch[2].prev_hash, &batch[2].event_json));
+        assert_eq!(
+            tail,
+            audit_hash(3, &batch[2].prev_hash, &batch[2].event_json)
+        );
     }
 }
