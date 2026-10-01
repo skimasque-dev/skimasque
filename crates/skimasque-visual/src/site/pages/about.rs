@@ -6,9 +6,8 @@ use crate::{Component, Hero, Layers, Prose, Section, SitePage};
 
 pub fn page() -> Page {
     let hero = Hero::new("Network access should work the way modern infrastructure works.")
-        .lead("SkiMasque was built around a simple observation.")
-        .lead("Infrastructure is increasingly automated, ephemeral, and identity-aware.")
-        .lead("Network access should be too.");
+        .lead("Automated jobs and developer commands need access for a task, not permanent membership in a network.")
+        .lead("SkiMasque ties that access to identity, policy and a bounded session.");
 
     let philosophy = Section::new("Philosophy")
         .push(&Prose::new().p(

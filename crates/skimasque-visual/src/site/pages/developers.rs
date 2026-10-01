@@ -22,7 +22,7 @@ struct Stack {
 }
 impl Component for Stack {}
 
-const CONNECT: &str = "# Bridge one TCP tunnel to stdin/stdout, signed in with skimasque login\n$ skimasque connect db.internal:5432 --proxy gateway.example.com --org acme\n\n# Or run a local SOCKS5 relay and point ALL_PROXY at it\n$ skimasque-client --proxy gateway.example.com --org acme --app psql socks5 --listen 127.0.0.1:1080\n$ ALL_PROXY=socks5h://127.0.0.1:1080 psql -h db.internal -p 5432";
+const CONNECT: &str = "# Bridge one TCP tunnel to stdin/stdout, signed in with skimasque login\n$ skimasque connect db.internal:5432 --proxy gateway.example.com --org acme\n\n# Or run a local SOCKS5 relay and point ALL_PROXY at it\n$ skimasque-client --proxy gateway.example.com --org acme --app curl socks5 --listen 127.0.0.1:1080\n$ ALL_PROXY=socks5h://127.0.0.1:1080 curl https://api.internal";
 
 const QUICK_START: &str =
     "$ skimasque login\n$ skimasque org create \"Acme\"\n$ skimasque init\n$ skimasque policy test";
@@ -47,13 +47,13 @@ fn exec_flow() -> Flow {
 
 pub fn page() -> Page {
     let hero = Hero::new("Run the command. Get the access. Lose the access when you're done.")
-        .lead("SkiMasque should feel like a developer tool, not a VPN client.")
+        .lead("Use the CLI to check a policy, open a tunnel, or run a command with temporary access.")
         .cta(Cta::primary("Get Started", GET_STARTED_URL))
         .cta(Cta::secondary("Read the Docs", doc("cli.md")));
 
     let cli = Section::new("The command line today")
         .push(&Prose::new().p(
-            "skimasque connect opens a tunnel to one destination through your gateway, delegating to skimasque-client. Tools that honour ALL_PROXY can use the local SOCKS5 relay instead.",
+            "skimasque connect opens a tunnel to one destination through your gateway. Tools that honour ALL_PROXY can use the local SOCKS5 relay instead.",
         ))
         .push(&CodeExample::new("connect to a private service", CONNECT))
         .push(&public::developer_cli());
@@ -78,7 +78,7 @@ pub fn page() -> Page {
     let exec_body = Stack {
         parts: vec![
             Prose::new()
-                .p("skimasque exec requests the access a command needs, runs the command, and drops the access when it exits. Tools that honour HTTPS_PROXY or ALL_PROXY just work; for tools that don't, --forward opens a local port to one destination.")
+                .p("skimasque exec requests the access a command needs, runs the command, and drops the access when it exits. Tools that honour HTTPS_PROXY or ALL_PROXY can use its local proxy; for tools that don't, --forward opens a local port to one destination.")
                 .html(),
             CodeExample::new("wrap a command", EXEC_FLOW).html(),
             exec_flow().html(),
@@ -145,7 +145,7 @@ mod tests {
         let s = p.contents.replace("&#x27;", "'").replace("&#39;", "'");
         for want in [
             "Run the command. Get the access. Lose the access when you're done.",
-            "SkiMasque should feel like a developer tool, not a VPN client.",
+            "Use the CLI to check a policy, open a tunnel, or run a command with temporary access.",
             "skimasque connect",
             "skimasque login",
             "skimasque policy test",

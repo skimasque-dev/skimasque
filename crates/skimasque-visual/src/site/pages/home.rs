@@ -1,4 +1,4 @@
-//! The homepage (`/`): canonical spec §11.
+//! The homepage (`/`): canonical spec Â§11.
 
 use askama::Template;
 
@@ -6,60 +6,32 @@ use super::doc;
 use crate::diagrams::public;
 use crate::site::Page;
 use crate::site_chrome::{link, GET_STARTED_URL};
-use crate::{
-    Component, ConnKind, Connection, Cta, CtaBand, FeatureGrid, Flow, Hero, Html, Node, NodeKind,
-    PolicyExplorer, Prose, Route, Section, SitePage, Status,
-};
+use crate::{Component, Cta, CtaBand, FeatureGrid, Hero, PolicyExplorer, Prose, Section, SitePage};
 
-/// The hero artwork: the session path with the animated route beneath it.
+/// A self-contained network illustration with progressive enhancement.
 #[derive(Template)]
-#[template(
-    source = r#"<div class="v-hero-art">{{ flow|safe }}{{ route|safe }}</div>"#,
-    ext = "html"
-)]
-struct HeroArt {
-    flow: Html,
-    route: Html,
+#[template(path = "network_demo.html")]
+struct HeroArt;
+impl HeroArt {
+    fn script(&self) -> &'static str {
+        include_str!("../../../static/network_demo.js")
+    }
 }
 impl Component for HeroArt {}
 
-fn hero_flow() -> Flow {
-    let active = || Connection::new(ConnKind::Active);
-    Flow::new(
-        "An identity is checked against policy, a temporary session is opened, and the gateway \
-         carries it to the private service.",
-    )
-    .then(&Node::new(NodeKind::Identity).label("IDENTITY"))
-    .via(active(), &Node::new(NodeKind::Policy).label("POLICY"))
-    .via(
-        active(),
-        &Node::new(NodeKind::Session)
-            .label("TEMPORARY SESSION")
-            .status(Status::Active),
-    )
-    .via(active(), &Node::new(NodeKind::Gateway).label("GATEWAY"))
-    .via(
-        active(),
-        &Node::new(NodeKind::Service).label("PRIVATE SERVICE"),
-    )
-}
-
 pub fn page() -> Page {
-    let art = HeroArt {
-        flow: hero_flow().html(),
-        route: Route::new().flowing().html(),
-    };
+    let art = HeroArt;
     let hero = Hero::new("Give every workload exactly the network access it needs.")
         .lead(
             "SkiMasque provides identity-aware, least-privilege network access for developers \
              and CI/CD workloads.",
         )
-        .lead("No broad VPN membership.")
-        .lead("No permanent network credentials.")
-        .lead("No standing access.")
-        .lead("Just the network access required for the job.")
+        .lead("Grant a policy-bounded session for the destinations the job needs.")
         .cta(Cta::primary("Get Started", GET_STARTED_URL))
-        .cta(Cta::secondary("See How It Works", link("", "how-it-works")))
+        .cta(Cta::secondary(
+            "Watch the workflow",
+            link("", "how-it-works"),
+        ))
         .aside(&art);
 
     let problem = Section::new("Your deployment shouldn't need the whole network.")
@@ -75,13 +47,13 @@ pub fn page() -> Page {
                     "unrelated production infrastructure",
                 ])
                 .p("Traditional solutions often solve this by putting the workload somewhere inside the network.")
-                .p("SkiMasque solves the problem at the access layer."),
+                .p("SkiMasque checks the workloadâ€™s identity and requested destination against policy before the gateway opens a tunnel."),
         )
         .push(&public::traditional_vs_skimasque());
 
     let model = Section::new("Network access as a capability.")
         .alt()
-        .push(&Prose::new().p("Every request answers four questions."))
+        .push(&Prose::new().p("Specify who is asking, what application they name, where they need to connect, and the session limits."))
         .push(&public::policy_model())
         .push(&PolicyExplorer::new(
             &["acme/widget"],
@@ -118,8 +90,7 @@ pub fn page() -> Page {
 
     let cta = CtaBand::new("Network access should be temporary.")
         .line("Define the access your workloads need.")
-        .line("Give it to them.")
-        .line("Let it disappear when the work is done.")
+        .line("Test the policy, then run a command with the access it grants.")
         .cta(Cta::primary("Create Your First Policy", doc("policies.md")));
 
     Page {
@@ -127,7 +98,7 @@ pub fn page() -> Page {
         contents: SitePage::new(
             "",
             "",
-            "SkiMasque — identity-aware network access",
+            "SkiMasque â€” identity-aware network access",
             "SkiMasque provides identity-aware, least-privilege network access for developers and CI/CD workloads.",
         )
         .push(&hero)
@@ -152,9 +123,6 @@ mod tests {
         let s = p.contents.replace("&#x27;", "'").replace("&#39;", "'");
         for want in [
             "Give every workload exactly the network access it needs.",
-            "No broad VPN membership.",
-            "No permanent network credentials.",
-            "No standing access.",
             "Your deployment shouldn't need the whole network.",
             "Network access as a capability.",
             "WHO",
@@ -171,14 +139,16 @@ mod tests {
             "Network access should be temporary.",
             "Create Your First Policy",
             "Get Started",
-            "See How It Works",
+            "Watch the workflow",
         ] {
             assert!(
                 s.contains(want) || s.contains(&want.replace('\'', "&#39;")),
                 "missing {want:?}"
             );
         }
-        assert!(s.contains("v-route"), "the hero route motif");
+        assert!(s.contains("v-network-demo"), "the animated network diagram");
+        assert!(s.contains("Other services"));
+        assert!(s.contains("Replay"));
         assert!(
             !s.to_lowercase().contains("command wrapper"),
             "exec is built: no planned command-wrapper card"

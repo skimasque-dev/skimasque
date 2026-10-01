@@ -1,4 +1,30 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How It Works · SkiMasque</title><meta name="description" content="SkiMasque turns an authenticated identity into a short-lived, policy-controlled network session."><meta property="og:title" content="How It Works · SkiMasque"><meta property="og:description" content="SkiMasque turns an authenticated identity into a short-lived, policy-controlled network session."><meta property="og:type" content="website"><link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href="../assets/visual.css"></head><body class="v-site"><svg class="v-sprite" aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><script>(() => {
+  const key = 'skimasque-theme';
+  const root = document.documentElement;
+  let theme = 'system';
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === 'light' || saved === 'dark') theme = saved;
+  } catch (_) { /* Storage may be disabled; switching still works. */ }
+  function apply() {
+    if (theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+  }
+  apply();
+  document.addEventListener('DOMContentLoaded', () => {
+    const control = document.querySelector('.v-theme-control');
+    const picker = document.querySelector('#site-theme');
+    if (!control || !picker) return;
+    picker.value = theme;
+    control.hidden = false;
+    picker.addEventListener('change', () => {
+      theme = picker.value;
+      apply();
+      try { localStorage.setItem(key, theme); } catch (_) { /* Keep the current-page choice. */ }
+    });
+  });
+})();
+</script><title>How It Works · SkiMasque</title><meta name="description" content="SkiMasque turns an authenticated identity into a short-lived, policy-controlled network session."><meta property="og:title" content="How It Works · SkiMasque"><meta property="og:description" content="SkiMasque turns an authenticated identity into a short-lived, policy-controlled network session."><meta property="og:type" content="website"><link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href="../assets/visual.css?v=cc1ab97b834ee68d"></head><body class="v-site"><svg class="v-sprite" aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
 <symbol id="i-workload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></symbol>
 <symbol id="i-developer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></symbol>
 <symbol id="i-github" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 8v8M17 10c0 4-4 4-8 6"/></symbol>
@@ -7,7 +33,7 @@
 <symbol id="i-identity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M17 12v3M20 12v2"/></symbol>
 <symbol id="i-policy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 13l2 2 4-4"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
-<symbol id="i-gateway" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V9l8-5 8 5v11"/><path d="M9 20v-6h6v6"/></symbol>
+<symbol id="i-gateway" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M2 8h9M8 5l3 3-3 3M22 16h-9M16 13l-3 3 3 3"/></symbol>
 <symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M11 6.8L6 16.2M13 6.8l5 9.4M7 18h10"/></symbol>
 <symbol id="i-service" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></symbol>
 <symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></symbol>
@@ -19,15 +45,190 @@
 <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
 <symbol id="i-cross" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
 <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
-<symbol id="i-control-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 7h.01M7 17h.01"/></symbol>
+<symbol id="i-control-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="7" rx="2"/><path d="M12 10v5M4 15h16M4 15v3M12 15v3M20 15v3"/><circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="2"/></symbol>
 <symbol id="i-cli" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l7 6-7 6M13 18h7"/></symbol>
 <symbol id="i-credential" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
 <symbol id="i-audit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
-</svg><a class="v-skip" href="#main">Skip to content</a><header class="v-site-header"><div class="v-wrap v-site-bar"><a class="v-brand" href="../">SkiMasque</a><nav class="v-site-nav" aria-label="Primary"><details class="v-nav-group" name="site-nav"><summary>Product</summary><ul><li><a href="../how-it-works/" aria-current="page">How It Works</a></li><li><a href="../identities/">Identities</a></li><li><a href="../policies/">Policies</a></li><li><a href="../ci-cd/">CI/CD</a></li><li><a href="../developers/">Developers</a></li><li><a href="../security/">Security</a></li><li><a href="../deployment/">Deployment</a></li><li><a href="../gateways/">Gateways</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Compare</summary><ul><li><a href="../compare/">How SkiMasque Compares</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Technology</summary><ul><li><a href="../architecture/">Architecture</a></li><li><a href="../technology/masque/">MASQUE</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Resources</summary><ul><li><a href="../docs/">Documentation</a></li><li><a href="../use-cases/">Use Cases</a></li><li><a href="../open-source/">Open Source</a></li><li><a href="../faq/">FAQ</a></li><li><a href="../trust/">Trust</a></li></ul></details><a class="v-nav-top" href="../pricing/">Pricing</a></nav><div class="v-site-actions"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="https://github.com/skimasque-dev/skimasque/blob/main/docs/getting-started.md">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel"><p class="v-menu-title">Product</p><ul><li><a href="../how-it-works/" aria-current="page">How It Works</a></li><li><a href="../identities/">Identities</a></li><li><a href="../policies/">Policies</a></li><li><a href="../ci-cd/">CI/CD</a></li><li><a href="../developers/">Developers</a></li><li><a href="../security/">Security</a></li><li><a href="../deployment/">Deployment</a></li><li><a href="../gateways/">Gateways</a></li></ul><p class="v-menu-title">Compare</p><ul><li><a href="../compare/">How SkiMasque Compares</a></li></ul><p class="v-menu-title">Technology</p><ul><li><a href="../architecture/">Architecture</a></li><li><a href="../technology/masque/">MASQUE</a></li></ul><p class="v-menu-title">Resources</p><ul><li><a href="../docs/">Documentation</a></li><li><a href="../use-cases/">Use Cases</a></li><li><a href="../open-source/">Open Source</a></li><li><a href="../faq/">FAQ</a></li><li><a href="../trust/">Trust</a></li></ul><p class="v-menu-title">Pricing</p><ul><li><a href="../pricing/">Pricing</a></li></ul><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="https://github.com/skimasque-dev/skimasque/blob/main/docs/getting-started.md">Get Started</a></p></div></details></nav></div></header><main id="main"><section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy"><h1>From identity to network access.</h1><p class="v-lead">SkiMasque turns an authenticated identity into a short-lived, policy-controlled network session.</p></div><div class="v-hero-aside"><figure class="v-flow-wrap"><ol class="v-flow"><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="workload"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-workload"></use></svg><span class="v-node-text"><span class="v-node-label">WORKLOAD</span></span></div><span class="v-conn v-conn-control"><span class="v-conn-line" aria-hidden="true"></span><span class="v-sr">control plane</span></span></li><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="identity"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-identity"></use></svg><span class="v-node-text"><span class="v-node-label">IDENTITY</span></span></div><span class="v-conn v-conn-control"><span class="v-conn-line" aria-hidden="true"></span><span class="v-sr">control plane</span></span></li><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="credential"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-credential"></use></svg><span class="v-node-text"><span class="v-node-label">AUTHENTICATE</span></span></div><span class="v-conn v-conn-control"><span class="v-conn-line" aria-hidden="true"></span><span class="v-sr">control plane</span></span></li><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="policy"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-policy"></use></svg><span class="v-node-text"><span class="v-node-label">AUTHORIZE</span></span></div><span class="v-conn v-conn-active"><span class="v-conn-line" aria-hidden="true"></span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-node v-tone-active" data-kind="session"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-clock"></use></svg><span class="v-node-text"><span class="v-node-label">SESSION</span></span><span class="v-status v-tone-active"><span aria-hidden="true">●</span> ACTIVE</span></div><span class="v-conn v-conn-active"><span class="v-conn-line" aria-hidden="true"></span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-node v-tone-edge" data-kind="gateway"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-gateway"></use></svg><span class="v-node-text"><span class="v-node-label">GATEWAY</span></span></div><span class="v-conn v-conn-active"><span class="v-conn-line" aria-hidden="true"></span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-node v-tone-structure" data-kind="network"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-network"></use></svg><span class="v-node-text"><span class="v-node-label">PRIVATE NETWORK</span></span></div></li></ol><figcaption class="v-sr">A workload presents an identity, is authenticated and authorized, receives a session, and reaches the private network through the gateway.</figcaption></figure></div></div></section><section class="v-section"><div class="v-wrap"><h2>Step 1 — Identify</h2><div class="v-prose"><p>SkiMasque establishes who or what is making the request.</p></div><figure class="v-code"><figcaption class="v-code-label">Example</figcaption><pre class="v-code-body"><span class="v-code-out">repository: acme/widget</span>
+</svg><a class="v-skip" href="#main">Skip to content</a><header class="v-site-header"><div class="v-wrap v-site-bar"><a class="v-brand" href="../">SkiMasque</a><nav class="v-site-nav" aria-label="Primary"><details class="v-nav-group" name="site-nav"><summary>Product</summary><ul><li><a href="../how-it-works/" aria-current="page">How It Works</a></li><li><a href="../identities/">Identities</a></li><li><a href="../policies/">Policies</a></li><li><a href="../ci-cd/">CI/CD</a></li><li><a href="../developers/">Developers</a></li><li><a href="../security/">Security</a></li><li><a href="../deployment/">Deployment</a></li><li><a href="../gateways/">Gateways</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Compare</summary><ul><li><a href="../compare/">How SkiMasque Compares</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Technology</summary><ul><li><a href="../architecture/">Architecture</a></li><li><a href="../technology/masque/">MASQUE</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Resources</summary><ul><li><a href="../docs/">Documentation</a></li><li><a href="../use-cases/">Use Cases</a></li><li><a href="../open-source/">Open Source</a></li><li><a href="../faq/">FAQ</a></li><li><a href="../trust/">Trust</a></li></ul></details><a class="v-nav-top" href="../pricing/">Pricing</a></nav><div class="v-site-actions"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="https://github.com/skimasque-dev/skimasque/blob/main/docs/getting-started.md">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel"><p class="v-menu-title">Product</p><ul><li><a href="../how-it-works/" aria-current="page">How It Works</a></li><li><a href="../identities/">Identities</a></li><li><a href="../policies/">Policies</a></li><li><a href="../ci-cd/">CI/CD</a></li><li><a href="../developers/">Developers</a></li><li><a href="../security/">Security</a></li><li><a href="../deployment/">Deployment</a></li><li><a href="../gateways/">Gateways</a></li></ul><p class="v-menu-title">Compare</p><ul><li><a href="../compare/">How SkiMasque Compares</a></li></ul><p class="v-menu-title">Technology</p><ul><li><a href="../architecture/">Architecture</a></li><li><a href="../technology/masque/">MASQUE</a></li></ul><p class="v-menu-title">Resources</p><ul><li><a href="../docs/">Documentation</a></li><li><a href="../use-cases/">Use Cases</a></li><li><a href="../open-source/">Open Source</a></li><li><a href="../faq/">FAQ</a></li><li><a href="../trust/">Trust</a></li></ul><p class="v-menu-title">Pricing</p><ul><li><a href="../pricing/">Pricing</a></li></ul><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="https://github.com/skimasque-dev/skimasque/blob/main/docs/getting-started.md">Get Started</a></p></div></details></nav><label class="v-theme-control" hidden for="site-theme"><span>Theme</span><select id="site-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header><main id="main"><section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy"><h1>From identity to network access.</h1><p class="v-lead">SkiMasque turns an authenticated identity into a short-lived, policy-controlled network session.</p></div><div class="v-hero-aside"><figure class="v-flow-wrap"><ol class="v-flow" data-layout="full"><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="workload"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-workload"></use></svg><span class="v-node-text"><span class="v-node-label">WORKLOAD</span></span></div><span class="v-conn v-conn-control" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13 0)"><line x1="14" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13)"><line x1="6" y1="14" x2="6" y2="100%" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">control plane</span></span></li><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="identity"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-identity"></use></svg><span class="v-node-text"><span class="v-node-label">IDENTITY</span></span></div><span class="v-conn v-conn-control" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13 0)"><line x1="14" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13)"><line x1="6" y1="14" x2="6" y2="100%" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">control plane</span></span></li><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="credential"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-credential"></use></svg><span class="v-node-text"><span class="v-node-label">AUTHENTICATE</span></span></div><span class="v-conn v-conn-control" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13 0)"><line x1="14" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13)"><line x1="6" y1="14" x2="6" y2="100%" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">control plane</span></span></li><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="policy"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-policy"></use></svg><span class="v-node-text"><span class="v-node-label">AUTHORIZE</span></span></div><span class="v-conn v-conn-active" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13.5 0)"><line x1="15" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13.5)"><line x1="6" y1="15" x2="6" y2="100%" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-node v-tone-active" data-kind="session"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-clock"></use></svg><span class="v-node-text"><span class="v-node-label">SESSION</span></span><span class="v-status v-tone-active"><span aria-hidden="true">●</span> ACTIVE</span></div><span class="v-conn v-conn-active" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13.5 0)"><line x1="15" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13.5)"><line x1="6" y1="15" x2="6" y2="100%" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-node v-tone-edge" data-kind="gateway"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-gateway"></use></svg><span class="v-node-text"><span class="v-node-label">GATEWAY</span></span></div><span class="v-conn v-conn-active" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13.5 0)"><line x1="15" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13.5)"><line x1="6" y1="15" x2="6" y2="100%" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-node v-tone-structure" data-kind="network"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-network"></use></svg><span class="v-node-text"><span class="v-node-label">PRIVATE NETWORK</span></span></div></li></ol><figcaption class="v-sr">A workload presents an identity, is authenticated and authorized, receives a session, and reaches the private network through the gateway.</figcaption></figure></div></div></section><section class="v-section"><div class="v-wrap"><h2>Follow a deployment from request to expiry</h2><div class="v-prose"><p>In this example, a GitHub Actions job needs temporary access to one private database. Play the walkthrough to follow the decision and the resulting traffic path, or read each step at your own pace.</p></div><div class="v-workflow">
+  <p class="v-workflow-note"><strong>Simulated example</strong> · Playback compresses a 20-minute session into a few seconds. It does not open a connection or show live activity.</p>
+  <div class="v-workflow-controls" hidden>
+    <button type="button" data-action="play">Play</button>
+    <button type="button" data-action="pause" disabled>Pause</button>
+    <button type="button" data-action="replay">Replay</button>
+  </div>
+  <p class="v-workflow-progress" role="status" aria-live="polite" aria-atomic="true">Read the six steps below to follow the session from request to expiry.</p>
+  <ol class="v-workflow-stages">
+    <li class="v-workflow-stage">
+      <p class="v-workflow-title"><span class="v-workflow-number" aria-hidden="true">1</span><strong>Request access</strong></p>
+      <div class="v-workflow-diagram"><div class="v-node v-tone-neutral" data-kind="github"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-github"></use></svg><span class="v-node-text"><span class="v-node-label">GitHub Actions</span><span class="v-node-sub">acme/widget</span></span></div></div>
+      <p class="v-workflow-description">A GitHub Actions job in acme/widget asks to run terraform against db.prod:5432.</p>
+    </li><li class="v-workflow-stage">
+      <p class="v-workflow-title"><span class="v-workflow-number" aria-hidden="true">2</span><strong>Verify identity</strong></p>
+      <div class="v-workflow-diagram"><div class="v-node v-tone-neutral" data-kind="identity"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-identity"></use></svg><span class="v-node-text"><span class="v-node-label">Identity</span><span class="v-node-sub">deploy-production</span></span></div></div>
+      <p class="v-workflow-description">SkiMasque verifies the job&#x27;s OIDC identity, including its repository and workflow claims.</p>
+    </li><li class="v-workflow-stage">
+      <p class="v-workflow-title"><span class="v-workflow-number" aria-hidden="true">3</span><strong>Check policy</strong></p>
+      <div class="v-workflow-diagram"><div class="v-node v-tone-neutral" data-kind="policy"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-policy"></use></svg><span class="v-node-text"><span class="v-node-label">Policy</span></span><span class="v-status v-tone-active"><span aria-hidden="true">●</span> ACCESS GRANTED</span></div></div>
+      <p class="v-workflow-description">A matching allow rule permits this identity and application to reach the requested destination. Without a matching allow rule, the request is denied.</p>
+    </li><li class="v-workflow-stage">
+      <p class="v-workflow-title"><span class="v-workflow-number" aria-hidden="true">4</span><strong>Open a session</strong></p>
+      <div class="v-workflow-diagram"><div class="v-node v-tone-active" data-kind="session"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-clock"></use></svg><span class="v-node-text"><span class="v-node-label">Session</span><span class="v-node-sub">20 minutes</span></span><span class="v-status v-tone-active"><span aria-hidden="true">●</span> ACTIVE</span></div></div>
+      <p class="v-workflow-description">An authorized request receives a session limited to db.prod:5432 for 20 minutes in this example.</p>
+    </li><li class="v-workflow-stage">
+      <p class="v-workflow-title"><span class="v-workflow-number" aria-hidden="true">5</span><strong>Connect through the gateway</strong></p>
+      <div class="v-workflow-diagram"><figure class="v-flow-wrap"><ol class="v-flow" data-layout="compact"><li class="v-flow-step"><div class="v-node v-tone-edge" data-kind="gateway"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-gateway"></use></svg><span class="v-node-text"><span class="v-node-label">Gateway</span><span class="v-node-sub">us-west</span></span></div><span class="v-conn v-conn-active" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13.5 0)"><line x1="15" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13.5)"><line x1="6" y1="15" x2="6" y2="100%" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-conn-label">traffic</span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-node v-tone-structure" data-kind="database"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-database"></use></svg><span class="v-node-text"><span class="v-node-label">Database</span><span class="v-node-sub">db.prod:5432</span></span></div></li></ol><figcaption class="v-sr">The gateway forwards the session&#x27;s traffic to db.prod:5432.</figcaption></figure></div>
+      <p class="v-workflow-description">The workload&#x27;s traffic passes through the us-west gateway to the private database. The control plane makes the access decision; the gateway carries the traffic.</p>
+    </li><li class="v-workflow-stage">
+      <p class="v-workflow-title"><span class="v-workflow-number" aria-hidden="true">6</span><strong>Session expires</strong></p>
+      <div class="v-workflow-diagram"><div class="v-node v-tone-active" data-kind="session"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-clock"></use></svg><span class="v-node-text"><span class="v-node-label">Session</span></span><span class="v-status v-tone-neutral"><span aria-hidden="true">●</span> EXPIRED</span></div></div>
+      <p class="v-workflow-description">When the session expires or ends, its access closes. A later connection needs a new authorized session.</p>
+    </li>
+  </ol>
+</div>
+<script>(() => {
+  function createPlayback({ count, onChange, schedule = setTimeout, cancel = clearTimeout }) {
+    let step = 0;
+    let playing = false;
+    let timer = null;
+    const emit = () => onChange({ step, playing, finished: step === count - 1 });
+    const stop = () => {
+      if (timer !== null) cancel(timer);
+      timer = null;
+      playing = false;
+    };
+    const tick = () => {
+      timer = schedule(() => {
+        timer = null;
+        if (!playing) return;
+        step += 1;
+        if (step === count - 1) playing = false;
+        emit();
+        if (playing) tick();
+      }, 2500);
+    };
+    const play = () => {
+      if (playing || step === count - 1) return;
+      playing = true;
+      emit();
+      tick();
+    };
+    emit();
+    return {
+      play,
+      pause() { stop(); emit(); },
+      replay() { stop(); step = 0; play(); },
+    };
+  }
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = { createPlayback };
+  if (typeof document === 'undefined') return;
+  const root = document.currentScript.previousElementSibling;
+  if (!root || !root.classList.contains('v-workflow')) return;
+  const stages = [...root.querySelectorAll('.v-workflow-stage')];
+  const controls = root.querySelector('.v-workflow-controls');
+  const progress = root.querySelector('.v-workflow-progress');
+  const play = controls.querySelector('[data-action="play"]');
+  const pause = controls.querySelector('[data-action="pause"]');
+  const replay = controls.querySelector('[data-action="replay"]');
+  const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const playback = createPlayback({
+    count: stages.length,
+    onChange({ step, playing, finished }) {
+      root.dataset.playing = String(playing && !motion.matches);
+      stages.forEach((stage, index) => {
+        stage.dataset.current = String(index === step && !motion.matches);
+        stage.dataset.complete = String(index < step && !motion.matches);
+        if (index === step && !motion.matches) stage.setAttribute('aria-current', 'step');
+        else stage.removeAttribute('aria-current');
+      });
+      play.disabled = playing || finished;
+      pause.disabled = !playing;
+      if (!motion.matches) {
+        const title = stages[step].querySelector('strong').textContent;
+        progress.textContent = `Step ${step + 1} of ${stages.length}: ${title}${finished ? ' — complete.' : playing ? '.' : ' — paused.'}`;
+      }
+    },
+  });
+  function updateMotion() {
+    controls.hidden = motion.matches;
+    playback.pause();
+    if (motion.matches) progress.textContent = 'Reduced motion is enabled. All six steps are shown as a static example.';
+  }
+  play.addEventListener('click', () => { if (!motion.matches) playback.play(); });
+  pause.addEventListener('click', () => playback.pause());
+  replay.addEventListener('click', () => { if (!motion.matches) playback.replay(); });
+  motion.addEventListener('change', updateMotion);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) playback.pause(); });
+  updateMotion();
+})();
+</script></div></section><section class="v-section"><div class="v-wrap"><h2>Step 1 — Identify</h2><div class="v-prose"><p>A workload requests access to a destination. SkiMasque identifies who is asking and which application needs the connection.</p></div><figure class="v-code"><figcaption class="v-code-label">Example</figcaption><pre class="v-code-body"><span class="v-code-out">repository: acme/widget</span>
 <span class="v-code-out">workflow: deploy-production</span>
 <span class="v-code-out">ref: main</span>
 <span class="v-code-out">application: terraform</span>
-</pre></figure></div></section><section class="v-section v-section-alt"><div class="v-wrap"><h2>Step 2 — Authenticate</h2><div class="v-prose"><p>The identity is verified using the configured identity source.</p><p>For GitHub Actions, this can use workload identity/OIDC.</p></div></div></section><section class="v-section"><div class="v-wrap"><h2>Step 3 — Authorize</h2><div class="v-prose"><p>The identity is evaluated against policy.</p></div><figure class="v-code"><figcaption class="v-code-label">Policy</figcaption><pre class="v-code-body"><span class="v-code-out">WHO</span>
+</pre></figure></div></section><section class="v-section v-section-alt"><div class="v-wrap"><h2>Step 2 — Authenticate</h2><div class="v-prose"><p>SkiMasque verifies the presented identity using the configured identity source.</p><p>For GitHub Actions, workload identity/OIDC establishes which repository and workflow is making the request. Authentication establishes the identity; policy determines its access.</p></div></div></section><section class="v-section"><div class="v-wrap"><h2>Step 3 — Authorize</h2><div class="v-prose"><p>SkiMasque evaluates the identity, application, and requested destination against policy.</p></div><figure class="v-code"><figcaption class="v-code-label">Policy</figcaption><pre class="v-code-body"><span class="v-code-out">WHO</span>
 <span class="v-code-out">acme/widget</span>
 <span class="v-code-out"></span>
 <span class="v-code-out">WHAT</span>
@@ -35,10 +236,91 @@
 <span class="v-code-out"></span>
 <span class="v-code-out">WHERE</span>
 <span class="v-code-out">db.prod:5432</span>
-</pre></figure><div class="v-prose"><p>The policy determines whether the requested access is allowed.</p></div></div></section><section class="v-section v-section-alt"><div class="v-wrap"><h2>Step 4 — Establish a session</h2><div class="v-prose"><p>If authorized, SkiMasque creates a short-lived network session.</p></div><figure class="v-code"><figcaption class="v-code-label">Example</figcaption><pre class="v-code-body"><span class="v-code-out">SESSION</span>
+</pre></figure><div class="v-prose"><p>A matching allow rule grants the requested access within its limits. With no matching allow rule, the request is denied before a session is opened.</p></div></div></section><section class="v-section v-section-alt"><div class="v-wrap"><h2>Step 4 — Establish a session</h2><div class="v-prose"><p>If authorized, SkiMasque creates a short-lived session for the permitted destination. The 20-minute duration and bandwidth below are illustrative policy limits.</p></div><figure class="v-code"><figcaption class="v-code-label">Example</figcaption><pre class="v-code-body"><span class="v-code-out">SESSION</span>
 <span class="v-code-out">Status: Active</span>
 <span class="v-code-out">Destination: db.prod:5432</span>
 <span class="v-code-out">Duration: 20m</span>
 <span class="v-code-out">Bandwidth: 100 Mbps</span>
 <span class="v-code-out">Gateway: us-west</span>
-</pre></figure></div></section><section class="v-section"><div class="v-wrap"><h2>Step 5 — Connect</h2><div class="v-prose"><p>Traffic flows through the SkiMasque gateway into the customer&#x27;s network.</p></div><figure class="v-flow-wrap"><ol class="v-flow"><li class="v-flow-step"><div class="v-node v-tone-structure" data-kind="control-plane"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-control-plane"></use></svg><span class="v-node-text"><span class="v-node-label">Control plane</span></span></div><span class="v-conn v-conn-control"><span class="v-conn-line" aria-hidden="true"></span><span class="v-conn-label">sessions and policy</span><span class="v-sr">control plane</span></span></li><li class="v-flow-step"><div class="v-node v-tone-edge" data-kind="gateway"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-gateway"></use></svg><span class="v-node-text"><span class="v-node-label">Gateway</span></span></div><span class="v-conn v-conn-active"><span class="v-conn-line" aria-hidden="true"></span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-boundary v-boundary-region" role="group" aria-label="YOUR NETWORK"><span class="v-boundary-label" aria-hidden="true">YOUR NETWORK</span><div class="v-boundary-body"><div class="v-node v-tone-structure" data-kind="database"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-database"></use></svg><span class="v-node-text"><span class="v-node-label">Database</span></span></div><div class="v-node v-tone-structure" data-kind="api"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-api"></use></svg><span class="v-node-text"><span class="v-node-label">Internal API</span></span></div><div class="v-node v-tone-structure" data-kind="kubernetes"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-kubernetes"></use></svg><span class="v-node-text"><span class="v-node-label">Kubernetes API</span></span></div></div></div></li></ol><figcaption class="v-sr">The control plane tells the gateway which sessions are allowed; the gateway forwards traffic only to the private services in your network.</figcaption></figure></div></section><section class="v-section v-section-alt"><div class="v-wrap"><h2>Step 6 — Expire</h2><div class="v-prose"><p>When the session ends, access disappears.</p></div><figure class="v-flow-wrap"><ol class="v-flow"><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="workload"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-workload"></use></svg><span class="v-node-text"><span class="v-node-label">REQUEST</span></span></div><span class="v-conn v-conn-control"><span class="v-conn-line" aria-hidden="true"></span><span class="v-conn-label">identity</span><span class="v-sr">control plane</span></span></li><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="identity"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-identity"></use></svg><span class="v-node-text"><span class="v-node-label">AUTHENTICATE</span></span></div><span class="v-conn v-conn-control"><span class="v-conn-line" aria-hidden="true"></span><span class="v-conn-label">policy</span><span class="v-sr">control plane</span></span></li><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="policy"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-policy"></use></svg><span class="v-node-text"><span class="v-node-label">AUTHORIZE</span></span></div><span class="v-conn v-conn-active"><span class="v-conn-line" aria-hidden="true"></span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-node v-tone-edge" data-kind="gateway"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-gateway"></use></svg><span class="v-node-text"><span class="v-node-label">CONNECT</span></span></div><span class="v-conn v-conn-active"><span class="v-conn-line" aria-hidden="true"></span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-node v-tone-active" data-kind="session"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-clock"></use></svg><span class="v-node-text"><span class="v-node-label">ACTIVE</span></span><span class="v-status v-tone-active"><span aria-hidden="true">●</span> ACTIVE</span></div><span class="v-conn v-conn-potential"><span class="v-conn-line" aria-hidden="true"></span><span class="v-sr">potential</span></span></li><li class="v-flow-step"><div class="v-node v-tone-active" data-kind="session"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-clock"></use></svg><span class="v-node-text"><span class="v-node-label">EXPIRE</span></span><span class="v-status v-tone-neutral"><span aria-hidden="true">●</span> EXPIRED</span></div></li></ol><figcaption class="v-sr">An access request is authenticated, authorized, connected, active for a limited time, and then expires.</figcaption></figure><div class="v-prose"><p>No manual VPN disconnect.</p><p>No standing session.</p></div></div></section></main><footer class="v-site-footer"><div class="v-footer-art" aria-hidden="true"><svg class="v-contour" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M0 200 C120 160 200 210 320 170 S560 120 800 160"/><path d="M0 170 C120 130 200 180 320 140 S560 90 800 130"/><path d="M0 140 C120 100 200 150 320 110 S560 60 800 100"/><path d="M0 110 C120 70 200 120 320 80 S560 30 800 70"/><path d="M0 80 C120 40 200 90 320 50 S560 0 800 40"/></g></svg><svg class="v-mountain" viewBox="0 0 800 160" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="v-mountain-far" d="M0 160 L0 90 L120 40 L200 80 L300 20 L420 90 L520 50 L640 100 L720 60 L800 90 L800 160 Z"/><path class="v-mountain-near" d="M0 160 L0 120 L90 80 L180 115 L280 70 L380 120 L480 95 L590 125 L690 85 L800 120 L800 160 Z"/></svg></div><div class="v-wrap v-footer-grid"><div class="v-footer-brand"><p class="v-footer-name">SkiMasque</p><p>Identity-aware network access<br>for developers and workloads.</p></div><nav aria-label="Footer"><div class="v-footer-col"><p class="v-footer-title">Product</p><ul><li><a href="../how-it-works/">How It Works</a></li><li><a href="../identities/">Identities</a></li><li><a href="../policies/">Policies</a></li><li><a href="../ci-cd/">CI/CD</a></li><li><a href="../developers/">Developers</a></li><li><a href="../security/">Security</a></li><li><a href="../deployment/">Deployment</a></li><li><a href="../gateways/">Gateways</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Resources</p><ul><li><a href="../docs/">Documentation</a></li><li><a href="../architecture/">Architecture</a></li><li><a href="../technology/masque/">MASQUE</a></li><li><a href="../open-source/">Open Source</a></li><li><a href="../faq/">FAQ</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Company</p><ul><li><a href="../about/">About</a></li><li><a href="../contact/">Contact</a></li><li><a href="../trust/">Trust</a></li><li><a href="../status/">Status</a></li><li><a href="../security/">Security</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Legal</p><ul><li>Privacy <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li><li>Terms <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li></ul></div></nav></div><p class="v-wrap v-footer-legal">© SkiMasque</p></footer></body></html>
+</pre></figure></div></section><section class="v-section"><div class="v-wrap"><h2>Step 5 — Connect</h2><div class="v-prose"><p>The control plane authorizes the session. Traffic flows through the SkiMasque gateway to the permitted service in the customer&#x27;s network.</p></div><figure class="v-topology"><div class="v-topology-control"><div class="v-node v-tone-structure" data-kind="control-plane"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-control-plane"></use></svg><span class="v-node-text"><span class="v-node-label">Control plane</span></span></div></div><ul class="v-topology-networks"><li><span class="v-conn v-conn-control" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13 0)"><line x1="14" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13)"><line x1="6" y1="14" x2="6" y2="100%" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-conn-label">sessions and policy</span><span class="v-sr">control plane</span></span><div class="v-boundary v-boundary-region" role="group" aria-label="YOUR NETWORK"><span class="v-boundary-label" aria-hidden="true">YOUR NETWORK</span><div class="v-boundary-body"><figure class="v-branch-wrap"><div class="v-branch"><div class="v-branch-root"><div class="v-node v-tone-edge" data-kind="gateway"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-gateway"></use></svg><span class="v-node-text"><span class="v-node-label">Gateway</span></span></div></div><ul class="v-branch-arms"><li class="v-branch-arm"><span class="v-conn v-conn-active" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13.5 0)"><line x1="15" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13.5)"><line x1="6" y1="15" x2="6" y2="100%" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">active</span></span><div class="v-node v-tone-structure" data-kind="database"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-database"></use></svg><span class="v-node-text"><span class="v-node-label">Database</span></span></div></li><li class="v-branch-arm"><span class="v-conn v-conn-active" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13.5 0)"><line x1="15" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13.5)"><line x1="6" y1="15" x2="6" y2="100%" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">active</span></span><div class="v-node v-tone-structure" data-kind="api"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-api"></use></svg><span class="v-node-text"><span class="v-node-label">Internal API</span></span></div></li><li class="v-branch-arm"><span class="v-conn v-conn-active" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13.5 0)"><line x1="15" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13.5)"><line x1="6" y1="15" x2="6" y2="100%" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">active</span></span><div class="v-node v-tone-structure" data-kind="kubernetes"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-kubernetes"></use></svg><span class="v-node-text"><span class="v-node-label">Kubernetes API</span></span></div></li></ul></div><figcaption class="v-sr">Services behind YOUR NETWORK.</figcaption></figure></div></div></li></ul><figcaption class="v-sr">The control plane tells the gateway which sessions are allowed; the gateway forwards traffic only to the private services in your network.</figcaption></figure></div></section><section class="v-section v-section-alt"><div class="v-wrap"><h2>Step 6 — Expire</h2><div class="v-prose"><p>When the session expires or ends, that session&#x27;s access closes. A later connection requires a new request and another policy decision.</p></div><figure class="v-flow-wrap"><ol class="v-flow" data-layout="full"><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="workload"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-workload"></use></svg><span class="v-node-text"><span class="v-node-label">REQUEST</span></span></div><span class="v-conn v-conn-control" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13 0)"><line x1="14" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13)"><line x1="6" y1="14" x2="6" y2="100%" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-conn-label">identity</span><span class="v-sr">control plane</span></span></li><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="identity"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-identity"></use></svg><span class="v-node-text"><span class="v-node-label">AUTHENTICATE</span></span></div><span class="v-conn v-conn-control" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13 0)"><line x1="14" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13)"><line x1="6" y1="14" x2="6" y2="100%" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-conn-label">policy</span><span class="v-sr">control plane</span></span></li><li class="v-flow-step"><div class="v-node v-tone-neutral" data-kind="policy"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-policy"></use></svg><span class="v-node-text"><span class="v-node-label">AUTHORIZE</span></span></div><span class="v-conn v-conn-active" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13.5 0)"><line x1="15" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13.5)"><line x1="6" y1="15" x2="6" y2="100%" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-node v-tone-edge" data-kind="gateway"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-gateway"></use></svg><span class="v-node-text"><span class="v-node-label">CONNECT</span></span></div><span class="v-conn v-conn-active" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13.5 0)"><line x1="15" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13.5)"><line x1="6" y1="15" x2="6" y2="100%" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="none"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">active</span></span></li><li class="v-flow-step"><div class="v-node v-tone-active" data-kind="session"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-clock"></use></svg><span class="v-node-text"><span class="v-node-label">ACTIVE</span></span><span class="v-status v-tone-active"><span aria-hidden="true">●</span> ACTIVE</span></div><span class="v-conn v-conn-potential" style="--v-conn-length: 32px; --v-conn-cross: 12px; --v-conn-travel: 14px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-13 0)"><line x1="14" y1="6" x2="100%" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="0 6"/></g>
+    <svg x="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="-10,2 -2,6 -10,10" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -13)"><line x1="6" y1="14" x2="6" y2="100%" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="0 6"/></g>
+    <svg y="100%" width="12" height="12" overflow="visible" focusable="false"><polygon points="2,-10 6,-2 10,-10" fill="currentColor"/></svg>
+  </svg>
+</span><span class="v-sr">potential</span></span></li><li class="v-flow-step"><div class="v-node v-tone-active" data-kind="session"><svg class="v-icon" aria-hidden="true" focusable="false"><use href="#i-clock"></use></svg><span class="v-node-text"><span class="v-node-label">EXPIRE</span></span><span class="v-status v-tone-neutral"><span aria-hidden="true">●</span> EXPIRED</span></div></li></ol><figcaption class="v-sr">An access request is authenticated, authorized, connected, active for a limited time, and then expires.</figcaption></figure><div class="v-prose"><p>No manual VPN disconnect.</p><p>No standing session.</p></div></div></section></main><footer class="v-site-footer"><div class="v-footer-art" aria-hidden="true"><svg class="v-contour" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M0 200 C120 160 200 210 320 170 S560 120 800 160"/><path d="M0 170 C120 130 200 180 320 140 S560 90 800 130"/><path d="M0 140 C120 100 200 150 320 110 S560 60 800 100"/><path d="M0 110 C120 70 200 120 320 80 S560 30 800 70"/><path d="M0 80 C120 40 200 90 320 50 S560 0 800 40"/></g></svg><svg class="v-mountain" viewBox="0 0 800 160" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="v-mountain-far" d="M0 160 L0 90 L120 40 L200 80 L300 20 L420 90 L520 50 L640 100 L720 60 L800 90 L800 160 Z"/><path class="v-mountain-near" d="M0 160 L0 120 L90 80 L180 115 L280 70 L380 120 L480 95 L590 125 L690 85 L800 120 L800 160 Z"/></svg></div><div class="v-wrap v-footer-grid"><div class="v-footer-brand"><p class="v-footer-name">SkiMasque</p><p>Identity-aware network access<br>for developers and workloads.</p></div><nav aria-label="Footer"><div class="v-footer-col"><p class="v-footer-title">Product</p><ul><li><a href="../how-it-works/">How It Works</a></li><li><a href="../identities/">Identities</a></li><li><a href="../policies/">Policies</a></li><li><a href="../ci-cd/">CI/CD</a></li><li><a href="../developers/">Developers</a></li><li><a href="../security/">Security</a></li><li><a href="../deployment/">Deployment</a></li><li><a href="../gateways/">Gateways</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Resources</p><ul><li><a href="../docs/">Documentation</a></li><li><a href="../architecture/">Architecture</a></li><li><a href="../technology/masque/">MASQUE</a></li><li><a href="../open-source/">Open Source</a></li><li><a href="../faq/">FAQ</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Company</p><ul><li><a href="../about/">About</a></li><li><a href="../contact/">Contact</a></li><li><a href="../trust/">Trust</a></li><li><a href="../status/">Status</a></li><li><a href="../security/">Security</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Legal</p><ul><li>Privacy <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li><li>Terms <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li></ul></div></nav></div><p class="v-wrap v-footer-legal">© SkiMasque</p></footer></body></html>

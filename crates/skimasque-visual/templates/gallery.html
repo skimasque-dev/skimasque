@@ -13,13 +13,26 @@
   .g-theme { background: var(--bg); color: var(--text); padding: 32px 24px 48px; }
   .g-page { padding: 32px 24px 0; background: var(--bg); color: var(--text); }
   .g-page > h1 { font-size: 20px; margin: 0; }
+  .g-page { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .g-controls { display: flex; align-items: center; gap: 10px; }
+  .g-controls[hidden] { display: none; }
+  .g-controls select { font: inherit; min-height: 44px; padding: 8px 12px; color: var(--text); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-md); }
+  .g-controls select:focus-visible, .g-nav a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .g-theme[hidden] { display: none; }
+  .g-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
+  .g-nav a { color: var(--accent-text); padding: 8px 12px; border: 1px solid var(--line-default); border-radius: var(--radius-md); text-decoration: none; }
+  .g-nav a:hover { background: var(--hover); }
+  .g-group { scroll-margin-top: 16px; }
+  .g-preview { box-sizing: border-box; width: min(100%, var(--preview-width)); padding: 16px; border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--surface); display: grid; gap: 24px; }
+  .g-previews { display: grid; gap: 24px; }
+  .g-preview-title { margin: 0; font-size: 13px; font-weight: 600; }
   .g-theme > h2 { font-size: 16px; margin: 0 0 4px; }
   .g-theme > p { color: var(--text-muted); margin: 0 0 24px; }
   .g-group > h3 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted);
     border-bottom: 1px solid var(--line); padding-bottom: 6px; margin: 32px 0 16px; }
   .g-items { display: flex; flex-wrap: wrap; gap: 20px 28px; align-items: flex-start; }
   .g-item { display: grid; gap: 6px; min-width: 0; max-width: 100%; }
-  .g-cap { font-size: 11px; color: var(--text-muted); }
+  .g-cap { font-size: 12px; color: var(--text-muted); }
   .g-items-wide > .g-item { flex: 1 1 100%; }
   @media (max-width: 719px) { .g-page { padding: 24px 16px 0; } .g-theme { padding: 24px 16px 40px; } }
 </style>
@@ -27,21 +40,47 @@
 <body>
 {{ sprite|safe }}
 <main>
-<header class="g-page"><h1>SkiMasque components</h1></header>
+<header class="g-page"><h1>SkiMasque components</h1><div class="g-controls" hidden><label for="g-theme-picker">Theme</label><select id="g-theme-picker"><option value="both">Both themes</option><option value="light">Light</option><option value="dark">Dark</option></select></div></header>
 {% for theme in themes %}
 <section class="g-theme" data-theme="{{ theme }}" aria-label="{{ theme }} theme">
   <h2>{{ theme }} theme</h2>
   <p>every primitive in every state</p>
-  {% for g in groups %}
-  <section class="g-group">
+  <nav class="g-nav" aria-label="{{ theme }} component sections">
+    <a href="#{{ theme }}-previews">Width previews</a>
+  {% for g in groups %}<a href="#{{ theme }}-group-{{ loop.index0 }}">{{ g.title }}</a>{% endfor %}
+  </nav>
+  <section class="g-group" id="{{ theme }}-previews">
+    <h3>Responsive width previews</h3>
+    <p>Each frame is capped at the labeled width and shrinks to fit your screen. Flow breakpoints measure the space inside the frame.</p>
+    <div class="g-previews">
+      {% for width in widths %}<div class="g-preview" style="--preview-width: {{ width }}px"><h4 class="g-preview-title">{{ width }}px frame</h4>
+        {% for i in previews %}<div class="g-item"><span class="g-cap">{{ i.caption }}</span>{{ i.html|safe }}</div>{% endfor %}
+      </div>{% endfor %}
+    </div>
+  </section>
+{% for g in groups %}
+  <section class="g-group" id="{{ theme }}-group-{{ loop.index0 }}">
     <h3>{{ g.title }}</h3>
     <div class="g-items{% if g.wide %} g-items-wide{% endif %}">
       {% for i in g.items %}<div class="g-item"><span class="g-cap">{{ i.caption }}</span>{{ i.html|safe }}</div>{% endfor %}
     </div>
   </section>
-  {% endfor %}
+{% endfor %}
 </section>
 {% endfor %}
 </main>
+<script>
+(() => {
+  const picker = document.getElementById('g-theme-picker');
+  const sections = document.querySelectorAll('.g-theme');
+  document.querySelector('.g-controls').hidden = false;
+  picker.addEventListener('change', () => {
+    const theme = picker.value;
+    sections.forEach(section => { section.hidden = theme !== 'both' && section.dataset.theme !== theme; });
+    if (theme === 'both') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.dataset.theme = theme;
+  });
+})();
+</script>
 </body>
 </html>

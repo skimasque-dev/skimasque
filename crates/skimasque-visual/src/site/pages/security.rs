@@ -87,7 +87,7 @@ pub fn page() -> Page {
                     "Identity, application, destination, policy and expiry are evaluated by the gateway, not assumed because a control plane said so.",
                 )
                 .feature(
-                    "An SSRF floor below policy",
+                    "Destination address checks",
                     "Loopback, private, CGNAT, link-local (including the cloud metadata address) and multicast ranges are refused on the resolved address, so a hostname that resolves to one is still refused, unless a range was explicitly opted in.",
                 )
                 .feature(
@@ -96,7 +96,7 @@ pub fn page() -> Page {
                 )
                 .feature(
                     "Short-lived credentials",
-                    "The platform credential defaults to a one-hour lifetime and is re-exchanged proactively, so when a job ends nothing is left holding access.",
+                    "The platform credential defaults to a one-hour lifetime and is refreshed proactively while the client runs. Session duration is bounded separately by policy. A copied bearer credential can remain valid until it expires.",
                 ),
         )
         .push(&Prose::new().p(

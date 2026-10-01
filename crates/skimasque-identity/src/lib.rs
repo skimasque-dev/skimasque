@@ -47,7 +47,7 @@ pub use credential::{
 };
 pub use error::Error;
 pub use jwks::{JwksCache, JwksProvider};
-pub use provider::{Claims, ClaimNames, Provider, GITHUB_ACTIONS_ISSUER};
+pub use provider::{ClaimNames, Claims, Provider, GITHUB_ACTIONS_ISSUER};
 pub use verify::Verifier;
 
 #[cfg(feature = "remote")]
@@ -172,9 +172,53 @@ impl OidcVerifier {
         }
     }
 
+    /// As [`verify_claims`](Self::verify_claims) but requiring `aud` to contain
+    /// exactly `audience`, ignoring the audiences this verifier was configured
+    /// with. Includes the one-shot key refresh on an unknown key id.
+    pub async fn verify_claims_for_audience(
+        &self,
+        token: &str,
+        audience: &str,
+    ) -> Result<Claims, Error> {
+        let verifier = self.verifier.with_audience(audience);
+        let keys = self.jwks.keys().await?;
+        match verifier.verify(token, &keys) {
+            Err(Error::UnknownKey) => {
+                let keys = self.jwks.refresh().await?;
+                verifier.verify(token, &keys)
+            }
+            other => other,
+        }
+    }
+
     /// The provider this verifier maps claims with.
     pub fn provider(&self) -> &Provider {
         &self.provider
+    }
+}
+
+/// The `aud` claim of `token` (a string or an array), read **without verifying
+/// anything**. Use it only to choose which audience to verify against (then call
+/// [`OidcVerifier::verify_claims_for_audience`]); never for authorization.
+/// Empty for a malformed token.
+pub fn peek_audiences(token: &str) -> Vec<String> {
+    use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+    let Some(payload) = token.split('.').nth(1) else {
+        return Vec::new();
+    };
+    let Ok(bytes) = BASE64_URL_SAFE_NO_PAD.decode(payload) else {
+        return Vec::new();
+    };
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        return Vec::new();
+    };
+    match value.get("aud") {
+        Some(serde_json::Value::String(s)) => vec![s.clone()],
+        Some(serde_json::Value::Array(a)) => a
+            .iter()
+            .filter_map(|v| v.as_str().map(str::to_owned))
+            .collect(),
+        _ => Vec::new(),
     }
 }
 
@@ -229,6 +273,50 @@ mod tests {
                 async move { serde_json::from_str(&json).map_err(|e| Error::Jwks(e.to_string())) },
             )
         }
+    }
+
+    #[test]
+    fn peek_audiences_reads_a_string_or_an_array_and_never_panics() {
+        let issuer = TestIssuer::new();
+        let one = sign(
+            &issuer,
+            serde_json::json!({"iss": GITHUB_ACTIONS_ISSUER, "aud": "https://g.example/o/acme", "exp": now() + 60}),
+        );
+        assert_eq!(
+            peek_audiences(&one),
+            vec!["https://g.example/o/acme".to_owned()]
+        );
+        let many = sign(
+            &issuer,
+            serde_json::json!({"iss": GITHUB_ACTIONS_ISSUER, "aud": ["a", "b"], "exp": now() + 60}),
+        );
+        assert_eq!(peek_audiences(&many), vec!["a".to_owned(), "b".to_owned()]);
+        for junk in ["", "x", "a.b", "a.!!.c"] {
+            assert!(peek_audiences(junk).is_empty(), "{junk:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn verify_claims_for_audience_requires_that_exact_audience() {
+        let issuer = TestIssuer::new();
+        // The verifier is configured for a *different* audience than the token's.
+        let verifier = verifier_for(&issuer); // configured for https://masque.example
+        let tok = sign(
+            &issuer,
+            serde_json::json!({
+                "iss": GITHUB_ACTIONS_ISSUER, "aud": "https://g.example/o/acme", "exp": now() + 3600,
+                "repository_owner": "acme", "repository": "acme/w",
+            }),
+        );
+        assert!(verifier.verify_claims(&tok).await.is_err());
+        assert!(verifier
+            .verify_claims_for_audience(&tok, "https://g.example/o/acme")
+            .await
+            .is_ok());
+        assert!(verifier
+            .verify_claims_for_audience(&tok, "https://g.example/o/other")
+            .await
+            .is_err());
     }
 
     #[tokio::test]

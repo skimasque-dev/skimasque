@@ -118,7 +118,7 @@ mod tests {
         let g = DecisionBadge::new(true).html();
         assert!(g.as_str().contains("✓") && g.as_str().contains("ACCESS GRANTED"));
         let d = DecisionBadge::new(false).html();
-        assert!(d.as_str().contains("×") && d.as_str().contains("ACCESS DENIED"));
+        assert!(d.as_str().contains("v-denial-mark") && d.as_str().contains("ACCESS DENIED"));
         assert!(d.as_str().contains("v-tone-deny"));
         let a = DecisionBadge::new(true).technical().html();
         assert!(a.as_str().contains("ALLOW") && !a.as_str().contains("ACCESS"));

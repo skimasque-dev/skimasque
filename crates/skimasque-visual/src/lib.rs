@@ -65,6 +65,7 @@ pub mod policy;
 pub mod site;
 pub mod site_chrome;
 pub mod status;
+pub mod topology;
 
 pub use access::{
     GatewayCard, HealthCard, IdentityCard, SessionCard, SessionTimeline, TimelineEvent,
@@ -74,15 +75,16 @@ pub use chrome::{
     Block, ComparisonTable, Cta, CtaBand, Faq, Feature, FeatureGrid, Hero, PlannedBlock, Prose,
     Section, TierCard, TierGrid,
 };
-pub use connection::{ConnKind, Connection};
+pub use connection::{ArrowGeometry, ConnKind, Connection};
 pub use content::{CodeExample, EmptyState, Planned};
 pub use decision::{AuditEventCard, Check, DecisionCard, DecisionExplainer, DIMENSIONS};
 pub use flow::{Flow, Step};
 pub use icons::Icons;
 pub use layout::{Arm, Branch, Compare, LayerRow, Layers, Message, Sequence, Side};
 pub use motif::{Contour, Mountain, Route, Run, RunCard, Shape, TrailMarker};
-pub use motion::{Expire, Reveal};
+pub use motion::{Expire, Reveal, WorkflowDemo};
 pub use node::{Node, NodeKind, Tone};
 pub use policy::{Change, ChangeKind, PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary};
 pub use site_chrome::{SiteFooter, SiteNav, SitePage, NAV_GROUPS};
 pub use status::{DecisionBadge, Status, StatusBadge};
+pub use topology::{NetworkTopology, TopologyNetwork};

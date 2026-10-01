@@ -373,16 +373,16 @@ mod tests {
     #[test]
     fn no_page_has_an_email_link_a_form_or_an_input() {
         for p in html_pages() {
-            for banned in [
-                "mailto:",
-                "<form",
-                "<input",
-                "<textarea",
-                "<select",
-                "type=\"submit\"",
-            ] {
+            for banned in ["mailto:", "<form", "<input", "<textarea", "type=\"submit\""] {
                 assert!(!p.contents.contains(banned), "{}: {banned}", p.path);
             }
+            assert_eq!(
+                p.contents.matches("<select").count(),
+                1,
+                "only the theme preference is a selector: {}",
+                p.path
+            );
+            assert!(p.contents.contains("<select id=\"site-theme\">"));
         }
     }
 
@@ -480,8 +480,11 @@ mod tests {
                 .count(),
             4
         );
-        assert!(home
-            .contains(r#"<nav class="v-menu-nav" aria-label="Primary"><details class="v-menu">"#));
+        assert!(
+            home.contains(
+                r#"<nav class="v-menu-nav" aria-label="Primary"><details class="v-menu">"#
+            )
+        );
         assert!(
             home.contains(r#"class="v-brand" href="./""#)
                 || home.contains(r#"href="./">SkiMasque"#)

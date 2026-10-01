@@ -48,7 +48,7 @@ pub fn page() -> Page {
         .alt()
         .push(&Prose::new().list(&[
             "Access is denied unless a policy rule explicitly allows it.",
-            "The platform credential defaults to a one-hour lifetime and is re-exchanged proactively, so when a job ends nothing is left holding access.",
+            "The platform credential defaults to a one-hour lifetime and is refreshed proactively while the client runs. Session duration is bounded separately by policy. A copied bearer credential can remain valid until it expires.",
             "A policy can set a maximum session duration.",
             "Credentials are bearer tokens: a token stolen from a running job grants that job's access for its lifetime, bounded by that job's policy.",
         ]))

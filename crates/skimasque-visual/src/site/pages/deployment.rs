@@ -53,7 +53,7 @@ pub fn page() -> Page {
                 .kv("Operations", "Minimal"),
         )
         .push(&flow(
-            "An application reaches SkiMasque Cloud, then the SkiMasque gateway, then your network.",
+            "SkiMasque Cloud manages authorization. Application traffic travels through the SkiMasque gateway to your network.",
             [
                 (NodeKind::Application, "APPLICATION"),
                 (NodeKind::ControlPlane, "SKIMASQUE CLOUD"),
@@ -79,7 +79,7 @@ pub fn page() -> Page {
                 .p("The gateway lives inside the customer's network."),
         )
         .push(&flow(
-            "An application reaches SkiMasque Cloud, then your gateway, then your VPC.",
+            "SkiMasque Cloud manages authorization. Application traffic travels through your gateway to your VPC.",
             [
                 (NodeKind::Application, "APPLICATION"),
                 (NodeKind::ControlPlane, "SKIMASQUE CLOUD"),
@@ -108,7 +108,7 @@ pub fn page() -> Page {
                 .kv("Operations", "Customer"),
         )
         .push(&flow(
-            "An application reaches the customer's control plane, then the customer's gateway, then the customer's network.",
+            "Your control plane manages authorization. Application traffic travels through your gateway to your network.",
             [
                 (NodeKind::Application, "APPLICATION"),
                 (NodeKind::ControlPlane, "CUSTOMER CONTROL PLANE"),
@@ -128,7 +128,7 @@ pub fn page() -> Page {
             href: doc("self-hosting.md"),
         });
 
-    let positioning = Section::new("Important positioning").push(
+    let positioning = Section::new("Who operates what").push(
         &Prose::new()
             .p("The run colors represent operational responsibility, not product quality.")
             .kv("GREEN", "SkiMasque operates more.")

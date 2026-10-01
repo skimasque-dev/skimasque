@@ -4,7 +4,7 @@ use crate::diagrams::public;
 use crate::site::Page;
 use crate::{
     CodeExample, Component, ConnKind, Connection, Flow, Hero, Node, NodeKind, Prose, Section,
-    SitePage, Status,
+    SitePage, Status, WorkflowDemo,
 };
 
 fn overview() -> Flow {
@@ -50,27 +50,31 @@ pub fn page() -> Page {
         )
         .aside(&overview());
 
+    let walkthrough = Section::new("Follow a deployment from request to expiry")
+        .push(&Prose::new().p("In this example, a GitHub Actions job needs temporary access to one private database. Play the walkthrough to follow the decision and the resulting traffic path, or read each step at your own pace."))
+        .push(&WorkflowDemo::new());
+
     let identify = Section::new("Step 1 — Identify")
-        .push(&Prose::new().p("SkiMasque establishes who or what is making the request."))
+        .push(&Prose::new().p("A workload requests access to a destination. SkiMasque identifies who is asking and which application needs the connection."))
         .push(&CodeExample::new(
             "Example",
             "repository: acme/widget\nworkflow: deploy-production\nref: main\napplication: terraform",
         ));
     let authenticate = Section::new("Step 2 — Authenticate").alt().push(
         &Prose::new()
-            .p("The identity is verified using the configured identity source.")
-            .p("For GitHub Actions, this can use workload identity/OIDC."),
+            .p("SkiMasque verifies the presented identity using the configured identity source.")
+            .p("For GitHub Actions, workload identity/OIDC establishes which repository and workflow is making the request. Authentication establishes the identity; policy determines its access."),
     );
     let authorize = Section::new("Step 3 — Authorize")
-        .push(&Prose::new().p("The identity is evaluated against policy."))
+        .push(&Prose::new().p("SkiMasque evaluates the identity, application, and requested destination against policy."))
         .push(&CodeExample::new(
             "Policy",
             "WHO\nacme/widget\n\nWHAT\nterraform\n\nWHERE\ndb.prod:5432",
         ))
-        .push(&Prose::new().p("The policy determines whether the requested access is allowed."));
+        .push(&Prose::new().p("A matching allow rule grants the requested access within its limits. With no matching allow rule, the request is denied before a session is opened."));
     let session = Section::new("Step 4 — Establish a session")
         .alt()
-        .push(&Prose::new().p("If authorized, SkiMasque creates a short-lived network session."))
+        .push(&Prose::new().p("If authorized, SkiMasque creates a short-lived session for the permitted destination. The 20-minute duration and bandwidth below are illustrative policy limits."))
         .push(&CodeExample::new(
             "Example",
             "SESSION\nStatus: Active\nDestination: db.prod:5432\nDuration: 20m\nBandwidth: 100 Mbps\nGateway: us-west",
@@ -78,12 +82,12 @@ pub fn page() -> Page {
     let connect = Section::new("Step 5 — Connect")
         .push(
             &Prose::new()
-                .p("Traffic flows through the SkiMasque gateway into the customer's network."),
+                .p("The control plane authorizes the session. Traffic flows through the SkiMasque gateway to the permitted service in the customer's network."),
         )
         .push(&public::gateway());
     let expire = Section::new("Step 6 — Expire")
         .alt()
-        .push(&Prose::new().p("When the session ends, access disappears."))
+        .push(&Prose::new().p("When the session expires or ends, that session's access closes. A later connection requires a new request and another policy decision."))
         .push(&public::access_lifecycle())
         .push(
             &Prose::new()
@@ -100,6 +104,7 @@ pub fn page() -> Page {
             "SkiMasque turns an authenticated identity into a short-lived, policy-controlled network session.",
         )
         .push(&hero)
+        .push(&walkthrough)
         .push(&identify)
         .push(&authenticate)
         .push(&authorize)

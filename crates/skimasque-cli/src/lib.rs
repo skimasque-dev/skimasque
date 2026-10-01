@@ -7,6 +7,7 @@ pub mod exec;
 pub mod forward;
 pub mod http_connect;
 pub mod ops;
+pub mod platform;
 pub mod policy;
 pub mod probe;
 pub mod session;

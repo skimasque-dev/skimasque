@@ -16,7 +16,7 @@ pub fn page() -> Page {
     let hero = Hero::new(
         "Give CI jobs access to private infrastructure without giving them the whole network.",
     )
-    .lead("CI/CD is one of the clearest use cases for SkiMasque.")
+    .lead("Authenticate the job with OIDC, apply a policy, and reach only the destinations it allows.")
     .cta(Cta::primary("Get Started", GET_STARTED_URL))
     .cta(Cta::secondary("Read the Docs", doc("github-actions.md")));
 
@@ -80,7 +80,7 @@ pub fn page() -> Page {
                     ),
                 ),
         )
-        .push(&Prose::new().p("The identity context can change the applicable policy."));
+        .push(&Prose::new().p("These are illustrative policies, not automatic permissions. Configure repository, branch and workflow matches to grant each job the access it needs."));
 
     let lifecycle = Section::new("Lifecycle of a CI session").push(&platform::ci_lifecycle());
 
@@ -96,7 +96,7 @@ pub fn page() -> Page {
             .p("Supported today:")
             .list(&["GitHub Actions", "generic OIDC", "GitLab CI", "Buildkite"])
             .p("Terraform and other command-line applications are the typical use case: any tool that honours ALL_PROXY can run behind the action.")
-            .p("Architecture should remain extensible to:")
+            .p("Additional integrations under consideration:")
             .list(&["CircleCI", "Jenkins", "other workload identity providers"]),
     );
 
@@ -133,7 +133,7 @@ mod tests {
         let s = p.contents.replace("&#x27;", "'").replace("&#39;", "'");
         for want in [
             "Give CI jobs access to private infrastructure without giving them the whole network.",
-            "CI/CD is one of the clearest use cases for SkiMasque.",
+            "Authenticate the job with OIDC, apply a policy, and reach only the destinations it allows.",
             "Kubernetes API",
             "GitHub Actions flow",
             "acme/infrastructure",
@@ -146,7 +146,7 @@ mod tests {
             "staging-api:443",
             "db.prod:5432",
             "api.prod:443",
-            "The identity context can change the applicable policy.",
+            "These are illustrative policies, not automatic permissions. Configure repository, branch and workflow matches to grant each job the access it needs.",
             "skimasque-dev/connect@v1",
             "CI/CD integrations",
             "GitLab CI",

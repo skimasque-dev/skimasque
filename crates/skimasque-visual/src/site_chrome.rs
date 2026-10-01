@@ -156,6 +156,18 @@ pub struct SitePage {
     pub parts: Vec<Html>,
 }
 impl SitePage {
+    fn theme_script(&self) -> &'static str {
+        include_str!("../static/theme.js")
+    }
+    fn css_version(&self) -> String {
+        // Stable content fingerprint: changes whenever the embedded stylesheet changes.
+        let hash = crate::CSS
+            .bytes()
+            .fold(0xcbf29ce484222325u64, |hash, byte| {
+                (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3)
+            });
+        format!("{hash:016x}")
+    }
     pub fn new(root: &str, current: &str, title: &str, description: &str) -> Self {
         Self {
             root: root.to_owned(),
@@ -236,9 +248,10 @@ mod tests {
     #[test]
     fn the_home_page_marks_the_brand_current() {
         let s = SiteNav::new("", "").html();
-        assert!(s
-            .as_str()
-            .contains(r#"class="v-brand" aria-current="page""#));
+        assert!(
+            s.as_str()
+                .contains(r#"class="v-brand" aria-current="page""#)
+        );
     }
 
     #[test]
@@ -284,7 +297,8 @@ mod tests {
                 && s.contains(r#"name="description" content="How policies decide access.""#)
         );
         assert!(
-            s.contains(r#"href="../assets/visual.css""#) && s.contains(r#"href="../favicon.svg""#)
+            s.contains(r#"href="../assets/visual.css?v="#)
+                && s.contains(r#"href="../favicon.svg""#)
         );
         assert!(
             s.contains(r##"<a class="v-skip" href="#main">"##) && s.contains(r#"<main id="main">"#)

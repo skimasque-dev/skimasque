@@ -111,15 +111,15 @@ pub fn page() -> Page {
         ));
 
     let wizard = Prose::new()
-        .p("The control plane should never force users to understand the entire policy model immediately.")
+        .p("A planned dashboard wizard will help you build a policy from the access a workload needs.")
         .p("Start with:")
         .kv("Who needs access?", "acme/widget")
         .kv("What are they running?", "terraform")
         .kv("Where do they need to go?", "db.prod:5432")
         .kv("How long?", "20 minutes")
         .kv("Bandwidth limit?", "100 Mbps")
-        .p("Then show the generated policy.");
-    let ux = Section::new("Policy UX")
+        .p("Review the generated policy before applying it.");
+    let ux = Section::new("Create and explain policies")
         .push(&PlannedBlock::new(
             "interactive policy creation wizard in the dashboard",
             &wizard,
@@ -173,7 +173,7 @@ mod tests {
             "developer-db",
             "dev-db.internal:5432",
             "max_duration = &quot;60m&quot;",
-            "Policy UX",
+            "Create and explain policies",
             "Who needs access?",
             "PLANNED",
             "skimasque policy check production google.com:443 --app terraform",
