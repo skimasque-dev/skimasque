@@ -263,3 +263,74 @@ async fn truncated_upstream_body_is_not_reported_as_complete() {
     }
     target.await.unwrap();
 }
+
+#[tokio::test]
+async fn delayed_response_headers_can_outlive_connection_open_timeout() {
+    let f = fixture().await;
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let target = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut request = [0; 1024];
+        assert!(stream.read(&mut request).await.unwrap() > 0);
+        tokio::time::sleep(Duration::from_secs(31)).await;
+        let _ = stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+            .await;
+    });
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .proxy(reqwest::Proxy::all(format!("http://{}", f.proxy)).unwrap())
+        .build()
+        .unwrap();
+    let response = timeout(
+        Duration::from_secs(45),
+        client.get(format!("http://{addr}/")).send(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    assert_eq!(response.text().await.unwrap(), "ok");
+    target.await.unwrap();
+}
+
+#[tokio::test]
+async fn progressing_upload_can_outlive_connection_open_timeout() {
+    let f = fixture().await;
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let target = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let mut request = Vec::new();
+        let mut byte = [0];
+        while !request.ends_with(b"0\r\n\r\n") {
+            if stream.read_exact(&mut byte).await.is_err() {
+                return;
+            }
+            request.push(byte[0]);
+        }
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+            .await
+            .unwrap();
+    });
+    let mut stream = TcpStream::connect(f.proxy).await.unwrap();
+    stream.write_all(format!("POST http://{addr}/ HTTP/1.1\r\nHost: {addr}\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n").as_bytes()).await.unwrap();
+    for _ in 0..32 {
+        stream.write_all(b"1\r\nx\r\n").await.unwrap();
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+    stream.write_all(b"0\r\n\r\n").await.unwrap();
+    let mut response = Vec::new();
+    timeout(Duration::from_secs(10), stream.read_to_end(&mut response))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        response.starts_with(b"HTTP/1.1 200"),
+        "{}",
+        String::from_utf8_lossy(&response)
+    );
+    target.await.unwrap();
+}

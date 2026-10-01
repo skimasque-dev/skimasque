@@ -171,8 +171,10 @@ async fn handle(mut request: Request<Incoming>, session: Arc<Session>) -> Respon
     tokio::spawn(async move {
         let _ = connection.await;
     });
-    match timeout(OPEN_TIMEOUT, sender.send_request(request)).await {
-        Ok(Ok(mut response)) => {
+    // Uploads and response-header waits are application transactions, not
+    // connection establishment. Let the caller choose their request deadline.
+    match sender.send_request(request).await {
+        Ok(mut response) => {
             strip_hop_headers(response.headers_mut());
             response.map(|body| body.map_err(|e| -> BoxError { Box::new(e) }).boxed_unsync())
         }
