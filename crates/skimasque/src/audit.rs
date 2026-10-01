@@ -331,6 +331,47 @@ mod tests {
     }
 
     #[test]
+    fn an_event_carries_the_kind_runtime_run_and_session_of_its_identity() {
+        let identity = WorkloadIdentity {
+            actor: Some("octocat".into()),
+            kind: Some(skimasque_policy::WorkloadKind::Agent),
+            runtime: Some("claude-code".into()),
+            run_id: Some("run-7".into()),
+            sid: Some("sess_abc".into()),
+            ..Default::default()
+        };
+        let event = AuditEvent::from_decision(
+            &decision(ALLOW_TF, "terraform", "evil.example.com:443"),
+            "connect-tcp",
+            "terraform",
+            "evil.example.com:443",
+            "203.0.113.1:9000",
+            &identity,
+        );
+        let json = serde_json::to_value(&event).unwrap();
+        assert_eq!(
+            json["identity"],
+            serde_json::json!({
+                "actor": "octocat",
+                "kind": "agent",
+                "run_id": "run-7",
+                "runtime": "claude-code",
+                "sid": "sess_abc",
+            })
+        );
+        // An identity with none of them stays as terse as before.
+        let plain = AuditEvent::from_decision(
+            &decision(ALLOW_TF, "terraform", "evil.example.com:443"),
+            "connect-tcp",
+            "terraform",
+            "evil.example.com:443",
+            "203.0.113.1:9000",
+            &WorkloadIdentity::default(),
+        );
+        assert_eq!(serde_json::to_value(&plain).unwrap()["identity"], serde_json::json!({}));
+    }
+
+    #[test]
     fn a_deny_event_carries_the_reason_and_the_suggested_rule() {
         let event = AuditEvent::from_decision(
             &decision(ALLOW_TF, "terraform", "evil.example.com:443"),

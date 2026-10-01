@@ -1561,9 +1561,16 @@ fn policy_destination(target: &Target) -> skimasque_policy::Destination {
 /// and the fix in `Proxy-Status`.
 fn denial_rejection(denied: &skimasque_policy::Denied) -> Rejection {
     // A pin mismatch is not fixed by adding a rule, so it carries no suggestion.
-    let detail = match denied.reason {
-        skimasque_policy::DenyReason::PolicyMismatch { .. } => denied.reason.summary(),
-        _ => format!("{} suggested rule: {}", denied.reason.summary(), denied.suggested_rule),
+    // Name the policy that decided, so a person (or an agent) reading the
+    // refusal knows which one to look at.
+    let detail = match (&denied.reason, &denied.policy) {
+        (skimasque_policy::DenyReason::PolicyMismatch { .. }, _) => denied.reason.summary(),
+        (_, Some(policy)) => format!(
+            "policy \"{policy}\": {} suggested rule: {}",
+            denied.reason.summary(),
+            denied.suggested_rule
+        ),
+        (_, None) => format!("{} suggested rule: {}", denied.reason.summary(), denied.suggested_rule),
     };
     Rejection::new(StatusCode::FORBIDDEN, detail).with_proxy_error("destination_prohibited")
 }
@@ -2096,6 +2103,28 @@ mod tests {
             events[0].reason.as_deref(),
             Some(r#"Policy "staging" does not apply to this identity; "prod" does."#)
         );
+    }
+
+    #[test]
+    fn a_denial_names_the_policy_that_decided_it() {
+        let named = skimasque_policy::Denied {
+            policy: Some("agent-staging".into()),
+            reason: skimasque_policy::DenyReason::NoMatchingAllowRule,
+            suggested_rule: "allow psql db.prod:5432".into(),
+            closest: Vec::new(),
+        };
+        assert_eq!(
+            denial_rejection(&named).detail(),
+            r#"policy "agent-staging": No matching allow rule. suggested rule: allow psql db.prod:5432"#
+        );
+
+        // With no matching policy there is none to name.
+        let unmatched = skimasque_policy::Denied {
+            policy: None,
+            reason: skimasque_policy::DenyReason::NoPolicyMatch,
+            ..named
+        };
+        assert!(denial_rejection(&unmatched).detail().starts_with("No policy matches"));
     }
 
     #[test]
