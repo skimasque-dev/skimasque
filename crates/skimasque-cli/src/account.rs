@@ -263,15 +263,42 @@ pub struct GatewayView {
     pub labels: std::collections::BTreeMap<String, String>,
 }
 
+/// Refuse to send a bearer token over cleartext to another machine.
+fn require_secure_transport(base_url: &str) -> Result<()> {
+    let Some(rest) = base_url.strip_prefix("http://") else {
+        return Ok(()); // https, or a scheme reqwest will reject itself
+    };
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or_default();
+    let host = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
+    let host = match host.strip_prefix('[') {
+        Some(v6) => v6.split(']').next().unwrap_or_default(),
+        None => host.rsplit_once(':').map_or(host, |(h, _)| h),
+    };
+    let loopback = host.eq_ignore_ascii_case("localhost")
+        || host.to_ascii_lowercase().ends_with(".localhost")
+        || host.parse::<std::net::IpAddr>().is_ok_and(|ip| ip.is_loopback());
+    if loopback {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "{base_url} is plain HTTP, which would send your sign-in session in the clear.          Use an https:// address (http:// is accepted only for localhost)"
+    )
+}
+
 impl Api {
+    /// A client for the control plane at `base_url`. Every call carries your
+    /// sign-in session as a bearer token, so a plain `http://` address is
+    /// refused unless it is this machine (`localhost`, `127.0.0.0/8`, `::1`).
     pub fn new(base_url: &str) -> Result<Self> {
+        let base_url = crate::normalize_base_url(base_url);
+        require_secure_transport(&base_url)?;
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(30))
             .user_agent(concat!("skimasque/", env!("CARGO_PKG_VERSION")))
             .build()
             .context("building the HTTP client")?;
         Ok(Self {
-            base_url: crate::normalize_base_url(base_url),
+            base_url,
             http,
         })
     }
@@ -902,5 +929,33 @@ mod tests {
         write_secret_file(&path, b"third", true).unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"third");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_bearer_token_is_never_sent_over_plain_http_to_another_machine() {
+        for ok in [
+            "https://control.example",
+            "control.example",
+            "http://localhost:8080",
+            "http://127.0.0.1:9000/",
+            "http://127.1.2.3",
+            "http://[::1]:8080",
+            "http://app.localhost",
+            "http://user@localhost:1",
+        ] {
+            assert!(Api::new(ok).is_ok(), "{ok}");
+        }
+        for bad in [
+            "http://control.example",
+            "http://10.0.0.5:8080",
+            "http://localhost.evil.example",
+            "http://127.0.0.1.evil.example",
+            "http://[2001:db8::1]:80",
+            "http://evil.example/localhost",
+            "http://localhost@evil.example",
+        ] {
+            let err = Api::new(bad).err().unwrap_or_else(|| panic!("{bad} was accepted"));
+            assert!(format!("{err:#}").contains("plain HTTP"), "{bad}: {err:#}");
+        }
     }
 }
