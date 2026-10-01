@@ -20,6 +20,49 @@ use tower::{Service, ServiceBuilder};
 
 const REPLY_TIMEOUT: Duration = Duration::from_secs(10);
 
+#[tokio::test]
+async fn relay_keeps_upload_live_while_download_is_backpressured() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let target = listener.local_addr().unwrap();
+    let (sent, received) = tokio::sync::oneshot::channel();
+    let target_task = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        socket.write_all(&vec![0x5a; 4096]).await.unwrap();
+        sent.send(()).unwrap();
+        let mut marker = [0; 6];
+        socket.read_exact(&mut marker).await.unwrap();
+        assert_eq!(&marker, b"marker");
+        socket.shutdown().await.unwrap();
+    });
+    let proxy = tcp_only_proxy(AddressPolicy::permissive());
+    let session = connect(&proxy).await;
+    let tunnel = session
+        .connect_tcp(Target::parse(&target.to_string()).unwrap())
+        .await
+        .unwrap();
+    let (mut workload, local) = tokio::io::duplex(64);
+    let relay = tokio::spawn(tunnel.relay(local));
+    received.await.unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    workload.write_all(b"marker").await.unwrap();
+    workload.shutdown().await.unwrap();
+    timeout(Duration::from_secs(2), target_task)
+        .await
+        .expect("paused download stalled the independent upload")
+        .unwrap();
+    let mut downloaded = Vec::new();
+    timeout(REPLY_TIMEOUT, workload.read_to_end(&mut downloaded))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(downloaded, vec![0x5a; 4096]);
+    timeout(REPLY_TIMEOUT, relay)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+}
+
 /// A TCP server that prefixes `tag` to every chunk it reads back, and closes
 /// its side when it sees `b"bye"`.
 async fn spawn_echo(tag: &'static [u8]) -> SocketAddr {
@@ -327,13 +370,13 @@ async fn a_transport_scoped_rule_denies_the_other_transport() {
     let set =
         skimasque::policy_engine::PolicySet::from_documents([("p.toml", policy.as_str())]).unwrap();
 
-    let service = ServiceBuilder::new()
-        .layer(PolicyLayer::new(set))
-        .service(
-            Dispatch::new()
-                .with_tcp(TcpProxy::new(AddressPolicy::permissive()))
-                .with_udp(skimasque::service::UdpProxy::new(AddressPolicy::permissive())),
-        );
+    let service = ServiceBuilder::new().layer(PolicyLayer::new(set)).service(
+        Dispatch::new()
+            .with_tcp(TcpProxy::new(AddressPolicy::permissive()))
+            .with_udp(skimasque::service::UdpProxy::new(
+                AddressPolicy::permissive(),
+            )),
+    );
     let proxy = spawn_proxy(service);
 
     let mut headers = http::HeaderMap::new();
@@ -465,7 +508,10 @@ fn allow_curl_with_limits(port: u16, limits: &str) -> skimasque::policy_engine::
 
 /// Write `payload`, then read until at least `payload.len()` bytes have come
 /// back, returning how long that took.
-async fn timed_echo(tunnel: &mut skimasque::client::TcpTunnel, payload: &[u8]) -> std::time::Duration {
+async fn timed_echo(
+    tunnel: &mut skimasque::client::TcpTunnel,
+    payload: &[u8],
+) -> std::time::Duration {
     let start = std::time::Instant::now();
     tunnel.write(payload).await.unwrap();
     let mut received = 0usize;
@@ -505,7 +551,9 @@ async fn a_bandwidth_limited_tunnel_is_paced_and_an_unlimited_one_is_not() {
         echo.port(),
         "[limits]\nbandwidth = \"1Mbps\"\n",
     )));
-    let session = connect(&limited).await.with_default_headers(headers.clone());
+    let session = connect(&limited)
+        .await
+        .with_default_headers(headers.clone());
     let mut tunnel = session
         .connect_tcp(Target::parse(&echo.to_string()).unwrap())
         .await
@@ -559,7 +607,10 @@ async fn a_tunnel_is_cut_off_at_its_total_bytes_ceiling() {
 
     // Read until the proxy closes the tunnel under us.
     let mut received = 0usize;
-    while let Ok(Some(chunk)) = timeout(REPLY_TIMEOUT, tunnel.read()).await.expect("timed out") {
+    while let Ok(Some(chunk)) = timeout(REPLY_TIMEOUT, tunnel.read())
+        .await
+        .expect("timed out")
+    {
         received += chunk.len();
     }
     assert!(

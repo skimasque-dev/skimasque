@@ -203,7 +203,10 @@ record of every decision (conflicts with `--policy-observe`).
 
 ## `skimasque-client`
 
-`skimasque-client [connection flags] <socks5 | connect | probe>`
+`skimasque-client [connection flags] <proxy | socks5 | connect | probe>`
+
+`skimasque-client capabilities --json` reports versioned frontend capabilities
+without contacting a gateway or reading credentials.
 
 ### Connection flags
 
@@ -220,10 +223,20 @@ record of every decision (conflicts with `--policy-observe`).
 | `--org <ORG>` | with none of the above: mint a credential from a `skimasque login` session instead, for this org (auto-resolved if the session belongs to only one) |
 | `--app <NAME>` | the application to declare (`X-Masque-Application`); policy matches on it |
 
+On Linux, `proxy --tun-interface NAME` also forwards packets from an existing
+user-owned TUN with MTU 1280 using embedded tun-rs and a smoltcp-based stack.
+The Action owns route/DNS setup; the client attaches without configuring it.
+Native readiness includes `tun_interface`, and Linux capabilities include
+`proxy-tun-v1`. TCP and UDP flow directly through the shared MASQUE session;
+there is no external adapter or intermediate SOCKS hop for native traffic.
+ICMP, IP fragmentation and arbitrary IP protocols are unsupported. UDP payloads
+must fit both the interface MTU and the MASQUE datagram limit.
+
 ### Subcommands
 
 | Command | Does |
 |---|---|
+| `proxy [--http-listen ADDR] [--socks-listen ADDR] [--ready-file PATH]` | authenticated HTTP/HTTPS CONNECT and SOCKS5 TCP/UDP listeners; defaults `127.0.0.1:8080` and `127.0.0.1:1080`. Loopback only; port `0` selects a free port. |
 | `socks5 [--listen ADDR]` | run a SOCKS5 relay (default `127.0.0.1:1080`); `CONNECT` (TCP, refused by a `--no-connect-tcp` gateway) and `UDP ASSOCIATE`. Point `ALL_PROXY=socks5h://…` at it. |
 | `connect --target <HOST:PORT>` | one raw TCP tunnel bridged to stdin/stdout (SSH `ProxyCommand`, interop) |
 | `probe --target <HOST:PORT> [--dns NAME \| --text T \| --hex H] [--count N] [--timeout MS]` | send a payload and print the replies |
@@ -231,5 +244,25 @@ record of every decision (conflicts with `--policy-observe`).
 ```console
 $ skimasque-client --proxy gw.example.com --github-oidc \
     --oidc-audience https://gw.example.com --app psql \
-    socks5 --listen 127.0.0.1:1080
+    proxy --ready-file /tmp/skimasque-ready.json
 ```
+
+For proxy-aware tools, set both uppercase and lowercase `HTTP_PROXY` and
+`HTTPS_PROXY` to `http://127.0.0.1:8080`, `ALL_PROXY` to
+`socks5h://127.0.0.1:1080`, and `NO_PROXY` to `localhost,127.0.0.1,::1`.
+HTTPS uses CONNECT through the HTTP listener; the SOCKS hostname is resolved at
+the gateway. These variables do not intercept tools using raw sockets.
+
+The optional readiness file is created atomically after authentication and both
+binds. It contains schema `1`, `pid`, actual `http`/`socks` addresses and the
+connected `gateway`. Existing files are never overwritten. Unix SIGTERM/Ctrl-C
+and normal exit remove readiness; forced kills can leave a stale file, so callers
+must also verify process identity and health. OIDC credentials refresh in place:
+new tunnels use the replacement and existing tunnels continue. Gateway closure
+terminates the frontend.
+
+The [connect Action](https://github.com/skimasque-dev/connect) supervises this
+mode. Its transparent mode additionally routes configured private TCP/UDP and
+DNS through a TUN adapter on supported dedicated Ubuntu runners, without global
+proxy variables. It requires explicit CIDRs and private DNS settings, both
+families when needed, and matching client/Action releases.

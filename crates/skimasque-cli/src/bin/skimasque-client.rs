@@ -10,6 +10,7 @@
 //! <destination>` -- but this binary can also be run directly.
 
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
@@ -19,7 +20,7 @@ use http::{HeaderMap, HeaderValue};
 use skimasque::client::Session;
 use skimasque_cli::probe::{self, DnsHeader, TYPE_A, TYPE_AAAA};
 use skimasque_cli::session::{self, AuthArgs, Connected, TlsArgs};
-use skimasque_cli::{init_tracing, socks5};
+use skimasque_cli::{init_tracing, proxy, socks5};
 use skimasque_core::connect_udp::Target;
 use tokio::net::TcpListener;
 use tokio::time::timeout;
@@ -49,7 +50,11 @@ struct ConnectionArgs {
     /// The gateway to reach, as `host[:port]` (an IP is fine too). The host is
     /// resolved for the QUIC socket and used as the TLS server name; the port
     /// defaults to 443.
-    #[arg(long, value_name = "HOST[:PORT]", default_value = "gateway.skimasque.com")]
+    #[arg(
+        long,
+        value_name = "HOST[:PORT]",
+        default_value = "gateway.skimasque.com"
+    )]
     proxy: String,
 
     #[command(flatten)]
@@ -69,6 +74,24 @@ struct ConnectionArgs {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Report supported integration features without opening a gateway session.
+    Capabilities {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Serve HTTP/HTTPS and SOCKS5 through one authenticated gateway session.
+    Proxy {
+        #[arg(long, default_value = "127.0.0.1:8080", value_name = "ADDR")]
+        http_listen: SocketAddr,
+        #[arg(long, default_value = "127.0.0.1:1080", value_name = "ADDR")]
+        socks_listen: SocketAddr,
+        /// Atomically publish bound addresses after authentication and startup.
+        #[arg(long, value_name = "PATH")]
+        ready_file: Option<PathBuf>,
+        /// Attach an existing user-owned Linux TUN (MTU 1280).
+        #[arg(long, value_name = "NAME")]
+        tun_interface: Option<String>,
+    },
     /// Run a SOCKS5 server whose UDP associations go through the proxy.
     Socks5 {
         /// Address to serve SOCKS5 on.
@@ -121,6 +144,31 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     init_tracing(args.verbose);
 
+    if let Command::Capabilities { json } = args.command {
+        if json {
+            println!(
+                "{}",
+                serde_json::json!({"schema": 1, "features": proxy::FEATURES})
+            );
+        } else {
+            println!("{}", proxy::FEATURES.join("\n"));
+        }
+        return Ok(());
+    }
+
+    if let Command::Proxy {
+        tun_interface: Some(name),
+        ..
+    } = &args.command
+    {
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = name;
+            anyhow::bail!("native TUN requires Linux");
+        }
+        #[cfg(target_os = "linux")]
+        skimasque_cli::native::validate_name(name)?;
+    }
     let mut headers = HeaderMap::new();
     if let Some(app) = &args.connection.app {
         let value = HeaderValue::from_str(app)
@@ -161,6 +209,42 @@ async fn main() -> anyhow::Result<()> {
     }
 
     match args.command {
+        Command::Capabilities { .. } => unreachable!("handled before connecting"),
+        Command::Proxy {
+            http_listen,
+            socks_listen,
+            ready_file,
+            tun_interface,
+        } => {
+            #[cfg(target_os = "linux")]
+            let native = match tun_interface.as_deref() {
+                Some(name) => Some(skimasque_cli::native::NativeTun::attach(name).await?),
+                None => None,
+            };
+            let listeners = proxy::Listeners::bind(http_listen, socks_listen).await?;
+            let (http, socks) = listeners.addresses()?;
+            if let Some(path) = &ready_file {
+                listeners
+                    .write_ready_with_tun(path, session.remote_address(), tun_interface.as_deref())
+                    .await?;
+            }
+            eprintln!("HTTP proxy on {http}; SOCKS5 on {socks}");
+            #[cfg(target_os = "linux")]
+            let native_session = session.clone();
+            let result = tokio::select! {
+                result = listeners.serve(session) => result,
+                result = async {
+                    #[cfg(target_os = "linux")]
+                    if let Some(native) = native { return native.serve(native_session).await; }
+                    std::future::pending::<anyhow::Result<()>>().await
+                } => result,
+                _ = shutdown_signal() => Ok(()),
+            };
+            if let Some(path) = ready_file {
+                let _ = tokio::fs::remove_file(path).await;
+            }
+            result
+        }
         Command::Socks5 { listen } => run_socks5(listen, session).await,
         Command::Connect { target } => run_connect(session, &target).await,
         Command::Probe {
@@ -182,6 +266,19 @@ async fn main() -> anyhow::Result<()> {
             .await
         }
     }
+}
+
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        if let Ok(mut term) =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        {
+            tokio::select! { _ = term.recv() => {}, _ = tokio::signal::ctrl_c() => {} }
+            return;
+        }
+    }
+    let _ = tokio::signal::ctrl_c().await;
 }
 
 async fn run_connect(session: Arc<Session>, target: &str) -> anyhow::Result<()> {

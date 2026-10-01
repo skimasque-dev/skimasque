@@ -6,10 +6,12 @@ pub mod control;
 pub mod exec;
 pub mod forward;
 pub mod http_connect;
+pub mod http_proxy;
 pub mod ops;
 pub mod platform;
 pub mod policy;
 pub mod probe;
+pub mod proxy;
 pub mod session;
 pub mod socks5;
 
@@ -82,3 +84,6 @@ mod tests {
         assert_eq!(normalize_base_url("  control.example  "), "https://control.example");
     }
 }
+
+#[cfg(target_os = "linux")]
+pub mod native;

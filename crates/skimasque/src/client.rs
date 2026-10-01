@@ -172,6 +172,11 @@ impl std::fmt::Debug for Session {
 }
 
 impl Session {
+    /// Wait until the gateway connection is closed, including transport failure.
+    pub async fn closed(&self) -> quinn::ConnectionError {
+        self.quic.closed().await
+    }
+
     /// Send `headers` on every request opened from this session.
     ///
     /// The usual reason is `Proxy-Authorization`, which is constant for the
@@ -192,9 +197,12 @@ impl Session {
     /// [`exchange_credential`](Self::exchange_credential) before the old
     /// credential expires and install the result here.
     pub fn set_credential(&self, credential: &Credential) -> Result<(), Error> {
-        let value = HeaderValue::from_str(&format!("Bearer {}", credential.token)).map_err(|_| {
-            Error::Invalid("the credential contains characters a header cannot carry".to_owned())
-        })?;
+        let value =
+            HeaderValue::from_str(&format!("Bearer {}", credential.token)).map_err(|_| {
+                Error::Invalid(
+                    "the credential contains characters a header cannot carry".to_owned(),
+                )
+            })?;
         self.default_headers
             .write()
             .expect("the session's header lock is not poisoned")
@@ -459,6 +467,14 @@ pub struct UdpTunnel {
     reader: Option<JoinHandle<()>>,
 }
 
+impl Drop for UdpTunnel {
+    fn drop(&mut self) {
+        if let Some(reader) = &self.reader {
+            reader.abort();
+        }
+    }
+}
+
 impl std::fmt::Debug for UdpTunnel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UdpTunnel")
@@ -605,43 +621,37 @@ impl TcpTunnel {
     ///
     /// This is `tokio::io::copy_bidirectional` in spirit; the explicit pump is
     /// only because `TcpTunnel` is not `AsyncRead + AsyncWrite` yet.
-    pub async fn relay<T>(mut self, mut io: T) -> Result<(), Error>
+    pub async fn relay<T>(mut self, io: T) -> Result<(), Error>
     where
         T: AsyncRead + AsyncWrite + Unpin,
     {
-        let mut buf = vec![0u8; 64 * 1024];
-        let mut local_done = false;
-        let mut remote_done = self.recv.is_none();
-
-        while !(local_done && remote_done) {
-            tokio::select! {
-                biased;
-
-                chunk = async { self.recv.as_mut().unwrap().recv_data().await }, if !remote_done => {
-                    match chunk? {
-                        Some(mut data) => {
-                            let bytes = data.copy_to_bytes(data.remaining());
-                            io.write_all(&bytes).await?;
-                        }
-                        None => {
-                            self.recv = None;
-                            remote_done = true;
-                            io.shutdown().await?;
-                        }
-                    }
+        let (mut local_read, mut local_write) = tokio::io::split(io);
+        // Poll both pumps independently: backpressure in one direction must
+        // not prevent bytes or FIN from progressing in the other direction.
+        let upload = async {
+            let mut buf = vec![0u8; 64 * 1024];
+            loop {
+                let len = local_read.read(&mut buf).await?;
+                if len == 0 {
+                    self.send.finish().await?;
+                    return Ok::<(), Error>(());
                 }
-
-                result = io.read(&mut buf), if !local_done => {
-                    let len = result?;
-                    if len == 0 {
-                        local_done = true;
-                        self.send.finish().await?;
-                    } else {
-                        self.send.send_data(Bytes::copy_from_slice(&buf[..len])).await?;
-                    }
+                self.send
+                    .send_data(Bytes::copy_from_slice(&buf[..len]))
+                    .await?;
+            }
+        };
+        let download = async {
+            if let Some(recv) = self.recv.as_mut() {
+                while let Some(mut data) = recv.recv_data().await? {
+                    let bytes = data.copy_to_bytes(data.remaining());
+                    local_write.write_all(&bytes).await?;
                 }
             }
-        }
+            local_write.shutdown().await?;
+            Ok::<(), Error>(())
+        };
+        tokio::try_join!(upload, download)?;
         Ok(())
     }
 }
@@ -659,6 +669,60 @@ impl Drop for AbortOnDrop {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn dropping_udp_tunnel_aborts_a_stalled_capsule_reader() {
+        use crate::{
+            policy::AddressPolicy,
+            server::{ProxyConfig, Server},
+            service::UdpProxy,
+        };
+        let generated = tls::generate_self_signed(vec!["localhost".to_owned()]).unwrap();
+        let server_tls = tls::server_config_from_pem(
+            generated.certificate_pem.as_bytes(),
+            generated.key_pem.as_bytes(),
+        )
+        .unwrap();
+        let server = Server::bind(
+            "127.0.0.1:0".parse().unwrap(),
+            server_tls,
+            UdpProxy::new(AddressPolicy::permissive()),
+            ProxyConfig::new("localhost").unwrap(),
+        )
+        .unwrap();
+        let address = server.local_addr().unwrap();
+        let server_task = AbortOnDrop(tokio::spawn(async move {
+            let _ = server.run().await;
+        }));
+        let client_tls = tls::client_config_with_ca(generated.certificate_pem.as_bytes()).unwrap();
+        let client = Client::new(client_tls).unwrap();
+        let session = client
+            .connect(
+                address,
+                UriTemplate::default_connect_udp("localhost").unwrap(),
+            )
+            .await
+            .unwrap();
+        let mut tunnel = session
+            .connect_udp(Target::parse("127.0.0.1:9").unwrap())
+            .await
+            .unwrap();
+        tunnel.reader.take().unwrap().abort();
+        let (dropped, observed) = tokio::sync::oneshot::channel::<()>();
+        let reader = tokio::spawn(async move {
+            let _owned = dropped;
+            std::future::pending::<()>().await;
+        });
+        tunnel.reader = Some(reader);
+        drop(tunnel);
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_secs(1), observed)
+                .await
+                .is_ok(),
+            "dropping a UDP tunnel detached its capsule reader"
+        );
+        drop(server_task);
+    }
 
     #[test]
     fn tls_server_name_drops_the_port() {
