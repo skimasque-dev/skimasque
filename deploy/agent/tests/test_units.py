@@ -24,6 +24,13 @@ class UnitTests(unittest.TestCase):
                 continue
             self.assertIn(path, pre, f"{path} must be created by ExecStartPre=+install -d")
 
+    def test_the_directories_a_fresh_vm_lacks_are_optional_read_write_paths(self):
+        # Regression: on a fresh VM (systemd 255) the unit failed with 226/NAMESPACE
+        # before any ExecStartPre ran, because these two did not exist yet.
+        paths = re.search(r"^ReadWritePaths=(.*)$", self.text, re.M).group(1).split()
+        self.assertIn("-/opt/skimasque", paths)
+        self.assertIn("-/var/lib/skimasque-deploy", paths)
+
     def test_the_agent_directories_have_safe_modes(self):
         self.assertRegex(self.text, r"ExecStartPre=\+/usr/bin/install -d -m 0755 [^\n]*/opt/skimasque/releases")
         self.assertRegex(self.text, r"ExecStartPre=\+/usr/bin/install -d -m 0700 /var/lib/skimasque-deploy")
