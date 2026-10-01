@@ -26,8 +26,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use skimasque::audit::AuditSink;
+use skimasque::service::{
+    Accepted, Dispatch, PolicyLayer, QuotaLayer, Rejection, TenantLayer, TenantMeterLayer,
+    TunnelRequest,
+};
 use skimasque::{
-    CredentialMinter, MintError, MintedCredential, TenantId, TenantSpec, TenantTable,
+    CredentialMinter, MintError, MintedCredential, TenantId, TenantSpec, TenantTable, TenantUsage,
     TenantVerifier,
 };
 use skimasque_identity::{peek_audiences, peek_org_id, CredentialVerifier, OidcVerifier};
@@ -38,6 +43,9 @@ use skimasque_protocol::platform::{
 };
 use skimasque_protocol::UsageReport;
 use tokio::sync::{mpsc, watch};
+use tower::limit::GlobalConcurrencyLimitLayer;
+use tower::util::BoxCloneService;
+use tower::ServiceBuilder;
 
 use crate::audit_ship::{chain_with, persist, resume_from, BATCH_MAX, MAX_PENDING};
 use crate::control::{
@@ -49,6 +57,14 @@ const CACHE_FILE: &str = "tenants.json";
 
 /// What a token exchange answers when the control plane cannot mint.
 const UNAVAILABLE: &str = "SkiMasque control plane unreachable; try again shortly.";
+
+/// What a token exchange answers when the OIDC issuer's keys cannot be
+/// fetched. Fixed, so no fetch detail reaches the client.
+const OIDC_KEYS_UNAVAILABLE: &str = "GitHub OIDC keys unavailable; try again shortly.";
+
+/// The least time between two tenant polls, however fast the control plane
+/// answers.
+const MIN_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Where a customer verifies a GitHub owner, quoted in an `owner_not_verified`
 /// refusal. Override with [`PlatformMinter::with_owner_settings_url`].
@@ -63,6 +79,10 @@ type KeyMap = HashMap<String, Arc<CredentialVerifier>>;
 pub struct PlatformTenants {
     pub table: TenantTable,
     keys: watch::Sender<Arc<KeyMap>>,
+    /// Held across the key-map and table swaps in [`apply`](Self::apply), so
+    /// two concurrent applies cannot leave one list's keys beside another's
+    /// table.
+    apply_lock: Arc<std::sync::Mutex<()>>,
 }
 
 impl Default for PlatformTenants {
@@ -79,6 +99,7 @@ impl PlatformTenants {
         Self {
             table: TenantTable::new(),
             keys,
+            apply_lock: Arc::default(),
         }
     }
 
@@ -109,6 +130,12 @@ impl PlatformTenants {
         // Keys first, then the table: in between, an org the old table still
         // resolves but the new list dropped has no key and is refused, and an
         // org only the new list has is not yet resolvable. Both fail closed.
+        // The lock makes the pair one step for any other apply. A poisoned
+        // lock guards no data, so it is taken regardless.
+        let _serialised = self
+            .apply_lock
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         self.keys.send_replace(Arc::new(keys));
         self.table.store(list.version, specs);
         metrics::gauge!("skimasque_platform_tenants")
@@ -153,6 +180,103 @@ impl PlatformTenants {
             .context("swapping in the new tenant cache")?;
         Ok(())
     }
+}
+
+/// Where a starting platform gateway's first tenant list came from.
+#[derive(Debug)]
+pub enum InitialTenants {
+    /// Pulled from the control plane just now (and cached).
+    Fetched(TenantList),
+    /// The control plane could not be reached (`error`); this is the list
+    /// cached in `<state>/tenants.json`, last written `age` ago if known.
+    Cached {
+        list: TenantList,
+        age: Option<Duration>,
+        error: anyhow::Error,
+    },
+}
+
+/// The tenant list a platform gateway starts with: pulled from the control
+/// plane and cached, or, when the control plane cannot be reached, the cached
+/// one. With neither this is an error: a platform gateway with no tenant table
+/// must not serve.
+pub async fn initial_tenants(
+    control: &ControlPlane,
+    identity: &GatewayIdentity,
+    state_dir: &Path,
+) -> Result<InitialTenants> {
+    let error = match control.fetch_tenants(identity, None, None).await {
+        Ok(TenantFetch::Updated(list)) => {
+            if let Err(error) = PlatformTenants::write_cache(state_dir, &list) {
+                tracing::warn!(%error, "could not cache the tenant list");
+            }
+            return Ok(InitialTenants::Fetched(list));
+        }
+        // Asked with no known version, "unchanged" means nothing usable.
+        Ok(TenantFetch::Unchanged) => {
+            anyhow::anyhow!("the control plane answered the first tenant poll with no list")
+        }
+        Err(error) => error,
+    };
+    match PlatformTenants::load_cache(state_dir) {
+        Some(list) => Ok(InitialTenants::Cached {
+            list,
+            age: cache_age(state_dir),
+            error,
+        }),
+        None => Err(error.context(format!(
+            "the control plane is unreachable and there is no cached tenant list ({}); a \
+             platform gateway will not start without a tenant table",
+            state_dir.join(CACHE_FILE).display()
+        ))),
+    }
+}
+
+/// How long ago the tenant cache was written, from its modification time.
+fn cache_age(state_dir: &Path) -> Option<Duration> {
+    let modified = std::fs::metadata(state_dir.join(CACHE_FILE))
+        .and_then(|m| m.modified())
+        .ok()?;
+    std::time::SystemTime::now().duration_since(modified).ok()
+}
+
+/// Where a customer verifies a GitHub owner on the control plane at
+/// `control_plane_url`: its identity settings page. Quoted in an
+/// `owner_not_verified` refusal.
+pub fn owner_settings_url(control_plane_url: &str) -> String {
+    format!(
+        "{}/app/settings/identity",
+        crate::normalize_base_url(control_plane_url)
+    )
+}
+
+/// The tunnel service a platform gateway serves, outer to inner: the global
+/// concurrency cap, the tenant credential check ([`PlatformTenantVerifier`],
+/// which puts the `TenantId` and the workload identity in the request), that
+/// tenant's policy with every decision audited under its org, the
+/// tenant-scoped quotas, the tenant usage meter, then `dispatch` (whose
+/// address floor still runs after DNS).
+///
+/// There is no static-token layer: `--oidc` (which `--platform` requires)
+/// excludes `--auth-token`.
+pub fn platform_service(
+    dispatch: Dispatch,
+    max_concurrent_requests: usize,
+    tenants: &PlatformTenants,
+    audit: Arc<dyn AuditSink>,
+    usage: Arc<TenantUsage>,
+) -> BoxCloneService<TunnelRequest, Accepted, Rejection> {
+    BoxCloneService::new(
+        ServiceBuilder::new()
+            .layer(GlobalConcurrencyLimitLayer::new(max_concurrent_requests))
+            .layer(TenantLayer::new(Arc::new(PlatformTenantVerifier::new(
+                tenants.clone(),
+            ))))
+            .layer(PolicyLayer::tenants(tenants.table.clone()).with_audit(audit))
+            .layer(QuotaLayer::new())
+            .layer(TenantMeterLayer::new(usage))
+            .service(dispatch),
+    )
 }
 
 /// The tenants that survive de-duplication, in order: the first entry for an
@@ -233,15 +357,23 @@ fn policy_for(tenant: &Tenant) -> PolicySet {
 /// cache it to `<state_dir>/tenants.json`. On any error the current tenants
 /// stay in force; the loop backs off (1s doubling to 60s) and retries. Never
 /// returns.
+///
+/// `state` is what [`run_platform_heartbeat`] reports from: every answered poll
+/// marks contact, every failed one marks the control plane unreachable, and an
+/// applied list records its version.
 pub async fn run_tenant_sync(
     control: ControlPlane,
     identity: GatewayIdentity,
     tenants: PlatformTenants,
+    state: Arc<SyncState>,
     state_dir: PathBuf,
     interval: Duration,
 ) {
     let mut backoff = Duration::from_secs(1);
     loop {
+        // A control plane that answers at once (ignoring `?wait=`) must not
+        // turn this into a hot loop.
+        let earliest_next = tokio::time::Instant::now() + MIN_POLL_INTERVAL;
         let known = match tenants.table.snapshot().version() {
             0 => None,
             v => Some(v),
@@ -251,7 +383,9 @@ pub async fn run_tenant_sync(
             .await
         {
             Ok(TenantFetch::Updated(list)) => {
+                state.mark_contact();
                 tenants.apply(&list);
+                state.set_version(list.version);
                 if let Err(error) = PlatformTenants::write_cache(&state_dir, &list) {
                     tracing::warn!(%error, "could not cache the tenant list");
                 }
@@ -265,9 +399,11 @@ pub async fn run_tenant_sync(
                 backoff = Duration::from_secs(1);
             }
             Ok(TenantFetch::Unchanged) => {
+                state.mark_contact();
                 backoff = Duration::from_secs(1);
             }
             Err(error) => {
+                state.mark_unreachable();
                 metrics::counter!("skimasque_platform_tenant_sync_total", "outcome" => "error")
                     .increment(1);
                 tracing::warn!(
@@ -278,6 +414,7 @@ pub async fn run_tenant_sync(
                 backoff = (backoff * 2).min(Duration::from_secs(60));
             }
         }
+        tokio::time::sleep_until(earliest_next).await;
     }
 }
 
@@ -457,7 +594,14 @@ impl CredentialMinter for PlatformMinter {
                 .await
                 .map_err(|e| match e {
                     skimasque_identity::Error::Discovery(_)
-                    | skimasque_identity::Error::Jwks(_) => MintError::Unavailable(e.to_string()),
+                    | skimasque_identity::Error::Jwks(_) => {
+                        // The detail (URLs, transport errors) is for the
+                        // operator's log, not the client.
+                        metrics::counter!("skimasque_platform_mint_total", "outcome" => "oidc_keys_unavailable")
+                            .increment(1);
+                        tracing::warn!(error = %e, "could not fetch the OIDC signing keys");
+                        MintError::Unavailable(OIDC_KEYS_UNAVAILABLE.to_owned())
+                    }
                     other => MintError::Unauthorized(other.to_string()),
                 })?;
             let workload = oidc.provider().identify(&claims);
@@ -541,6 +685,35 @@ fn chain_platform_batch(
     )
 }
 
+/// The next batch to ship from the front of `pending`.
+struct PlatformBatch {
+    /// The chained, org-tagged events to send.
+    events: Vec<PlatformAuditEvent>,
+    /// The chain tail after `events`.
+    tail_hash: String,
+    /// The sequence number after `events`, once they are accepted. Advanced by
+    /// the events actually chained, never by how many were taken, so a skipped
+    /// event cannot open a gap.
+    next_seq: u64,
+    /// How many of `pending` this batch consumes.
+    taken: usize,
+}
+
+fn platform_batch(
+    pending: &[skimasque::audit::AuditEvent],
+    next_seq: u64,
+    prev_hash: &str,
+) -> PlatformBatch {
+    let taken = pending.len().min(BATCH_MAX);
+    let (events, tail_hash) = chain_platform_batch(&pending[..taken], next_seq, prev_hash);
+    PlatformBatch {
+        next_seq: next_seq + events.len() as u64,
+        events,
+        tail_hash,
+        taken,
+    }
+}
+
 /// Queue `event` for shipping unless it names no organisation, in which case it
 /// is dropped, counted and logged. Returns whether it was queued.
 fn admit_platform_event(
@@ -597,21 +770,31 @@ pub async fn run_platform_audit_shipping(
             }
         }
 
-        let take = pending.len().min(BATCH_MAX);
-        let (batch, batch_tail_hash) = chain_platform_batch(&pending[..take], next_seq, &prev_hash);
-        debug_assert_eq!(batch.len(), take, "only org-tagged events are queued");
+        let PlatformBatch {
+            events,
+            tail_hash,
+            next_seq: seq_after,
+            taken,
+        } = platform_batch(&pending, next_seq, &prev_hash);
+        if events.is_empty() {
+            // Nothing in this slice names an org (admit keeps this from
+            // happening); consume it without a request.
+            pending.drain(..taken);
+            continue;
+        }
+        let shipped = events.len() as u64;
 
         match control
-            .ship_platform_audit(&identity, &PlatformShipAuditRequest { events: batch })
+            .ship_platform_audit(&identity, &PlatformShipAuditRequest { events })
             .await
         {
             Ok(_) => {
-                next_seq += take as u64;
-                prev_hash = batch_tail_hash;
+                next_seq = seq_after;
+                prev_hash = tail_hash;
                 persist(&chain_path, next_seq - 1, &prev_hash);
-                pending.drain(..take);
+                pending.drain(..taken);
                 metrics::counter!("skimasque_control_plane_audit_total", "outcome" => "shipped")
-                    .increment(take as u64);
+                    .increment(shipped);
                 backoff = Duration::from_secs(1);
             }
             Err(error) => {
@@ -932,6 +1115,62 @@ mod tests {
             audit_event(Some("org_a"), "x")
         ));
         assert_eq!(pending.len(), 1);
+    }
+
+    /// The sequence advances by the events actually shipped, so an event that
+    /// is skipped (it names no org) can never open a gap in the chain.
+    #[test]
+    fn a_shipped_batch_advances_the_sequence_by_the_events_it_carries() {
+        let genesis = skimasque_protocol::AUDIT_GENESIS;
+        let pending = [
+            audit_event(Some("org_a"), "one"),
+            audit_event(None, "orphan"),
+            audit_event(Some("org_b"), "two"),
+        ];
+        let batch = platform_batch(&pending, 10, genesis);
+        assert_eq!(batch.taken, 3, "every pending event is consumed");
+        assert_eq!(batch.events.len(), 2);
+        assert_eq!(
+            batch.next_seq, 12,
+            "only shipped events consume a sequence number"
+        );
+        assert_eq!(batch.events.last().unwrap().seq, 11);
+    }
+
+    /// Concurrent applies must not leave the key map from one list beside the
+    /// table from another.
+    #[test]
+    fn concurrent_applies_never_mix_two_lists() {
+        let tenants = PlatformTenants::new();
+        let lists: Vec<TenantList> = (1..=8u64)
+            .map(|v| TenantList {
+                version: v,
+                tenants: (0..16)
+                    .map(|i| tenant(&format!("org_{v}_{i}"), &format!("s{v}-{i}")))
+                    .collect(),
+            })
+            .collect();
+        for _ in 0..300 {
+            let start = std::sync::Barrier::new(lists.len());
+            std::thread::scope(|scope| {
+                for list in &lists {
+                    let (tenants, start) = (tenants.clone(), &start);
+                    scope.spawn(move || {
+                        start.wait();
+                        tenants.apply(list)
+                    });
+                }
+            });
+            let snapshot = tenants.table.snapshot();
+            let mut in_table: Vec<String> = snapshot
+                .tenants()
+                .map(|t| t.id().as_str().to_owned())
+                .collect();
+            let mut in_keys: Vec<String> = tenants.keys.borrow().keys().cloned().collect();
+            in_table.sort();
+            in_keys.sort();
+            assert_eq!(in_keys, in_table, "version {}", snapshot.version());
+        }
     }
 
     #[test]

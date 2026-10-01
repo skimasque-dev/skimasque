@@ -20,7 +20,7 @@ use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use ring::signature::KeyPair as _;
 use skimasque::{CredentialMinter, MintError, TenantVerifier};
-use skimasque_cli::control::ControlPlane;
+use skimasque_cli::control::{ControlPlane, SyncState};
 use skimasque_cli::platform::{
     run_tenant_sync, PlatformMinter, PlatformTenantVerifier, PlatformTenants,
 };
@@ -531,6 +531,7 @@ async fn tenant_sync_applies_the_polled_list_and_writes_the_cache() {
         ControlPlane::new(&control.base_url, &dir).unwrap(),
         gateway(),
         tenants.clone(),
+        sync_state(),
         dir.clone(),
         Duration::from_secs(1),
     ));
@@ -551,9 +552,138 @@ async fn tenant_sync_applies_the_polled_list_and_writes_the_cache() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+fn sync_state() -> Arc<SyncState> {
+    Arc::new(SyncState::new(
+        None,
+        Some(Duration::ZERO),
+        Duration::from_secs(900),
+        Duration::from_secs(1800),
+    ))
+}
+
+/// The tenant sync feeds the heartbeat's health: contact and the enforced
+/// version on success, unhealthy on failure.
+#[tokio::test]
+async fn tenant_sync_reports_contact_version_and_failure_to_the_sync_state() {
+    let f = fleet();
+    let control = stub(200, &serde_json::to_string(&f.list).unwrap()).await;
+    let dir = state_dir("sync-state");
+    let state = sync_state();
+    state.mark_unreachable();
+    let task = tokio::spawn(run_tenant_sync(
+        ControlPlane::new(&control.base_url, &dir).unwrap(),
+        gateway(),
+        PlatformTenants::new(),
+        state.clone(),
+        dir.clone(),
+        Duration::from_secs(1),
+    ));
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    while state.version() != Some(1) || !state.healthy() {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "sync never reported"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    task.abort();
+
+    // A control plane that answers 5xx: unhealthy, the version kept.
+    let down = stub(503, "down").await;
+    let task = tokio::spawn(run_tenant_sync(
+        ControlPlane::new(&down.base_url, &dir).unwrap(),
+        gateway(),
+        PlatformTenants::new(),
+        state.clone(),
+        dir.clone(),
+        Duration::from_secs(1),
+    ));
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    while state.healthy() {
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "failure never reported"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    task.abort();
+    assert_eq!(state.version(), Some(1));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// A control plane that answers every poll at once (a `304` that ignores
+/// `?wait=`) must not be polled in a hot loop.
+#[tokio::test]
+async fn tenant_sync_waits_between_polls_even_when_the_control_plane_answers_at_once() {
+    let control = stub(304, "").await;
+    let dir = state_dir("sync-floor");
+    let task = tokio::spawn(run_tenant_sync(
+        ControlPlane::new(&control.base_url, &dir).unwrap(),
+        gateway(),
+        PlatformTenants::new(),
+        sync_state(),
+        dir.clone(),
+        Duration::from_secs(30),
+    ));
+    tokio::time::sleep(Duration::from_millis(2500)).await;
+    task.abort();
+    let polls = control.requests().len();
+    assert!((1..=4).contains(&polls), "{polls} polls in 2.5s");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 // ---------------------------------------------------------------------------
 // The token-exchange minter.
 // ---------------------------------------------------------------------------
+
+/// A JWKS source that always fails with an internal detail.
+#[derive(Debug)]
+struct BrokenJwks;
+
+impl JwksProvider for BrokenJwks {
+    fn fetch(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = Result<jsonwebtoken::jwk::JwkSet, IdentityError>> + Send + '_>>
+    {
+        Box::pin(async {
+            Err(IdentityError::Jwks(
+                "GET http://10.1.2.3/internal/jwks: connection refused".to_owned(),
+            ))
+        })
+    }
+}
+
+/// When GitHub's keys cannot be fetched the job is told to retry, with a fixed
+/// message: the fetch error's detail stays in the gateway's log.
+#[tokio::test]
+async fn an_oidc_key_outage_is_unavailable_with_a_fixed_message() {
+    let f = fleet();
+    let tenants = tenants_for(&f.list);
+    let control = stub(200, MINTED).await;
+    let minter = PlatformMinter::new(
+        Arc::new(OidcVerifier::from_parts(
+            Provider::GitHubActions,
+            Verifier::new(GITHUB_ACTIONS_ISSUER, ["https://not-a-tenant.example"]),
+            Arc::new(BrokenJwks),
+        )),
+        BASE,
+        ControlPlane::new(&control.base_url, state_dir("jwks")).unwrap(),
+        gateway(),
+        tenants,
+        Duration::from_secs(900),
+    );
+    match minter
+        .mint(oidc_token(&format!("{BASE}/o/acme"), "acme", Some(900)))
+        .await
+    {
+        Err(MintError::Unavailable(message)) => {
+            assert_eq!(message, "GitHub OIDC keys unavailable; try again shortly.")
+        }
+        Err(other) => panic!("expected unavailable, got {other}"),
+        Ok(_) => panic!("minted without OIDC keys"),
+    }
+    assert!(control.requests().is_empty());
+}
 
 #[tokio::test]
 async fn a_verified_owner_is_minted_a_credential_by_the_control_plane_for_its_org() {

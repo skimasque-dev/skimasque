@@ -273,6 +273,28 @@ struct Args {
     #[arg(long = "control-plane-label", value_name = "KEY=VALUE", requires = "control_plane")]
     control_plane_label: Vec<String>,
 
+    /// Run as a shared platform gateway: one process serving many SkiMasque
+    /// organisations, each isolated from the others.
+    ///
+    /// Needs `--control-plane` (registered with a platform registration token
+    /// in `--control-plane-token`) and `--oidc`. A CI job requests its OIDC
+    /// token for the audience `https://<--hostname>/o/<org-slug>`; its GitHub
+    /// owner must be verified for that organisation, and the control plane
+    /// mints its credential with that organisation's key. Every tunnel is
+    /// checked against the credential's organisation's policy only, and
+    /// audited and metered under it. There is no local minting: while the
+    /// control plane is down new exchanges fail, but credentials already issued
+    /// keep working from the cached tenant list.
+    ///
+    /// `--oidc-audience` and `--credential-secret` are ignored. Local policy
+    /// files and `--policy-observe` cannot be combined with it.
+    #[arg(
+        long,
+        requires_all = ["control_plane", "oidc"],
+        conflicts_with_all = ["policy_observe"]
+    )]
+    platform: bool,
+
     /// Observe instead of enforce: log what each policy would decide (as
     /// `masque::observe` events) but allow every tunnel. Feeds
     /// `skimasque policy learn`.
@@ -509,7 +531,13 @@ async fn main() -> anyhow::Result<()> {
         TlsSetup::Acme(_) => {}
     }
 
-    let oidc = build_oidc(&args)?;
+    // A platform gateway builds its own OIDC and minting in
+    // `bootstrap_platform`: no audience, no HS256 secret.
+    let oidc = if args.platform {
+        None
+    } else {
+        build_oidc(&args)?
+    };
     if oidc.as_ref().is_some_and(|o| o.generated_secret) {
         eprintln!(
             "warning: no --credential-secret set; using a random one, so credentials do not \
@@ -545,7 +573,20 @@ async fn main() -> anyhow::Result<()> {
     // pull the initial policy into the on-disk cache, and hand the cache dir to
     // `build_service` as the policy source. A control plane that is unreachable
     // at startup is tolerated as long as a cached policy exists.
-    let control_plane = bootstrap_control_plane(&args).await?;
+    //
+    // With `--platform` the control plane serves a tenant list instead:
+    // `bootstrap_platform` registers, loads and applies it, and builds the
+    // tenant service stack and minter; the single-org path below stays idle.
+    let platform = if args.platform {
+        Some(bootstrap_platform(&args).await?)
+    } else {
+        None
+    };
+    let control_plane = if args.platform {
+        None
+    } else {
+        bootstrap_control_plane(&args).await?
+    };
     let control_policy_dir = control_plane.as_ref().map(|cp| cp.control.policy_dir());
 
     // With both `--control-plane` and `--oidc`, re-wire issuance/verification to
@@ -571,17 +612,26 @@ async fn main() -> anyhow::Result<()> {
         (None, None)
     };
 
-    let (service, policy_handle) = build_service(
-        &args,
-        oidc.as_ref(),
-        control_policy_dir.as_deref(),
-        audit_tx,
-    )?;
+    let (service, policy_handle) = match &platform {
+        Some(p) => {
+            config = config.with_minter(p.minter.clone());
+            (p.service.clone(), None)
+        }
+        None => build_service(
+            &args,
+            oidc.as_ref(),
+            control_policy_dir.as_deref(),
+            audit_tx,
+        )?,
+    };
     let server = Server::bind(args.listen, server_tls, service, config)?;
 
     let addr = server.local_addr()?;
     eprintln!("skimasque-server listening on {addr}");
-    for warning in startup_warnings(&args) {
+    for warning in startup_warnings(&args)
+        .into_iter()
+        .chain(platform_warnings(&args))
+    {
         eprintln!("warning: {warning}");
     }
 
@@ -663,6 +713,9 @@ async fn main() -> anyhow::Result<()> {
             ));
         }
         tokio::spawn(run_control_plane_heartbeat(control, identity, state, interval));
+    }
+    if let Some(platform) = platform {
+        spawn_platform_tasks(platform);
     }
 
     if let Some(interval) = reload_interval {
@@ -923,16 +976,9 @@ fn build_template(args: &Args) -> anyhow::Result<UriTemplate> {
     Ok(template)
 }
 
-/// Build the proxy service, and -- when a policy source is configured -- the
-/// [`PolicyHandle`] that reloads it. The handle is returned rather than kept
-/// inside the boxed stack because [`run_policy_reload`] needs it after the
-/// service has been consumed into [`Server`].
-fn build_service(
-    args: &Args,
-    oidc: Option<&OidcParts>,
-    control_policy_dir: Option<&std::path::Path>,
-    audit_tx: Option<tokio::sync::mpsc::Sender<skimasque::audit::AuditEvent>>,
-) -> anyhow::Result<(ProxyService, Option<PolicyHandle>)> {
+/// The innermost proxy: UDP (and TCP unless `--no-connect-tcp`) behind the
+/// address floor from `--allow-private`, `--allow-port` and `--allow-cidr`.
+fn build_dispatch(args: &Args) -> Dispatch {
     let mut policy = if args.allow_private {
         AddressPolicy::permissive()
     } else {
@@ -945,14 +991,28 @@ fn build_service(
         policy = policy.with_allowed_cidrs(args.allow_cidrs.iter().copied());
     }
 
-    // `GlobalConcurrencyLimitLayer` shares one semaphore across every clone of
-    // the service, so the cap is a property of the proxy rather than of each
-    // connection.
-    let limit = GlobalConcurrencyLimitLayer::new(args.max_concurrent_requests);
     let mut dispatch = Dispatch::new().with_udp(UdpProxy::new(policy.clone()));
     if !args.no_connect_tcp {
         dispatch = dispatch.with_tcp(TcpProxy::new(policy));
     }
+    dispatch
+}
+
+/// Build the proxy service, and -- when a policy source is configured -- the
+/// [`PolicyHandle`] that reloads it. The handle is returned rather than kept
+/// inside the boxed stack because [`run_policy_reload`] needs it after the
+/// service has been consumed into [`Server`].
+fn build_service(
+    args: &Args,
+    oidc: Option<&OidcParts>,
+    control_policy_dir: Option<&std::path::Path>,
+    audit_tx: Option<tokio::sync::mpsc::Sender<skimasque::audit::AuditEvent>>,
+) -> anyhow::Result<(ProxyService, Option<PolicyHandle>)> {
+    // `GlobalConcurrencyLimitLayer` shares one semaphore across every clone of
+    // the service, so the cap is a property of the proxy rather than of each
+    // connection.
+    let limit = GlobalConcurrencyLimitLayer::new(args.max_concurrent_requests);
+    let dispatch = build_dispatch(args);
 
     let auth = args.auth_token.as_deref().map(AuthorizeLayer::bearer);
 
@@ -1154,18 +1214,15 @@ fn parse_labels(raw: &[String]) -> anyhow::Result<std::collections::BTreeMap<Str
     Ok(labels)
 }
 
-/// Register with (or reconnect to) the control plane and populate the policy
-/// cache before the service is built.
-async fn bootstrap_control_plane(args: &Args) -> anyhow::Result<Option<CpBootstrap>> {
-    use skimasque_cli::control::{ControlPlane, PolicyFetch};
-
-    let Some(url) = args.control_plane.clone() else {
-        return Ok(None);
-    };
-    let state = args
-        .control_plane_state
-        .clone()
-        .expect("--control-plane requires --control-plane-state, which clap enforces");
+/// `--control-plane-interval`, `--control-plane-policy-lease` and
+/// `--control-plane-cache-ttl`, checked against each other.
+fn control_plane_timings(
+    args: &Args,
+) -> anyhow::Result<(
+    std::time::Duration,
+    std::time::Duration,
+    std::time::Duration,
+)> {
     let interval = skimasque_policy::parse_duration(&args.control_plane_interval)
         .map_err(|e| anyhow::anyhow!("parsing --control-plane-interval: {e}"))?;
     let policy_lease = skimasque_policy::parse_duration(&args.control_plane_policy_lease)
@@ -1179,6 +1236,22 @@ async fn bootstrap_control_plane(args: &Args) -> anyhow::Result<Option<CpBootstr
             policy_lease.as_secs()
         );
     }
+    Ok((interval, policy_lease, cache_ttl))
+}
+
+/// Register with (or reconnect to) the control plane and populate the policy
+/// cache before the service is built.
+async fn bootstrap_control_plane(args: &Args) -> anyhow::Result<Option<CpBootstrap>> {
+    use skimasque_cli::control::{ControlPlane, PolicyFetch};
+
+    let Some(url) = args.control_plane.clone() else {
+        return Ok(None);
+    };
+    let state = args
+        .control_plane_state
+        .clone()
+        .expect("--control-plane requires --control-plane-state, which clap enforces");
+    let (interval, policy_lease, cache_ttl) = control_plane_timings(args)?;
     let name = args
         .control_plane_name
         .clone()
@@ -1381,6 +1454,303 @@ async fn run_control_plane_heartbeat(
         metrics::counter!("skimasque_control_plane_heartbeat_total", "outcome" => outcome)
             .increment(1);
     }
+}
+
+/// The public origin tenant audiences hang off: `https://<--hostname>`, with a
+/// default `:443` dropped (a CI job's audience never spells it) and any other
+/// port kept.
+fn platform_base_url(hostname: &str) -> String {
+    let host = hostname.trim().trim_end_matches('/');
+    let host = match host.strip_suffix(":443") {
+        // `[v6]:443` or `name:443`, but not a bare IPv6 address ending `:443`.
+        Some(bare) if !bare.is_empty() && (bare.ends_with(']') || !bare.contains(':')) => bare,
+        _ => host,
+    };
+    format!("https://{host}")
+}
+
+/// The flags a platform gateway accepts but does not use, as warnings.
+fn platform_warnings(args: &Args) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if !args.platform {
+        return warnings;
+    }
+    if args.credential_secret.is_some() {
+        warnings.push(
+            "--credential-secret is ignored with --platform: every credential is minted by the \
+             control plane with its organisation's key"
+                .to_owned(),
+        );
+    }
+    if !args.oidc_audiences.is_empty() {
+        warnings.push(format!(
+            "--oidc-audience is ignored with --platform: each organisation's audience is {}",
+            skimasque_protocol::platform::tenant_audience(
+                &platform_base_url(&args.hostname),
+                "<org-slug>"
+            )
+        ));
+    }
+    warnings
+}
+
+/// The OIDC verifier a platform gateway exchanges tokens with. It has no
+/// configured audience: [`PlatformMinter`](skimasque_cli::platform::PlatformMinter)
+/// verifies each token against the one tenant audience it names. Tenants
+/// verify GitHub owners, so only GitHub Actions tokens are accepted
+/// (`--oidc-issuer` may still name a GitHub Enterprise Server).
+fn build_platform_oidc(args: &Args) -> anyhow::Result<Arc<OidcVerifier>> {
+    let provider = build_provider(args)?;
+    anyhow::ensure!(
+        provider == Provider::GitHubActions,
+        "--platform verifies GitHub owners, so it needs --oidc-provider github"
+    );
+    let issuer = match (&args.oidc_issuer, provider.default_issuer()) {
+        (Some(url), _) => url.clone(),
+        (None, Some(default)) => default.to_owned(),
+        (None, None) => anyhow::bail!("--platform needs an --oidc-issuer"),
+    };
+    let verifier = OidcVerifier::hosted_at(provider, &issuer, Vec::<String>::new())
+        .context("building the OIDC verifier")?;
+    Ok(Arc::new(verifier))
+}
+
+/// A platform gateway must not reuse a single-organisation gateway's identity
+/// (it would talk to the platform endpoints as that org's gateway).
+fn check_platform_identity(
+    identity: &skimasque_cli::control::GatewayIdentity,
+) -> anyhow::Result<()> {
+    if !identity.org_id.is_empty() {
+        anyhow::bail!(
+            "the identity in --control-plane-state belongs to a single-organisation gateway \
+             (org {}, gateway {}); give the platform gateway its own --control-plane-state",
+            identity.org_id,
+            identity.gateway_id
+        );
+    }
+    Ok(())
+}
+
+/// What [`bootstrap_platform`] hands `main`: the service and minter to serve,
+/// and what the background tasks need.
+struct PlatformBootstrap {
+    control: skimasque_cli::control::ControlPlane,
+    identity: skimasque_cli::control::GatewayIdentity,
+    url: String,
+    state_dir: PathBuf,
+    interval: std::time::Duration,
+    tenants: skimasque_cli::platform::PlatformTenants,
+    state: Arc<skimasque_cli::control::SyncState>,
+    usage: Arc<skimasque::TenantUsage>,
+    service: ProxyService,
+    minter: Arc<dyn CredentialMinter>,
+    audit_rx: tokio::sync::mpsc::Receiver<skimasque::audit::AuditEvent>,
+}
+
+/// Start a platform gateway: register (or reuse the stored identity), load the
+/// tenant list (from the control plane, else the cache, else refuse to start),
+/// apply it, and build the tenant service stack and the minter. Nothing is
+/// spawned here: the table is in place before any background task runs.
+async fn bootstrap_platform(args: &Args) -> anyhow::Result<PlatformBootstrap> {
+    use skimasque_cli::audit_ship::ControlPlaneAuditSink;
+    use skimasque_cli::control::{ControlPlane, SyncState};
+    use skimasque_cli::platform::{
+        initial_tenants, owner_settings_url, platform_service, InitialTenants, PlatformMinter,
+        PlatformTenants,
+    };
+
+    let url = args
+        .control_plane
+        .clone()
+        .expect("--platform requires --control-plane, which clap enforces");
+    let state_dir = args
+        .control_plane_state
+        .clone()
+        .expect("--control-plane requires --control-plane-state, which clap enforces");
+    let (interval, policy_lease, cache_ttl) = control_plane_timings(args)?;
+    let ttl = skimasque_policy::parse_duration(&args.credential_ttl)
+        .map_err(|e| anyhow::anyhow!("parsing --credential-ttl: {e}"))?;
+    let oidc = build_platform_oidc(args)?;
+    let name = args
+        .control_plane_name
+        .clone()
+        .unwrap_or_else(|| args.listen.to_string());
+    let labels = parse_labels(&args.control_plane_label)?;
+
+    let control = ControlPlane::new(&url, &state_dir)?;
+    let identity = match control.load_identity()? {
+        Some(identity) => {
+            check_platform_identity(&identity)?;
+            if !labels.is_empty() {
+                eprintln!(
+                    "warning: --control-plane-label is sent only when a platform gateway first \
+                     registers; gateway {} is already registered",
+                    identity.gateway_id
+                );
+            }
+            identity
+        }
+        None => {
+            let token = args.control_plane_token.as_deref().context(
+                "the first --platform connection needs --control-plane-token \
+                 (SKIMASQUE_CONTROL_TOKEN), a platform registration token",
+            )?;
+            let identity = control
+                .register_platform(token, &name, &labels)
+                .await
+                .context("registering the platform gateway with the control plane")?;
+            eprintln!(
+                "registered with the control plane as platform gateway {}",
+                identity.gateway_id
+            );
+            identity
+        }
+    };
+
+    let (list, cache_age) = match initial_tenants(&control, &identity, &state_dir).await? {
+        InitialTenants::Fetched(list) => {
+            eprintln!(
+                "pulled tenant list version {} from the control plane",
+                list.version
+            );
+            (list, Some(std::time::Duration::ZERO))
+        }
+        InitialTenants::Cached { list, age, error } => {
+            let described = age.map_or_else(
+                || "age unknown".to_owned(),
+                |age| format!("written {}s ago", age.as_secs()),
+            );
+            eprintln!(
+                "warning: control plane unreachable at startup ({error:#}); enforcing the cached \
+                 tenant list version {} ({described})",
+                list.version
+            );
+            (list, age)
+        }
+    };
+
+    // The table is in force before anything serves or syncs.
+    let tenants = PlatformTenants::new();
+    tenants.apply(&list);
+    let state = Arc::new(SyncState::new(
+        Some(list.version),
+        cache_age,
+        policy_lease,
+        cache_ttl,
+    ));
+
+    let base_url = platform_base_url(&args.hostname);
+    let snapshot = tenants.table.snapshot();
+    let mut slugs: Vec<&str> = snapshot.tenants().map(|t| t.slug()).collect();
+    slugs.sort_unstable();
+    eprintln!(
+        "serving {} organisation{} (tenant list version {}); each at audience {}",
+        slugs.len(),
+        if slugs.len() == 1 { "" } else { "s" },
+        snapshot.version(),
+        skimasque_protocol::platform::tenant_audience(&base_url, "<org-slug>")
+    );
+    if args.verbose >= 1 {
+        for slug in &slugs {
+            eprintln!(
+                "  {slug}: {}",
+                skimasque_protocol::platform::tenant_audience(&base_url, slug)
+            );
+        }
+    }
+
+    let minter: Arc<dyn CredentialMinter> = Arc::new(
+        PlatformMinter::new(
+            oidc,
+            base_url,
+            control.clone(),
+            identity.clone(),
+            tenants.clone(),
+            ttl,
+        )
+        .with_owner_settings_url(owner_settings_url(&url)),
+    );
+
+    // The local sink (file or tracing) stays authoritative; each event is
+    // also queued for the per-org platform shipper.
+    let (audit_tx, audit_rx) = ControlPlaneAuditSink::channel();
+    let audit = ControlPlaneAuditSink::wrap(build_audit_sink(args)?, audit_tx);
+    let usage = Arc::new(skimasque::TenantUsage::new());
+    let service = platform_service(
+        build_dispatch(args),
+        args.max_concurrent_requests,
+        &tenants,
+        audit,
+        usage.clone(),
+    );
+
+    Ok(PlatformBootstrap {
+        control,
+        identity,
+        url,
+        state_dir,
+        interval,
+        tenants,
+        state,
+        usage,
+        service,
+        minter,
+        audit_rx,
+    })
+}
+
+/// Start a platform gateway's background tasks: the tenant sync (which feeds
+/// the heartbeat's health through the shared `SyncState`), the per-org audit
+/// shipper, and the heartbeat with per-org usage.
+fn spawn_platform_tasks(platform: PlatformBootstrap) {
+    use skimasque_cli::platform::{
+        run_platform_audit_shipping, run_platform_heartbeat, run_tenant_sync,
+    };
+
+    let PlatformBootstrap {
+        control,
+        identity,
+        url,
+        state_dir,
+        interval,
+        tenants,
+        state,
+        usage,
+        audit_rx,
+        ..
+    } = platform;
+    eprintln!(
+        "syncing tenants from {url} every {}s (platform gateway {})",
+        interval.as_secs(),
+        identity.gateway_id
+    );
+    tokio::spawn(run_tenant_sync(
+        control.clone(),
+        identity.clone(),
+        tenants.clone(),
+        state.clone(),
+        state_dir,
+        interval,
+    ));
+    eprintln!("shipping the audit trail to the control plane, filed per organisation");
+    tokio::spawn(run_platform_audit_shipping(
+        control.clone(),
+        identity.clone(),
+        audit_rx,
+        control.audit_chain_path(),
+    ));
+    let table = tenants.table.clone();
+    tokio::spawn(run_platform_heartbeat(
+        control,
+        identity,
+        state,
+        move || match table.snapshot().version() {
+            0 => None,
+            version => Some(version),
+        },
+        usage,
+        interval,
+    ));
 }
 
 /// The OIDC pieces of a gateway: the token-exchange minter (OIDC in, credential
@@ -2358,5 +2728,135 @@ mod tests {
     #[test]
     fn a_bad_tunnel_idle_timeout_is_a_build_error() {
         assert!(build_limits(&parse(&["--tunnel-idle-timeout", "soon"])).is_err());
+    }
+
+    /// The minimal `--platform` command line.
+    const PLATFORM: [&str; 6] = [
+        "--platform",
+        "--oidc",
+        "--control-plane",
+        "https://cp.example",
+        "--control-plane-state",
+        "/s",
+    ];
+
+    fn try_platform(extra: &[&str]) -> Result<Args, clap::Error> {
+        Args::try_parse_from(
+            std::iter::once("skimasque-server")
+                .chain(PLATFORM)
+                .chain(extra.iter().copied()),
+        )
+    }
+
+    #[test]
+    fn platform_requires_control_plane_and_oidc() {
+        let args = try_platform(&[]).unwrap();
+        assert!(args.platform);
+
+        assert!(Args::try_parse_from(["skimasque-server", "--platform"]).is_err());
+        assert!(
+            Args::try_parse_from(["skimasque-server", "--platform", "--oidc"]).is_err(),
+            "--platform without --control-plane must not start"
+        );
+        assert!(
+            Args::try_parse_from([
+                "skimasque-server",
+                "--platform",
+                "--control-plane",
+                "https://cp.example",
+                "--control-plane-state",
+                "/s",
+            ])
+            .is_err(),
+            "--platform without --oidc must not start"
+        );
+
+        // Policy comes from the tenant table only: no local policy source, no
+        // observe mode, no static token.
+        assert!(try_platform(&["--policy-dir", "p"]).is_err());
+        assert!(try_platform(&["--policy-file", "p.toml"]).is_err());
+        assert!(try_platform(&["--policy-observe"]).is_err());
+        assert!(try_platform(&["--policy-reload"]).is_err());
+        assert!(try_platform(&["--auth-token", "s3cret"]).is_err());
+        // A local audit file stays allowed: it is the authoritative copy.
+        assert!(try_platform(&["--audit-log", "audit.jsonl"]).is_ok());
+    }
+
+    #[test]
+    fn platform_does_not_need_an_oidc_audience() {
+        let args = try_platform(&[]).unwrap();
+        assert!(args.oidc_audiences.is_empty());
+        assert!(build_platform_oidc(&args).is_ok());
+        // One given anyway is ignored, with a warning.
+        let args = try_platform(&["--oidc-audience", "https://old.example"]).unwrap();
+        assert!(build_platform_oidc(&args).is_ok());
+        assert!(
+            platform_warnings(&args)
+                .iter()
+                .any(|w| w.contains("--oidc-audience is ignored")),
+            "{:?}",
+            platform_warnings(&args)
+        );
+        // Tenant owners are GitHub owners: other providers are refused.
+        let gitlab = try_platform(&["--oidc-provider", "gitlab"]).unwrap();
+        assert!(build_platform_oidc(&gitlab).is_err());
+    }
+
+    #[test]
+    fn platform_ignores_the_credential_secret_with_a_warning() {
+        assert!(platform_warnings(&try_platform(&[]).unwrap()).is_empty());
+        let args = try_platform(&["--credential-secret", &"ab".repeat(32)]).unwrap();
+        assert!(
+            platform_warnings(&args)
+                .iter()
+                .any(|w| w.contains("--credential-secret is ignored")),
+            "{:?}",
+            platform_warnings(&args)
+        );
+    }
+
+    #[test]
+    fn platform_audience_base_uses_the_hostname() {
+        assert_eq!(
+            platform_base_url(&try_platform(&[]).unwrap().hostname),
+            "https://gateway.skimasque.com"
+        );
+        assert_eq!(platform_base_url("gw.example"), "https://gw.example");
+        assert_eq!(platform_base_url("gw.example:443"), "https://gw.example");
+        assert_eq!(
+            platform_base_url("gw.example:8443"),
+            "https://gw.example:8443"
+        );
+        assert_eq!(
+            platform_base_url("[2001:db8::1]:443"),
+            "https://[2001:db8::1]"
+        );
+        assert_eq!(
+            platform_base_url("[2001:db8::1]:8443"),
+            "https://[2001:db8::1]:8443"
+        );
+    }
+
+    #[test]
+    fn a_platform_gateway_refuses_a_single_org_identity() {
+        use skimasque_cli::control::GatewayIdentity;
+        let platform = GatewayIdentity {
+            gateway_id: "gw_1".into(),
+            org_id: String::new(),
+            secret: "s".into(),
+        };
+        assert!(check_platform_identity(&platform).is_ok());
+        let single = GatewayIdentity {
+            org_id: "org_a".into(),
+            ..platform
+        };
+        let error = check_platform_identity(&single).unwrap_err().to_string();
+        assert!(error.contains("org_a"), "{error}");
+    }
+
+    #[test]
+    fn the_help_lists_platform() {
+        let help = Args::command().render_long_help().to_string();
+        assert!(help.contains("--platform"), "{help}");
     }
 }
