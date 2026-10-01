@@ -419,7 +419,9 @@ const REFRESH_RETRY: Duration = Duration::from_secs(30);
 /// lands before tunnels start being refused, but a one-hour credential is not
 /// re-minted every few minutes.
 pub fn refresh_lead_time(ttl: Duration) -> Duration {
-    (ttl / 4).clamp(Duration::from_secs(10), Duration::from_secs(15 * 60))
+    (ttl / 4)
+        .clamp(Duration::from_secs(10), Duration::from_secs(15 * 60))
+        .min(ttl / 2)
 }
 
 /// Keep `session`'s platform credential fresh for as long as the process runs.
@@ -598,7 +600,7 @@ mod tests {
         );
         assert_eq!(
             refresh_lead_time(Duration::from_secs(8)),
-            Duration::from_secs(10)
+            Duration::from_secs(4)
         );
         assert_eq!(
             refresh_lead_time(Duration::from_secs(24 * 3600)),
