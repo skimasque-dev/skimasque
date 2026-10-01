@@ -287,11 +287,13 @@ struct Args {
     /// keep working from the cached tenant list.
     ///
     /// `--oidc-audience` and `--credential-secret` are ignored. Local policy
-    /// files and `--policy-observe` cannot be combined with it.
+    /// files, `--policy-observe` and `--oidc-issuer` cannot be combined with
+    /// it: tenant owners are verified on github.com, so tokens from any other
+    /// issuer (a GitHub Enterprise Server) could name a colliding owner.
     #[arg(
         long,
         requires_all = ["control_plane", "oidc"],
-        conflicts_with_all = ["policy_observe"]
+        conflicts_with_all = ["policy_observe", "oidc_issuer"]
     )]
     platform: bool,
 
@@ -1497,19 +1499,19 @@ fn platform_warnings(args: &Args) -> Vec<String> {
 /// The OIDC verifier a platform gateway exchanges tokens with. It has no
 /// configured audience: [`PlatformMinter`](skimasque_cli::platform::PlatformMinter)
 /// verifies each token against the one tenant audience it names. Tenants
-/// verify GitHub owners, so only GitHub Actions tokens are accepted
-/// (`--oidc-issuer` may still name a GitHub Enterprise Server).
+/// verify github.com owners, so only github.com's Actions tokens are accepted.
 fn build_platform_oidc(args: &Args) -> anyhow::Result<Arc<OidcVerifier>> {
     let provider = build_provider(args)?;
     anyhow::ensure!(
         provider == Provider::GitHubActions,
         "--platform verifies GitHub owners, so it needs --oidc-provider github"
     );
-    let issuer = match (&args.oidc_issuer, provider.default_issuer()) {
-        (Some(url), _) => url.clone(),
-        (None, Some(default)) => default.to_owned(),
-        (None, None) => anyhow::bail!("--platform needs an --oidc-issuer"),
-    };
+    // github.com's issuer only: clap refuses `--oidc-issuer` with
+    // `--platform`, since owners are verified on github.com.
+    let issuer = provider
+        .default_issuer()
+        .context("the GitHub provider has a hosted issuer")?
+        .to_owned();
     let verifier = OidcVerifier::hosted_at(provider, &issuer, Vec::<String>::new())
         .context("building the OIDC verifier")?;
     Ok(Arc::new(verifier))
@@ -1529,6 +1531,27 @@ fn check_platform_identity(
         );
     }
     Ok(())
+}
+
+/// The sync state a platform gateway starts with: the tenant list version in
+/// force, how old it is, and whether the control plane answered at startup.
+fn platform_sync_state(
+    version: u64,
+    cache_age: Option<std::time::Duration>,
+    reachable: bool,
+    policy_lease: std::time::Duration,
+    cache_ttl: std::time::Duration,
+) -> Arc<skimasque_cli::control::SyncState> {
+    let state = Arc::new(skimasque_cli::control::SyncState::new(
+        Some(version),
+        cache_age,
+        policy_lease,
+        cache_ttl,
+    ));
+    if !reachable {
+        state.mark_unreachable();
+    }
+    state
 }
 
 /// What [`bootstrap_platform`] hands `main`: the service and minter to serve,
@@ -1553,7 +1576,7 @@ struct PlatformBootstrap {
 /// spawned here: the table is in place before any background task runs.
 async fn bootstrap_platform(args: &Args) -> anyhow::Result<PlatformBootstrap> {
     use skimasque_cli::audit_ship::ControlPlaneAuditSink;
-    use skimasque_cli::control::{ControlPlane, SyncState};
+    use skimasque_cli::control::ControlPlane;
     use skimasque_cli::platform::{
         initial_tenants, owner_settings_url, platform_service, InitialTenants, PlatformMinter,
         PlatformTenants,
@@ -1607,13 +1630,14 @@ async fn bootstrap_platform(args: &Args) -> anyhow::Result<PlatformBootstrap> {
         }
     };
 
-    let (list, cache_age) = match initial_tenants(&control, &identity, &state_dir).await? {
+    let initial = initial_tenants(&control, &identity, &state_dir).await?;
+    let (list, cache_age, reachable) = match initial {
         InitialTenants::Fetched(list) => {
             eprintln!(
                 "pulled tenant list version {} from the control plane",
                 list.version
             );
-            (list, Some(std::time::Duration::ZERO))
+            (list, Some(std::time::Duration::ZERO), true)
         }
         InitialTenants::Cached { list, age, error } => {
             let described = age.map_or_else(
@@ -1625,19 +1649,14 @@ async fn bootstrap_platform(args: &Args) -> anyhow::Result<PlatformBootstrap> {
                  tenant list version {} ({described})",
                 list.version
             );
-            (list, age)
+            (list, age, false)
         }
     };
 
     // The table is in force before anything serves or syncs.
     let tenants = PlatformTenants::new();
     tenants.apply(&list);
-    let state = Arc::new(SyncState::new(
-        Some(list.version),
-        cache_age,
-        policy_lease,
-        cache_ttl,
-    ));
+    let state = platform_sync_state(list.version, cache_age, reachable, policy_lease, cache_ttl);
 
     let base_url = platform_base_url(&args.hostname);
     let snapshot = tenants.table.snapshot();
@@ -2852,6 +2871,31 @@ mod tests {
         };
         let error = check_platform_identity(&single).unwrap_err().to_string();
         assert!(error.contains("org_a"), "{error}");
+    }
+
+    /// Tenant owners are verified on github.com: a GitHub Enterprise Server
+    /// issuer's owner names could collide with them.
+    #[test]
+    fn platform_refuses_an_oidc_issuer() {
+        let error = try_platform(&["--oidc-issuer", "https://ghe.example/_services/token"])
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("--oidc-issuer"), "{error}");
+        assert!(error.contains("--platform"), "{error}");
+    }
+
+    /// Starting from the cached tenant list because the control plane is
+    /// unreachable must not report healthy on the first heartbeat.
+    #[test]
+    fn a_platform_gateway_started_from_the_cache_is_not_healthy() {
+        let lease = std::time::Duration::from_secs(900);
+        let ttl = std::time::Duration::from_secs(1800);
+        let fetched = platform_sync_state(3, Some(std::time::Duration::ZERO), true, lease, ttl);
+        assert!(fetched.healthy());
+        assert_eq!(fetched.version(), Some(3));
+        let cached = platform_sync_state(3, None, false, lease, ttl);
+        assert!(!cached.healthy());
+        assert_eq!(cached.version(), Some(3));
     }
 
     #[test]
