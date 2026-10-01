@@ -42,7 +42,7 @@ bytes.workspace = true
 clap = { version = "4.6", features = ["derive", "env"] }
 http.workspace = true
 http-body-util.workspace = true
-hyper = { workspace = true, features = ["http1", "server"] }
+hyper = { workspace = true, features = ["http1", "server", "client"] }
 ipnet.workspace = true
 hyper-util = { workspace = true, features = ["tokio"] }
 metrics.workspace = true
