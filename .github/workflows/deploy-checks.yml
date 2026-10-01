@@ -50,7 +50,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
-        with:
           terraform_version: "1.9.8"
 
       - name: Format
