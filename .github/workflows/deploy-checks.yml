@@ -41,6 +41,7 @@ jobs:
 
   terraform:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -60,5 +61,5 @@ jobs:
       - name: Render the gateway cloud-init and check it
         run: |
           sudo apt-get update
-          sudo apt-get install -y cloud-init python3-yaml
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y cloud-init python3-yaml
           deploy/terraform/gcp-gateway/tests/render_check.sh
