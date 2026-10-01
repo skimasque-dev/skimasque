@@ -467,7 +467,13 @@ def deploy(
     if version == current:
         if read_state(cfg, "verified") != current:
             # Installed, but a previous run was interrupted (or failed its health
-            # check) before it could be trusted: check it now.
+            # check) before it could be trusted. Pick up secrets first: one added
+            # after the install (the gateway's one-time registration token) is
+            # often exactly what makes it healthy, and it can never become
+            # healthy, hence verified, without it.
+            if sync():
+                log("secrets changed; restarting")
+                systemd.restart(cfg.service)
             return verify_installed(cfg, version, systemd, probe, sleep, clock)
         if sync():
             log("secrets changed; restarting")
