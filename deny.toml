@@ -38,6 +38,11 @@ allow = [
     "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.9
+exceptions = [
+    # Native stack dependencies use the permissive BSD Zero Clause license.
+    { name = "smoltcp", version = "=0.12.0", allow = ["0BSD"] },
+    { name = "managed", version = "=0.8.0", allow = ["0BSD"] },
+]
 
 [bans]
 multiple-versions = "warn"

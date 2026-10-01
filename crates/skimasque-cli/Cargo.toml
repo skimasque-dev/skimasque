@@ -61,7 +61,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-netstack-smoltcp = { path = "../../vendor/netstack-smoltcp" }
+netstack-smoltcp = { version = "=0.2.4", path = "../../vendor/netstack-smoltcp" }
 tun-rs = { version = "=2.8.11", features = ["async"] }
 futures = "0.3"
 
