@@ -51,7 +51,7 @@ pub use audit::{AuditEvent, AuditSink, JsonlAuditSink, TracingAuditSink};
 pub use client::{Client, Credential, Session, TcpTunnel, UdpTunnel};
 pub use exchange::{CredentialMinter, MintError, MintedCredential, CREDENTIAL_EXCHANGE_PATH};
 pub use policy::AddressPolicy;
-pub use revocation::{RevocationLayer, Revocations, TunnelEnd};
+pub use revocation::{EndReason, RevocationLayer, Revocations, TunnelEnd};
 pub use server::{ConnectionRate, ProxyConfig, ResourceLimits, Server, TlsReloader};
 pub use service::{
     Accepted, AuthorizeLayer, AuthorizedDestination, Dispatch, IdentityLayer, IdentityVerifier,

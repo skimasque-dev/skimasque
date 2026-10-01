@@ -830,7 +830,14 @@ async fn until_ended(end: Option<crate::revocation::TunnelEnd>, relay: impl std:
         Some(end) => {
             tokio::select! {
                 () = relay => {}
-                () = end.ended() => info!("the session was revoked; closing the tunnel"),
+                reason = end.ended() => match reason {
+                    crate::revocation::EndReason::Revoked => {
+                        info!("the session was revoked; closing the tunnel")
+                    }
+                    crate::revocation::EndReason::Expired => {
+                        info!("the session's credential expired; closing the tunnel")
+                    }
+                },
             }
         }
     }

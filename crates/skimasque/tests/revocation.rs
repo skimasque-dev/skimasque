@@ -138,3 +138,39 @@ async fn revoking_a_session_closes_its_open_tunnels_and_refuses_new_ones() {
     // Other sessions are untouched.
     assert_echoes(&mut unrelated, b"after").await;
 }
+
+#[tokio::test]
+async fn a_session_tunnel_closes_when_its_credential_expires() {
+    use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+
+    let echo = spawn_echo().await;
+    let target = Target::parse(&echo.to_string()).unwrap();
+    let session = session_proxy("sess_short", &Revocations::new()).await;
+
+    // An (unsigned) credential that runs out in two seconds. The proxy here has
+    // no identity layer, so only its `exp` is read.
+    let exp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+        + 2;
+    let payload = BASE64_URL_SAFE_NO_PAD.encode(format!(r#"{{"exp":{exp}}}"#));
+    session
+        .set_credential(&skimasque::client::Credential {
+            token: format!("aaa.{payload}.sig"),
+            expires_in: Duration::from_secs(2),
+        })
+        .unwrap();
+
+    let mut tunnel = session.connect_tcp(target.clone()).await.unwrap();
+    assert_echoes(&mut tunnel, b"in time").await;
+
+    // Busy tunnels do not extend a session's life: it ends at expiry.
+    let ended = timeout(Duration::from_secs(6), tunnel.read())
+        .await
+        .expect("the tunnel outlived its credential");
+    assert!(matches!(ended, Ok(None) | Err(_)), "{ended:?}");
+
+    // And the expired credential opens nothing new.
+    assert!(session.connect_tcp(target).await.is_err());
+}
