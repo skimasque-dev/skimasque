@@ -502,18 +502,22 @@ html { scroll-padding-top: 72px; }
 .v-network-head { fill: none; stroke: var(--v-active); stroke-width: 2; }
 .v-network-blocked { fill: none; stroke: var(--v-neutral); stroke-dasharray: 2 6; opacity: .5; }
 .v-network-demo svg .v-network-denied { fill: none; stroke: var(--v-deny); stroke-width: 2; stroke-linecap: round; }
-.v-network-packet { fill: var(--v-active); opacity: 0; }
-.v-network-demo[data-step="0"] .v-network-path,
-.v-network-demo[data-step="0"] .v-network-head,
-.v-network-demo[data-step="1"] .v-network-path,
-.v-network-demo[data-step="1"] .v-network-head,
-.v-network-demo[data-step="3"] .v-network-path,
-.v-network-demo[data-step="3"] .v-network-head { stroke: var(--v-neutral); opacity: .35; }
-.v-network-demo[data-step="1"] .v-network-control { stroke: var(--v-active); }
-.v-network-demo[data-step="2"] .v-network-database { stroke: var(--v-active); stroke-width: 3; }
-.v-network-demo[data-step="2"] .v-network-packet { opacity: 1; animation: v-network-traffic 1.6s linear infinite; }
+.v-network-packet { fill: var(--v-active); opacity: 0; offset-distance: 0%; }
+.v-network-demo[data-step] .v-network-path, .v-network-demo[data-step] .v-network-head { stroke: var(--v-neutral); opacity: .35; }
+.v-network-demo[data-step="4"] .v-network-path, .v-network-demo[data-step="4"] .v-network-head,
+.v-network-demo[data-step="5"] .v-network-path, .v-network-demo[data-step="5"] .v-network-head { stroke: var(--v-active); opacity: 1; }
+.v-network-demo[data-step="4"] .v-network-database, .v-network-demo[data-step="5"] .v-network-database { stroke: var(--v-active); stroke-width: 3; }
+.v-network-demo[data-step="0"] .v-network-message { opacity: 1; offset-path: path('M80 166 V55 H156'); }
+.v-network-demo[data-step="1"] .v-network-message { opacity: 1; offset-path: path('M156 55 H80 V166'); }
+.v-network-demo[data-step="2"] .v-network-message { opacity: 1; offset-path: path('M215 90 V166'); }
+.v-network-demo[data-step="3"] .v-network-message { opacity: 1; offset-path: path('M215 166 V90'); }
+.v-network-demo[data-step="4"] .v-network-data-a { opacity: 1; offset-path: path('M136 200 H156'); }
+.v-network-demo[data-step="4"] .v-network-data-b { opacity: 1; offset-path: path('M274 200 H308'); animation-delay: .8s; }
+.v-network-demo[data-step="5"] .v-network-data-a { opacity: 1; offset-path: path('M156 200 H136'); animation-delay: .8s; }
+.v-network-demo[data-step="5"] .v-network-data-b { opacity: 1; offset-path: path('M308 200 H274'); }
+.v-network-demo[data-playing] .v-network-packet { animation: v-network-message 1.6s linear infinite; }
 .v-network-demo[data-playing="false"] .v-network-packet { animation-play-state: paused; }
-@keyframes v-network-traffic { from { transform: translateX(0); } to { transform: translateX(166px); } }
+@keyframes v-network-message { 0% { offset-distance: 0%; } 100% { offset-distance: 100%; } }
 .v-network-caption { min-height: 3em; font-size: 13px; line-height: 1.6; color: var(--text); }
 .v-network-note { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
 .v-network-controls { display: flex; gap: 8px; }
@@ -522,7 +526,7 @@ html { scroll-padding-top: 72px; }
 .v-network-controls button:disabled { opacity: .5; cursor: default; }
 .v-network-controls button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 @media (max-width: 560px) { .v-network-demo { padding: 12px; } }
-@media (prefers-reduced-motion: reduce) { .v-network-demo[data-step="2"] .v-network-packet { animation: none; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .v-network-demo[data-playing] .v-network-packet { animation: none; opacity: 0; } }
 
 /* Always available beside the desktop actions or mobile menu. */
 .v-theme-control { display: flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 12px; }
@@ -533,3 +537,36 @@ html { scroll-padding-top: 72px; }
 @media (min-width: 980px) and (max-width: 1150px) { .v-site-nav { gap: 0; margin-left: 0; } .v-nav-group summary, .v-nav-top { padding-inline: 6px; } }
 
 .v-denial-mark { display: inline-block; vertical-align: middle; flex-shrink: 0; }
+
+/* Topologies keep each private network in its own definite-width lane. */
+.v-topology { margin: 0; width: 100%; min-width: 0; container-type: inline-size; font: 12px/1.5 var(--font); }
+.v-topology-workloads, .v-topology-networks { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr; gap: 24px; }
+.v-topology-workloads > li, .v-topology-networks > li { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.v-topology-control { display: flex; justify-content: center; }
+.v-topology-workloads { margin-bottom: 8px; }
+.v-topology-networks > li > .v-boundary { width: 100%; }
+.v-topology .v-boundary-body { display: block; }
+.v-topology .v-branch { display: grid; gap: 12px; }
+.v-topology .v-branch-root { justify-self: center; }
+.v-topology .v-branch-arms { padding-left: 0; }
+.v-topology .v-branch-arm { display: grid; grid-template-columns: auto minmax(0, 1fr); }
+.v-topology .v-node { max-width: 100%; overflow-wrap: anywhere; }
+.v-topology-workloads > li > .v-conn, .v-topology-networks > li > .v-conn { display: flex; flex-direction: row; align-items: center; min-width: 0; min-height: 44px; }
+.v-topology-workloads > li > .v-conn > .v-conn-line, .v-topology-networks > li > .v-conn > .v-conn-line { min-width: 0; width: var(--v-conn-cross); height: var(--v-conn-length); }
+.v-topology-workloads > li > .v-conn > .v-conn-line > .v-conn-horizontal, .v-topology-networks > li > .v-conn > .v-conn-line > .v-conn-horizontal { display: none; }
+.v-topology-workloads > li > .v-conn > .v-conn-line > .v-conn-vertical, .v-topology-networks > li > .v-conn > .v-conn-line > .v-conn-vertical { display: block; }
+.v-topology .v-conn-label { padding: 0 8px; align-self: center; }
+.v-topology-empty { text-align: center; color: var(--text-muted); }
+@container (min-width: 720px) { .v-topology-networks, .v-topology-workloads { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); } }
+.v-topology-workloads > li > .v-conn, .v-topology-networks > li > .v-conn { width: var(--v-conn-cross); }
+.v-topology-workloads > li > .v-conn > .v-conn-label, .v-topology-networks > li > .v-conn > .v-conn-label { position: absolute; left: 100%; width: 16ch; max-width: 16ch; text-align: left; }
+.v-topology .v-branch { grid-template-columns: minmax(0, 1fr); }
+.v-topology .v-branch-arms { border-left: 1px solid var(--line-strong); }
+.v-topology .v-branch-arm { padding-left: 8px; }
+.v-network-direction { fill: none; stroke: var(--v-active); stroke-width: 2; opacity: 0; }
+.v-network-demo[data-step="0"] .v-network-request-head,
+.v-network-demo[data-step="1"] .v-network-approval-head,
+.v-network-demo[data-step="2"] .v-network-authorize-head,
+.v-network-demo[data-step="3"] .v-network-ack-head,
+.v-network-demo[data-step="5"] .v-network-return-head { opacity: 1; }
+.v-network-demo[data-step="5"] .v-network-head { opacity: 0; }

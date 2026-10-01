@@ -20,7 +20,7 @@ pub fn page() -> Page {
         .item(
             "Is SkiMasque a VPN?",
             &[
-                "Not conceptually.",
+                "SkiMasque grants access to specific destinations for a bounded session.",
                 "SkiMasque provides temporary, identity-aware network access rather than making a user or workload a permanent member of a private network.",
             ],
         )
@@ -56,7 +56,7 @@ pub fn page() -> Page {
             "Does SkiMasque replace a VPN?",
             &[
                 "It can address some use cases commonly handled with VPNs, particularly temporary workload and developer access.",
-                "It is not intended to imply that every VPN use case should be replaced.",
+                "Whether it fits depends on the destinations, protocols and identities your workflow needs.",
             ],
         )
         .item(
@@ -69,7 +69,7 @@ pub fn page() -> Page {
             "Does access expire?",
             &[
                 "Yes.",
-                "Sessions are designed to be short-lived and policy-controlled.",
+                "Policy sets the session duration. The command wrapper also closes its local tunnels when the command exits.",
             ],
         )
         .item(
@@ -81,7 +81,7 @@ pub fn page() -> Page {
         )
         .item(
             "Can CI use it?",
-            &["Yes.", "GitHub Actions is an initial target use case."],
+            &["Yes.", "The GitHub Action exchanges the job’s OIDC token for a short-lived credential and starts a local proxy for tools that honour ALL_PROXY."],
         );
 
     let faq = Section::new("Questions")

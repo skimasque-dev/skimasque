@@ -13,7 +13,7 @@ pub fn page() -> Page {
             .quote("“Who or what is requesting access?”"),
     );
 
-    let types = Section::new("Identity types").push(
+    let types = Section::new("Identity and request context").push(
         &FeatureGrid::new()
             .feature("Developer", "developer: alice")
             .feature("Repository", "repository: acme/widget")
@@ -61,7 +61,7 @@ pub fn page() -> Page {
         )
         .push(
             &Prose::new()
-                .p("Policies can distinguish these contexts.")
+                .p("Policies can distinguish these contexts, but the application name is supplied by the caller. It is not authenticated proof of which program is running. Constrain destinations and verified identity claims as well.")
                 .p("Identity tells SkiMasque who is asking.")
                 .p("Policy determines what happens next."),
         );

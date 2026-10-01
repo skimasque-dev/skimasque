@@ -65,6 +65,7 @@ pub mod policy;
 pub mod site;
 pub mod site_chrome;
 pub mod status;
+pub mod topology;
 
 pub use access::{
     GatewayCard, HealthCard, IdentityCard, SessionCard, SessionTimeline, TimelineEvent,
@@ -86,3 +87,4 @@ pub use node::{Node, NodeKind, Tone};
 pub use policy::{Change, ChangeKind, PolicyCard, PolicyDiff, PolicyExplorer, PolicySummary};
 pub use site_chrome::{SiteFooter, SiteNav, SitePage, NAV_GROUPS};
 pub use status::{DecisionBadge, Status, StatusBadge};
+pub use topology::{NetworkTopology, TopologyNetwork};

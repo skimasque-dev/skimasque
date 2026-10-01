@@ -77,7 +77,7 @@ pub fn page() -> Page {
             ]),
         ));
 
-    let positioning = Section::new("Positioning")
+    let positioning = Section::new("Open protocol, managed platform")
         .push(&Prose::new().quote("Run SkiMasque yourself, or let us operate it for you."))
         .push(&Prose::new().p(
             "Running your own control plane is the advanced path: you implement the documented control protocol or license SkiMasque's control-plane distribution.",

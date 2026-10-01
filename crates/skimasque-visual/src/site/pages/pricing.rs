@@ -8,7 +8,7 @@ use crate::{Component, Cta, CtaBand, Hero, Prose, Section, SitePage, TierCard, T
 const PAID_NOTE: &str = "paid plans — billing is not available yet";
 
 pub fn page() -> Page {
-    let hero = Hero::new("Pay for the platform. Choose where traffic runs.");
+    let hero = Hero::new("Start free. Choose where traffic runs.");
 
     let free = TierCard::new("Free", "$0", "For:")
         .include("evaluation")
@@ -59,14 +59,14 @@ pub fn page() -> Page {
 
     let philosophy = Section::new("Pricing philosophy").alt().push(
         &Prose::new()
-            .p("Pricing should not be overcomplicated around:")
+            .p("The proposed paid plans focus on managed access controls rather than metering:")
             .list(&[
                 "bandwidth",
                 "packet counts",
                 "individual users",
                 "number of policy rules",
             ])
-            .p("The product value is primarily the managed access-control platform."),
+            .p("Paid pricing and limits are still proposals. Review the planned tiers above; only the Free tier is available today."),
     );
 
     let cta = CtaBand::new("Start with the Free tier.")
