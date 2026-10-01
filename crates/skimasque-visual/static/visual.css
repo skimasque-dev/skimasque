@@ -122,8 +122,8 @@
 .v-conn-active .v-conn-line { color: var(--v-active); animation: v-glow 2.4s ease-in-out infinite; }
 .v-conn-denied { color: var(--v-deny); }
 .v-conn-denied .v-conn-line { color: var(--v-deny); }
-.v-conn-x { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -52%);
-  font-size: 16px; font-weight: 700; color: var(--v-deny); }
+.v-conn-x { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; background: var(--bg); color: var(--v-deny); }
 @keyframes v-glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .v-conn-active .v-conn-line { animation: none; } }
 
@@ -501,7 +501,7 @@ html { scroll-padding-top: 72px; }
 .v-network-path { fill: none; stroke: var(--v-active); stroke-width: 3; }
 .v-network-head { fill: none; stroke: var(--v-active); stroke-width: 2; }
 .v-network-blocked { fill: none; stroke: var(--v-neutral); stroke-dasharray: 2 6; opacity: .5; }
-.v-network-demo svg .v-network-denied { fill: var(--v-deny); font-size: 22px; }
+.v-network-demo svg .v-network-denied { fill: none; stroke: var(--v-deny); stroke-width: 2; stroke-linecap: round; }
 .v-network-packet { fill: var(--v-active); opacity: 0; }
 .v-network-demo[data-step="0"] .v-network-path,
 .v-network-demo[data-step="0"] .v-network-head,
@@ -523,3 +523,13 @@ html { scroll-padding-top: 72px; }
 .v-network-controls button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 @media (max-width: 560px) { .v-network-demo { padding: 12px; } }
 @media (prefers-reduced-motion: reduce) { .v-network-demo[data-step="2"] .v-network-packet { animation: none; opacity: 0; } }
+
+/* Always available beside the desktop actions or mobile menu. */
+.v-theme-control { display: flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 12px; }
+.v-theme-control[hidden] { display: none; }
+.v-theme-control select { box-sizing: border-box; min-height: 44px; max-width: 104px; padding: 8px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-md); }
+.v-theme-control select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 1150px) { .v-theme-control span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); } .v-site-bar { gap: 10px; } }
+@media (min-width: 980px) and (max-width: 1150px) { .v-site-nav { gap: 0; margin-left: 0; } .v-nav-group summary, .v-nav-top { padding-inline: 6px; } }
+
+.v-denial-mark { display: inline-block; vertical-align: middle; flex-shrink: 0; }

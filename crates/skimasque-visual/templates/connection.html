@@ -7,4 +7,4 @@
     <g transform="translate(0 -{{ self.shaft_inset() }})"><line x1="{{ g.center() }}" y1="{{ self.shaft_start() }}" x2="{{ g.center() }}" y2="100%" stroke="currentColor" stroke-width="{{ stroke }}" stroke-linecap="round" stroke-dasharray="{{ self.dash_pattern() }}"/></g>
     <svg y="100%" width="{{ g.cross() }}" height="{{ g.cross() }}" overflow="visible" focusable="false"><polygon points="2,-{{ g.head_inset() }} {{ g.center() }},-2 {{ g.head_far() }},-{{ g.head_inset() }}" fill="currentColor"/></svg>
   </svg>
-</span>{% if kind.is_denied() %}<span class="v-conn-x" aria-hidden="true">×</span>{% endif %}{% if let Some(l) = label %}<span class="v-conn-label">{{ l }}</span>{% endif %}{% if !kind.spoken().is_empty() %}<span class="v-sr">{{ kind.spoken() }}</span>{% endif %}</span>
+{% if kind.is_denied() %}<span class="v-conn-x" aria-hidden="true">{% include "denial_mark.html" %}</span>{% endif %}</span>{% if let Some(l) = label %}<span class="v-conn-label">{{ l }}</span>{% endif %}{% if !kind.spoken().is_empty() %}<span class="v-sr">{{ kind.spoken() }}</span>{% endif %}</span>
