@@ -108,6 +108,18 @@ pub mod paths {
         format!("/v1/orgs/{org}/credentials")
     }
 
+    /// `POST` [`crate::AgentSessionRequest`] starts an agent session and returns
+    /// its credential ([`crate::AgentSessionResponse`]); `GET` lists the org's
+    /// recent ones ([`crate::AgentSessionView`]). Session-authenticated.
+    pub fn org_agent_sessions(org: &str) -> String {
+        format!("/v1/orgs/{org}/agent-sessions")
+    }
+
+    /// `POST` — end an agent session now ([`crate::EndedSession`]).
+    pub fn org_agent_session_end(org: &str, sid: &str) -> String {
+        format!("/v1/orgs/{org}/agent-sessions/{sid}/end")
+    }
+
     /// `POST` [`crate::platform::PlatformRegisterRequest`] — register a
     /// platform (multi-tenant) gateway with a one-time platform registration
     /// token. Unauthenticated.
@@ -279,6 +291,70 @@ pub struct DeveloperCredentialRequest {
     pub ttl_seconds: Option<u64>,
 }
 
+/// `POST /v1/orgs/{org}/agent-sessions` — a signed-in member starts a session
+/// for a coding agent acting on their behalf. Like [`DeveloperCredentialRequest`]
+/// it carries no identity: who the agent acts as is derived from the session
+/// token. `run_id` and `runtime` are labels for audit; they never affect what
+/// the session may reach.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AgentSessionRequest {
+    /// Requested lifetime in seconds. The control plane caps it (4 hours);
+    /// `None` asks for the default (30 minutes).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ttl_seconds: Option<u64>,
+    /// Correlation id for the task or run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_id: Option<String>,
+    /// The agent runtime's label, e.g. `claude-code`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime: Option<String>,
+    /// The session this one is delegated from. It must be yours and active, and
+    /// the new session never outlives it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+}
+
+/// The response to [`AgentSessionRequest`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentSessionResponse {
+    /// The session's id, for listing and ending it.
+    pub session_id: String,
+    /// The signed credential (a JWT), for `Proxy-Authorization: Bearer`.
+    pub credential: String,
+    /// Its actual lifetime in seconds (after any cap, and a parent's expiry).
+    pub expires_in: u64,
+    pub expires_at_ms: u64,
+}
+
+/// One agent session, as `GET /v1/orgs/{org}/agent-sessions` lists it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentSessionView {
+    pub id: String,
+    /// The GitHub login of the member who started it.
+    pub initiator: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+    pub created_at_ms: u64,
+    pub expires_at_ms: u64,
+    /// Set once it has been ended early.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ended_at_ms: Option<u64>,
+}
+
+/// The response to ending an agent session.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EndedSession {
+    pub session_id: String,
+    pub ended_at_ms: u64,
+    /// Sessions delegated from it, ended with it.
+    #[serde(default)]
+    pub also_ended: Vec<String>,
+}
+
 /// The org's Ed25519 signing key, served by [`paths::org_signing_key`]. A
 /// gateway verifies control-plane-minted credentials against this offline.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -424,6 +500,30 @@ mod tests {
         assert_eq!(paths::gateway_policy("gw_1"), "/v1/gateways/gw_1/policy");
         assert_eq!(paths::org_signing_key("org_1"), "/v1/orgs/org_1/signing-key");
         assert_eq!(paths::org_credentials("org_1"), "/v1/orgs/org_1/credentials");
+    }
+
+    #[test]
+    fn agent_session_paths_and_bodies_round_trip() {
+        assert_eq!(paths::org_agent_sessions("org_1"), "/v1/orgs/org_1/agent-sessions");
+        assert_eq!(
+            paths::org_agent_session_end("org_1", "sess_2"),
+            "/v1/orgs/org_1/agent-sessions/sess_2/end"
+        );
+        // An empty request is `{}`: every field is optional and omitted when unset.
+        assert_eq!(serde_json::to_string(&AgentSessionRequest::default()).unwrap(), "{}");
+        let view = AgentSessionView {
+            id: "sess_2".into(),
+            initiator: "octocat".into(),
+            run_id: None,
+            runtime: Some("claude-code".into()),
+            parent: None,
+            created_at_ms: 1,
+            expires_at_ms: 2,
+            ended_at_ms: None,
+        };
+        let json = serde_json::to_string(&view).unwrap();
+        assert_eq!(serde_json::from_str::<AgentSessionView>(&json).unwrap(), view);
+        assert!(!json.contains("ended_at_ms"));
     }
 
     #[test]

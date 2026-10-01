@@ -53,6 +53,17 @@ pub struct AuthArgs {
     )]
     pub auth_token: Option<String>,
 
+    /// Read the bearer token from this file instead of the command line or the
+    /// environment, where other processes could see it. Meant for a credential
+    /// a launcher wrote with `skimasque agent-session start --token-file`.
+    #[arg(
+        long,
+        value_name = "PATH",
+        env = "SKIMASQUE_TOKEN_FILE",
+        conflicts_with_all = ["auth_token", "github_oidc", "oidc_token"]
+    )]
+    pub auth_token_file: Option<std::path::PathBuf>,
+
     /// Exchange a GitHub Actions OIDC token for a platform credential, and
     /// present that on every tunnel.
     ///
@@ -235,10 +246,27 @@ enum AuthMode {
     None,
 }
 
+impl AuthArgs {
+    /// The static bearer token, from `--auth-token` or `--auth-token-file`.
+    ///
+    /// A file is trimmed, and an empty or unreadable one is an error: silently
+    /// sending no credential would leave a `407` as the only signal.
+    pub fn static_token(&self) -> anyhow::Result<Option<String>> {
+        if let Some(path) = &self.auth_token_file {
+            let token = std::fs::read_to_string(path)
+                .with_context(|| format!("reading the token file {}", path.display()))?;
+            let token = token.trim();
+            anyhow::ensure!(!token.is_empty(), "the token file {} is empty", path.display());
+            return Ok(Some(token.to_owned()));
+        }
+        Ok(self.auth_token.clone())
+    }
+}
+
 fn auth_mode(args: &AuthArgs, has_session: bool) -> AuthMode {
     if args.github_oidc || args.oidc_token.is_some() {
         AuthMode::Oidc
-    } else if args.auth_token.is_some() {
+    } else if args.auth_token.is_some() || args.auth_token_file.is_some() {
         AuthMode::Static
     } else if has_session {
         AuthMode::Session
@@ -278,7 +306,7 @@ async fn resolve_bearer(auth: &AuthArgs, session: &Session) -> anyhow::Result<Be
             })
         }
         AuthMode::Static => Ok(Bearer {
-            header: auth.auth_token.clone(),
+            header: auth.static_token()?,
             refresh: None,
             note: None,
             login: None,
@@ -488,6 +516,42 @@ mod tests {
         tls: TlsArgs,
         #[command(flatten)]
         auth: AuthArgs,
+    }
+
+    #[test]
+    fn a_token_file_is_a_static_credential_and_is_trimmed() {
+        let dir = std::env::temp_dir().join(format!("skm-tokfile-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("token");
+        std::fs::write(&file, "  abc.def.ghi\n").unwrap();
+        let path = file.to_str().unwrap();
+
+        let args = auth(&["--auth-token-file", path]);
+        assert_eq!(auth_mode(&args, true), AuthMode::Static, "even with a login on disk");
+        assert_eq!(args.static_token().unwrap().as_deref(), Some("abc.def.ghi"));
+
+        std::fs::write(&file, "  \n").unwrap();
+        assert!(auth(&["--auth-token-file", path]).static_token().is_err(), "empty is an error");
+        assert!(auth(&["--auth-token-file", "/no/such/file"]).static_token().is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_token_file_excludes_the_other_credential_sources() {
+        use clap::Parser;
+        #[derive(Parser)]
+        struct Wrap {
+            #[command(flatten)]
+            auth: AuthArgs,
+        }
+        for other in [["--auth-token", "x"], ["--oidc-token", "x"]] {
+            assert!(
+                Wrap::try_parse_from(["t", "--auth-token-file", "f", other[0], other[1]]).is_err(),
+                "{other:?}"
+            );
+        }
+        assert!(Wrap::try_parse_from(["t", "--auth-token-file", "f", "--github-oidc"]).is_err());
     }
 
     fn auth(extra: &[&str]) -> AuthArgs {

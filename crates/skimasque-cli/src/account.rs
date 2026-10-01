@@ -665,6 +665,132 @@ impl Api {
     }
 }
 
+impl Api {
+    /// `POST /v1/orgs/{org}/agent-sessions` -- start a session for a coding
+    /// agent acting as the signed-in member. The control plane caps the
+    /// lifetime; the response carries the credential, shown once.
+    pub async fn start_agent_session(
+        &self,
+        session: &str,
+        org: &str,
+        request: &skimasque_protocol::AgentSessionRequest,
+    ) -> Result<skimasque_protocol::AgentSessionResponse> {
+        let response = self
+            .http
+            .post(format!(
+                "{}{}",
+                self.base_url,
+                skimasque_protocol::paths::org_agent_sessions(org)
+            ))
+            .bearer_auth(session)
+            .json(request)
+            .send()
+            .await
+            .context("starting an agent session")?;
+        Self::error_for_status(response, "starting an agent session")
+            .await?
+            .json()
+            .await
+            .context("parsing the agent session")
+    }
+
+    /// `POST /v1/orgs/{org}/agent-sessions/{sid}/end` -- end a session now.
+    pub async fn end_agent_session(
+        &self,
+        session: &str,
+        org: &str,
+        sid: &str,
+    ) -> Result<skimasque_protocol::EndedSession> {
+        let response = self
+            .http
+            .post(format!(
+                "{}{}",
+                self.base_url,
+                skimasque_protocol::paths::org_agent_session_end(org, sid)
+            ))
+            .bearer_auth(session)
+            .json(&serde_json::json!({}))
+            .send()
+            .await
+            .context("ending an agent session")?;
+        Self::error_for_status(response, "ending an agent session")
+            .await?
+            .json()
+            .await
+            .context("parsing the result")
+    }
+
+    /// `GET /v1/orgs/{org}/agent-sessions` -- the org's recent agent sessions,
+    /// newest first.
+    pub async fn list_agent_sessions(
+        &self,
+        session: &str,
+        org: &str,
+    ) -> Result<Vec<skimasque_protocol::AgentSessionView>> {
+        let response = self
+            .http
+            .get(format!(
+                "{}{}",
+                self.base_url,
+                skimasque_protocol::paths::org_agent_sessions(org)
+            ))
+            .bearer_auth(session)
+            .send()
+            .await
+            .context("listing agent sessions")?;
+        Self::error_for_status(response, "listing agent sessions")
+            .await?
+            .json()
+            .await
+            .context("parsing the agent sessions")
+    }
+}
+
+/// `active`, `ended` or `expired`: where an agent session stands at `now_ms`.
+pub fn agent_session_state(
+    session: &skimasque_protocol::AgentSessionView,
+    now_ms: u64,
+) -> &'static str {
+    if session.ended_at_ms.is_some() {
+        "ended"
+    } else if session.expires_at_ms <= now_ms {
+        "expired"
+    } else {
+        "active"
+    }
+}
+
+/// Write `bytes` to a new file only the owner can read.
+///
+/// For a credential another process will pick up. It refuses to overwrite an
+/// existing file unless `overwrite` is set (so a stray path cannot clobber
+/// something), and the file is private from the moment it is created, never
+/// briefly world-readable.
+pub fn write_secret_file(path: &std::path::Path, bytes: &[u8], overwrite: bool) -> Result<()> {
+    use std::io::Write as _;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true);
+    if overwrite {
+        options.create(true).truncate(true);
+    } else {
+        options.create_new(true);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(path).with_context(|| {
+        if overwrite || !path.exists() {
+            format!("creating {}", path.display())
+        } else {
+            format!("{} already exists (pass --force to replace it)", path.display())
+        }
+    })?;
+    file.write_all(bytes)
+        .with_context(|| format!("writing {}", path.display()))
+}
+
 /// Resolve which org a command should act on: `explicit` if given, else the
 /// session's only org, else an error listing the choices. Genuinely `async`
 /// (just awaits [`Api::list_orgs`] directly) rather than wrapped in
@@ -734,6 +860,47 @@ mod tests {
         assert!(load().unwrap().is_none());
 
         std::env::remove_var("SKIMASQUE_CONFIG_HOME");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn agent_session_state_says_where_a_session_stands() {
+        let view = |ended: Option<u64>, expires: u64| skimasque_protocol::AgentSessionView {
+            id: "sess_1".into(),
+            initiator: "octocat".into(),
+            run_id: None,
+            runtime: None,
+            parent: None,
+            created_at_ms: 0,
+            expires_at_ms: expires,
+            ended_at_ms: ended,
+        };
+        assert_eq!(agent_session_state(&view(None, 200), 100), "active");
+        assert_eq!(agent_session_state(&view(None, 100), 100), "expired");
+        assert_eq!(agent_session_state(&view(Some(50), 200), 100), "ended");
+    }
+
+    #[test]
+    fn a_secret_file_is_new_private_and_not_overwritten_by_accident() {
+        let dir = std::env::temp_dir().join(format!("skm-secret-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("cred");
+
+        write_secret_file(&path, b"first", false).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"first");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        }
+
+        let err = write_secret_file(&path, b"second", false).unwrap_err();
+        assert!(format!("{err:#}").contains("already exists"), "{err:#}");
+        assert_eq!(std::fs::read(&path).unwrap(), b"first", "the original survives");
+
+        write_secret_file(&path, b"third", true).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"third");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

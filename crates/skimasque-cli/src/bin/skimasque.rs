@@ -80,6 +80,16 @@ enum Command {
         command: OrgCommand,
     },
 
+    /// Give a coding agent time-limited, revocable access (needs `skimasque login`).
+    ///
+    /// An agent session is your identity with `kind = agent` and a session id:
+    /// it can reach nothing you could not, policies can treat agents
+    /// differently from you, and you can end it at any time.
+    AgentSession {
+        #[command(subcommand)]
+        command: AgentSessionCommand,
+    },
+
     /// Show recent policy decisions from the fleet (needs `skimasque login`).
     Audit {
         /// The organisation. Inferred if you belong to exactly one.
@@ -184,6 +194,61 @@ enum Command {
     Status {
         #[command(flatten)]
         source: SourceArgs,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum AgentSessionCommand {
+    /// Start a session and hand over its credential.
+    ///
+    /// The credential is a secret. Pick where it goes: `--token-file` writes it
+    /// to a new file only you can read (give that file to the launcher that
+    /// starts the agent's network client, not to the agent), and `--print-token`
+    /// writes only the token to stdout, for `$(...)`. It is not shown otherwise.
+    Start {
+        /// The organisation. Inferred if you belong to exactly one.
+        #[arg(long, value_name = "ORG_ID")]
+        org: Option<String>,
+        /// How long the session lasts, e.g. `30m` or `2h`. Capped by the
+        /// control plane (4 hours); defaults to 30 minutes.
+        #[arg(long, value_name = "DURATION")]
+        ttl: Option<String>,
+        /// A label for the task or run, for audit.
+        #[arg(long, value_name = "ID")]
+        run_id: Option<String>,
+        /// The agent runtime, e.g. `claude-code`. A label for audit; it does
+        /// not change what the session may reach.
+        #[arg(long, value_name = "NAME")]
+        runtime: Option<String>,
+        /// The session this one is delegated from. It ends with its parent.
+        #[arg(long, value_name = "SESSION_ID")]
+        parent: Option<String>,
+        /// Write the credential to this new, owner-only file.
+        #[arg(long, value_name = "PATH", conflicts_with = "print_token")]
+        token_file: Option<PathBuf>,
+        /// Replace `--token-file` if it already exists.
+        #[arg(long)]
+        force: bool,
+        /// Write only the credential to stdout.
+        #[arg(long)]
+        print_token: bool,
+    },
+    /// End a session now: its credential stops working and its open tunnels close.
+    End {
+        /// The session id, as `agent-session list` shows it.
+        session_id: String,
+        /// The organisation. Inferred if you belong to exactly one.
+        #[arg(long, value_name = "ORG_ID")]
+        org: Option<String>,
+    },
+    /// List the organisation's recent agent sessions.
+    List {
+        /// The organisation. Inferred if you belong to exactly one.
+        #[arg(long, value_name = "ORG_ID")]
+        org: Option<String>,
+        /// Include sessions that have ended or expired.
+        #[arg(long)]
+        all: bool,
     },
 }
 
@@ -435,6 +500,7 @@ fn run() -> anyhow::Result<ExitCode> {
         Command::Logout => run_logout(),
         Command::Whoami => run_whoami(),
         Command::Org { command } => run_org(command),
+        Command::AgentSession { command } => run_agent_session(command),
         Command::Audit {
             org,
             gateway,
@@ -741,6 +807,144 @@ fn run_audit(
             "{:<24} {:<5} {:<24} {:<12} {}  ({})",
             ts, decision, dest, app, detail, e.gateway_id
         );
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+/// `in 12m` / `3h ago`: `ms` relative to `now_ms`.
+fn relative_time(ms: u64, now_ms: u64) -> String {
+    let (secs, future) = if ms > now_ms {
+        ((ms - now_ms) / 1000, true)
+    } else {
+        ((now_ms - ms) / 1000, false)
+    };
+    let span = match secs {
+        0..=59 => format!("{secs}s"),
+        60..=3599 => format!("{}m", secs / 60),
+        3600..=86_399 => format!("{}h", secs / 3600),
+        _ => format!("{}d", secs / 86_400),
+    };
+    if future {
+        format!("in {span}")
+    } else {
+        format!("{span} ago")
+    }
+}
+
+fn run_agent_session(command: AgentSessionCommand) -> anyhow::Result<ExitCode> {
+    use skimasque_cli::account;
+
+    let creds = account::require()?;
+    let api = account::Api::new(&creds.control_plane)?;
+    let session = &creds.session_token;
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    match command {
+        AgentSessionCommand::Start {
+            org,
+            ttl,
+            run_id,
+            runtime,
+            parent,
+            token_file,
+            force,
+            print_token,
+        } => {
+            // Decide where the credential goes before minting one, so a mistake
+            // never leaves a live session whose credential was thrown away.
+            if force && token_file.is_none() {
+                bail!("--force only applies with --token-file");
+            }
+            if token_file.is_none() && !print_token {
+                bail!(
+                    "choose where the credential goes: --token-file <PATH> (a new owner-only \
+                     file) or --print-token (stdout, for $(...))"
+                );
+            }
+            let ttl_seconds = ttl
+                .as_deref()
+                .map(|t| {
+                    skimasque_policy::parse_duration(t)
+                        .map(|d| d.as_secs())
+                        .map_err(|e| anyhow::anyhow!("--ttl: {e}"))
+                })
+                .transpose()?;
+            let org = account::block_on(account::resolve_org(&api, &creds, org))?;
+            let request = skimasque_protocol::AgentSessionRequest {
+                ttl_seconds,
+                run_id,
+                runtime,
+                parent,
+            };
+            let started = account::block_on(api.start_agent_session(session, &org, &request))?;
+
+            if let Some(path) = &token_file {
+                if let Err(error) =
+                    account::write_secret_file(path, started.credential.as_bytes(), force)
+                {
+                    // Do not leave a live session whose only credential is lost.
+                    let _ = account::block_on(api.end_agent_session(session, &org, &started.session_id));
+                    return Err(error.context("the session was ended again, since its credential could not be saved"));
+                }
+            }
+            eprintln!(
+                "Started agent session {} (ends {}).",
+                started.session_id,
+                relative_time(started.expires_at_ms, now_ms)
+            );
+            match &token_file {
+                Some(path) => {
+                    eprintln!("Credential written to {} (owner-only).", path.display());
+                    // The id is not a secret, and a script wants it to end the session.
+                    println!("{}", started.session_id);
+                }
+                None => println!("{}", started.credential),
+            }
+            eprintln!("End it any time: skimasque agent-session end {}", started.session_id);
+        }
+        AgentSessionCommand::End { session_id, org } => {
+            let org = account::block_on(account::resolve_org(&api, &creds, org))?;
+            let ended = account::block_on(api.end_agent_session(session, &org, &session_id))?;
+            println!("Ended {}.", ended.session_id);
+            for child in &ended.also_ended {
+                println!("Also ended {child}, delegated from it.");
+            }
+            println!("Gateways stop accepting it within moments and close its open tunnels.");
+        }
+        AgentSessionCommand::List { org, all } => {
+            let org = account::block_on(account::resolve_org(&api, &creds, org))?;
+            let sessions = account::block_on(api.list_agent_sessions(session, &org))?;
+            let rows: Vec<_> = sessions
+                .iter()
+                .filter(|s| all || account::agent_session_state(s, now_ms) == "active")
+                .collect();
+            if rows.is_empty() {
+                println!(
+                    "No {}agent sessions.",
+                    if all { "" } else { "active " }
+                );
+            } else {
+                println!("{:<24} {:<16} {:<14} {:<8} ENDS", "ID", "STARTED BY", "RUNTIME", "STATE");
+                for s in rows {
+                    let state = account::agent_session_state(s, now_ms);
+                    let ends = match s.ended_at_ms {
+                        Some(ended) => relative_time(ended, now_ms),
+                        None => relative_time(s.expires_at_ms, now_ms),
+                    };
+                    println!(
+                        "{:<24} {:<16} {:<14} {:<8} {}",
+                        s.id,
+                        s.initiator,
+                        s.runtime.as_deref().unwrap_or("-"),
+                        state,
+                        ends
+                    );
+                }
+            }
+        }
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -1572,5 +1776,40 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&example).unwrap(), "name = \"edited\"\n");
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    fn parse_cli(args: &[&str]) -> Result<Cli, clap::Error> {
+        Cli::try_parse_from(std::iter::once("skimasque").chain(args.iter().copied()))
+    }
+
+    #[test]
+    fn agent_session_start_takes_its_labels_and_one_output_choice() {
+        let cli = parse_cli(&[
+            "agent-session", "start", "--ttl", "45m", "--run-id", "run-7", "--runtime",
+            "claude-code", "--token-file", "/tmp/cred", "--force",
+        ])
+        .unwrap();
+        let Command::AgentSession {
+            command: AgentSessionCommand::Start { ttl, run_id, runtime, token_file, force, print_token, .. },
+        } = cli.command
+        else {
+            panic!("expected agent-session start");
+        };
+        assert_eq!(ttl.as_deref(), Some("45m"));
+        assert_eq!(run_id.as_deref(), Some("run-7"));
+        assert_eq!(runtime.as_deref(), Some("claude-code"));
+        assert_eq!(token_file, Some(PathBuf::from("/tmp/cred")));
+        assert!(force && !print_token);
+
+        // The credential goes to a file or to stdout, not both.
+        assert!(parse_cli(&["agent-session", "start", "--token-file", "x", "--print-token"]).is_err());
+    }
+
+    #[test]
+    fn relative_times_read_naturally() {
+        assert_eq!(relative_time(1_000_000 + 12 * 60_000, 1_000_000), "in 12m");
+        assert_eq!(relative_time(1_000_000, 1_000_000 + 3 * 3_600_000), "3h ago");
+        assert_eq!(relative_time(1_000_000 + 30_000, 1_000_000), "in 30s");
+        assert_eq!(relative_time(1_000_000, 1_000_000 + 3 * 86_400_000), "3d ago");
     }
 }
