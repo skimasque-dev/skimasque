@@ -18,6 +18,14 @@ fn capabilities_require_no_gateway_or_credentials() {
     );
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["schema"], 1);
+    assert_eq!(
+        value["features"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v == "proxy-tun-v1"),
+        cfg!(target_os = "linux")
+    );
     for required in [
         "proxy-http",
         "proxy-connect",
@@ -137,4 +145,20 @@ async fn gateway_closure_terminates_both_frontends() {
         .unwrap()
         .unwrap()
         .is_err());
+}
+
+#[test]
+fn native_option_has_explicit_platform_contract() {
+    let output = Command::new(env!("CARGO_BIN_EXE_skimasque-client"))
+        .args(["proxy", "--tun-interface", "../bad"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains(if cfg!(target_os = "linux") {
+            "invalid TUN interface"
+        } else {
+            "native TUN requires Linux"
+        })
+    );
 }

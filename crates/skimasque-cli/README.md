@@ -15,6 +15,11 @@ installs three binaries:
 | **`skimasque-server`** | the gateway data plane — verifies identity, enforces policy, and relays authorized tunnels |
 | **`skimasque-client`** | opens tunnels: a one-shot probe, a raw `CONNECT` stream, or authenticated HTTP/HTTPS and SOCKS5 TCP/UDP proxies (`proxy`) |
 
+On Linux, `proxy --tun-interface NAME` also attaches to an existing, user-accessible
+TUN using tun-rs. Its embedded smoltcp stack forwards TCP and UDP directly through
+the authenticated MASQUE session. The CI Action creates the interface and manages
+split routes and DNS; no separate adapter executable is needed.
+
 ## Check a policy without a network
 
 ```console

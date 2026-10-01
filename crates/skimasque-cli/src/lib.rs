@@ -84,3 +84,6 @@ mod tests {
         assert_eq!(normalize_base_url("  control.example  "), "https://control.example");
     }
 }
+
+#[cfg(target_os = "linux")]
+pub mod native;

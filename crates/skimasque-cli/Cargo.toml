@@ -60,6 +60,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+netstack-smoltcp = { path = "../../vendor/netstack-smoltcp" }
+tun-rs = { version = "=2.8.11", features = ["async"] }
+futures = "0.3"
+
 [dev-dependencies]
 # Signs RS256 OIDC test tokens and builds the in-memory JWK Set for them.
 jsonwebtoken.workspace = true

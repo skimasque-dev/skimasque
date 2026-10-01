@@ -13,6 +13,8 @@ pub const FEATURES: &[&str] = &[
     "proxy-socks5",
     "proxy-socks5-udp",
     "proxy-ready-v1",
+    #[cfg(target_os = "linux")]
+    "proxy-tun-v1",
 ];
 
 pub struct Listeners {
@@ -40,9 +42,18 @@ impl Listeners {
     /// Publish without replacing another instance's record. A hard link makes
     /// the already-written file visible atomically and fails if PATH exists.
     pub async fn write_ready(&self, path: &Path, gateway: SocketAddr) -> anyhow::Result<()> {
+        self.write_ready_with_tun(path, gateway, None).await
+    }
+
+    pub async fn write_ready_with_tun(
+        &self,
+        path: &Path,
+        gateway: SocketAddr,
+        tun: Option<&str>,
+    ) -> anyhow::Result<()> {
         let (http, socks) = self.addresses()?;
         let record = serde_json::json!({"schema": 1, "pid": std::process::id(),
-            "http": http.to_string(), "socks": socks.to_string(), "gateway": gateway.to_string()});
+            "http": http.to_string(), "socks": socks.to_string(), "gateway": gateway.to_string(), "tun_interface": tun});
         let mut name = path.as_os_str().to_os_string();
         name.push(format!(".{}.tmp", std::process::id()));
         let temp = std::path::PathBuf::from(name);

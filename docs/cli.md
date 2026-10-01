@@ -223,6 +223,15 @@ without contacting a gateway or reading credentials.
 | `--org <ORG>` | with none of the above: mint a credential from a `skimasque login` session instead, for this org (auto-resolved if the session belongs to only one) |
 | `--app <NAME>` | the application to declare (`X-Masque-Application`); policy matches on it |
 
+On Linux, `proxy --tun-interface NAME` also forwards packets from an existing
+user-owned TUN with MTU 1280 using embedded tun-rs and a smoltcp-based stack.
+The Action owns route/DNS setup; the client attaches without configuring it.
+Native readiness includes `tun_interface`, and Linux capabilities include
+`proxy-tun-v1`. TCP and UDP flow directly through the shared MASQUE session;
+there is no external adapter or intermediate SOCKS hop for native traffic.
+ICMP, IP fragmentation and arbitrary IP protocols are unsupported. UDP payloads
+must fit both the interface MTU and the MASQUE datagram limit.
+
 ### Subcommands
 
 | Command | Does |

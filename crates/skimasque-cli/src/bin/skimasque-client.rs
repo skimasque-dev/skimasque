@@ -88,6 +88,9 @@ enum Command {
         /// Atomically publish bound addresses after authentication and startup.
         #[arg(long, value_name = "PATH")]
         ready_file: Option<PathBuf>,
+        /// Attach an existing user-owned Linux TUN (MTU 1280).
+        #[arg(long, value_name = "NAME")]
+        tun_interface: Option<String>,
     },
     /// Run a SOCKS5 server whose UDP associations go through the proxy.
     Socks5 {
@@ -153,6 +156,19 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    if let Command::Proxy {
+        tun_interface: Some(name),
+        ..
+    } = &args.command
+    {
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = name;
+            anyhow::bail!("native TUN requires Linux");
+        }
+        #[cfg(target_os = "linux")]
+        skimasque_cli::native::validate_name(name)?;
+    }
     let mut headers = HeaderMap::new();
     if let Some(app) = &args.connection.app {
         let value = HeaderValue::from_str(app)
@@ -198,17 +214,30 @@ async fn main() -> anyhow::Result<()> {
             http_listen,
             socks_listen,
             ready_file,
+            tun_interface,
         } => {
+            #[cfg(target_os = "linux")]
+            let native = match tun_interface.as_deref() {
+                Some(name) => Some(skimasque_cli::native::NativeTun::attach(name).await?),
+                None => None,
+            };
             let listeners = proxy::Listeners::bind(http_listen, socks_listen).await?;
             let (http, socks) = listeners.addresses()?;
             if let Some(path) = &ready_file {
                 listeners
-                    .write_ready(path, session.remote_address())
+                    .write_ready_with_tun(path, session.remote_address(), tun_interface.as_deref())
                     .await?;
             }
             eprintln!("HTTP proxy on {http}; SOCKS5 on {socks}");
+            #[cfg(target_os = "linux")]
+            let native_session = session.clone();
             let result = tokio::select! {
                 result = listeners.serve(session) => result,
+                result = async {
+                    #[cfg(target_os = "linux")]
+                    if let Some(native) = native { return native.serve(native_session).await; }
+                    std::future::pending::<anyhow::Result<()>>().await
+                } => result,
                 _ = shutdown_signal() => Ok(()),
             };
             if let Some(path) = ready_file {
