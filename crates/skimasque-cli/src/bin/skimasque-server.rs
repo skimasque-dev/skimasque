@@ -579,8 +579,9 @@ async fn main() -> anyhow::Result<()> {
     // With `--platform` the control plane serves a tenant list instead:
     // `bootstrap_platform` registers, loads and applies it, and builds the
     // tenant service stack and minter; the single-org path below stays idle.
+    let revocations = skimasque::Revocations::new();
     let platform = if args.platform {
-        Some(bootstrap_platform(&args).await?)
+        Some(bootstrap_platform(&args, &revocations).await?)
     } else {
         None
     };
@@ -614,6 +615,19 @@ async fn main() -> anyhow::Result<()> {
         (None, None)
     };
 
+    // Refuse the sessions this gateway last knew were ended before it takes any
+    // traffic, so a restart during a control-plane outage does not revive them.
+    if let Some(control) = control_plane
+        .as_ref()
+        .map(|cp| &cp.control)
+        .or(platform.as_ref().map(|p| &p.control))
+    {
+        if let Some(cached) = control.load_cached_revocations() {
+            eprintln!("loaded {} revoked sessions from the cache", cached.revoked.len());
+            revocations.replace(cached.revoked.into_iter().map(|r| r.sid));
+        }
+    }
+
     let (service, policy_handle) = match &platform {
         Some(p) => {
             config = config.with_minter(p.minter.clone());
@@ -624,6 +638,7 @@ async fn main() -> anyhow::Result<()> {
             oidc.as_ref(),
             control_policy_dir.as_deref(),
             audit_tx,
+            &revocations,
         )?,
     };
     let server = Server::bind(args.listen, server_tls, service, config)?;
@@ -714,10 +729,17 @@ async fn main() -> anyhow::Result<()> {
                 control.audit_chain_path(),
             ));
         }
+        tokio::spawn(run_revocation_sync(
+            control.clone(),
+            identity.clone(),
+            revocations.clone(),
+            false,
+            interval,
+        ));
         tokio::spawn(run_control_plane_heartbeat(control, identity, state, interval));
     }
     if let Some(platform) = platform {
-        spawn_platform_tasks(platform);
+        spawn_platform_tasks(platform, revocations.clone());
     }
 
     if let Some(interval) = reload_interval {
@@ -1009,6 +1031,7 @@ fn build_service(
     oidc: Option<&OidcParts>,
     control_policy_dir: Option<&std::path::Path>,
     audit_tx: Option<tokio::sync::mpsc::Sender<skimasque::audit::AuditEvent>>,
+    revocations: &skimasque::Revocations,
 ) -> anyhow::Result<(ProxyService, Option<PolicyHandle>)> {
     // `GlobalConcurrencyLimitLayer` shares one semaphore across every clone of
     // the service, so the cap is a property of the proxy rather than of each
@@ -1030,7 +1053,8 @@ fn build_service(
         .map(|_| QuotaLayer::new());
 
     // Outer to inner: request concurrency cap, workload-identity verification,
-    // bearer auth, identity-aware policy, per-policy quota, then the proxy
+    // bearer auth, session revocation, identity-aware policy, per-policy quota,
+    // then the proxy
     // (whose `AddressPolicy` floor still runs after DNS). Identity is outermost
     // so the policy layer can read the `WorkloadIdentity` it leaves behind.
     let service = BoxCloneService::new(
@@ -1038,6 +1062,9 @@ fn build_service(
             .layer(limit)
             .option_layer(identity)
             .option_layer(auth)
+            // Below identity (it reads the credential's session id) and outside
+            // the quota layer (which replaces a tunnel's limits wholesale).
+            .layer(skimasque::RevocationLayer::new(revocations.clone()))
             .option_layer(policy_layer)
             .option_layer(quota)
             .service(dispatch),
@@ -1389,6 +1416,52 @@ async fn run_control_plane_sync(
     }
 }
 
+/// Keep `revocations` in step with the control plane's list of ended sessions.
+///
+/// A long poll, like the policy sync: the control plane answers the moment a
+/// session is ended, so revocation reaches the gateway in about a round trip
+/// rather than at the next poll. The list is always complete, so the first
+/// answer after any outage brings the gateway fully up to date. While the
+/// control plane is unreachable the last list stays in force, and a credential's
+/// own expiry is the bound on anything that was ended in the meantime.
+async fn run_revocation_sync(
+    control: skimasque_cli::control::ControlPlane,
+    identity: skimasque_cli::control::GatewayIdentity,
+    revocations: skimasque::Revocations,
+    platform: bool,
+    interval: std::time::Duration,
+) {
+    use skimasque_cli::control::RevocationFetch;
+
+    let mut generation = None;
+    let mut backoff = std::time::Duration::from_secs(1);
+    loop {
+        match control
+            .fetch_revocations(&identity, platform, generation, Some(interval))
+            .await
+        {
+            Ok(RevocationFetch::Updated(list)) => {
+                generation = Some(list.generation);
+                revocations.replace(list.revoked.into_iter().map(|r| r.sid));
+                metrics::gauge!("skimasque_revoked_sessions").set(revocations.len() as f64);
+                tracing::info!(revoked = revocations.len(), "control plane updated the revoked sessions");
+                backoff = std::time::Duration::from_secs(1);
+            }
+            Ok(RevocationFetch::Unchanged) => {
+                backoff = std::time::Duration::from_secs(1);
+            }
+            Err(error) => {
+                tracing::warn!(
+                    %error,
+                    "revocation poll failed; still enforcing the last known list"
+                );
+                tokio::time::sleep(backoff).await;
+                backoff = (backoff * 2).min(std::time::Duration::from_secs(60));
+            }
+        }
+    }
+}
+
 /// Send a heartbeat on `interval`, and on the same tick evaluate how stale the
 /// cached policy has become. Enforcement is never affected -- a control-plane
 /// outage never stops the data plane -- but staleness is surfaced loudly: the
@@ -1574,7 +1647,10 @@ struct PlatformBootstrap {
 /// tenant list (from the control plane, else the cache, else refuse to start),
 /// apply it, and build the tenant service stack and the minter. Nothing is
 /// spawned here: the table is in place before any background task runs.
-async fn bootstrap_platform(args: &Args) -> anyhow::Result<PlatformBootstrap> {
+async fn bootstrap_platform(
+    args: &Args,
+    revocations: &skimasque::Revocations,
+) -> anyhow::Result<PlatformBootstrap> {
     use skimasque_cli::audit_ship::ControlPlaneAuditSink;
     use skimasque_cli::control::ControlPlane;
     use skimasque_cli::platform::{
@@ -1701,6 +1777,7 @@ async fn bootstrap_platform(args: &Args) -> anyhow::Result<PlatformBootstrap> {
         &tenants,
         audit,
         usage.clone(),
+        revocations.clone(),
     );
 
     Ok(PlatformBootstrap {
@@ -1721,7 +1798,7 @@ async fn bootstrap_platform(args: &Args) -> anyhow::Result<PlatformBootstrap> {
 /// Start a platform gateway's background tasks: the tenant sync (which feeds
 /// the heartbeat's health through the shared `SyncState`), the per-org audit
 /// shipper, and the heartbeat with per-org usage.
-fn spawn_platform_tasks(platform: PlatformBootstrap) {
+fn spawn_platform_tasks(platform: PlatformBootstrap, revocations: skimasque::Revocations) {
     use skimasque_cli::platform::{
         run_platform_audit_shipping, run_platform_heartbeat, run_tenant_sync,
     };
@@ -1749,6 +1826,13 @@ fn spawn_platform_tasks(platform: PlatformBootstrap) {
         tenants.clone(),
         state.clone(),
         state_dir,
+        interval,
+    ));
+    tokio::spawn(run_revocation_sync(
+        control.clone(),
+        identity.clone(),
+        revocations,
+        true,
         interval,
     ));
     eprintln!("shipping the audit trail to the control plane, filed per organisation");
@@ -2316,7 +2400,7 @@ mod tests {
         let args = parse(&["--github-oidc", "--oidc-audience", "https://masque.example"]);
         let oidc = build_oidc(&args).unwrap();
         assert!(oidc.is_some());
-        assert!(build_service(&args, oidc.as_ref(), None, None).is_ok());
+        assert!(build_service(&args, oidc.as_ref(), None, None, &skimasque::Revocations::new()).is_ok());
     }
 
     #[test]
@@ -2535,14 +2619,14 @@ mod tests {
 
     #[test]
     fn the_service_builds_with_no_policy_and_with_one() {
-        let (_, handle) = build_service(&parse(&[]), None, None, None).unwrap();
+        let (_, handle) = build_service(&parse(&[]), None, None, None, &skimasque::Revocations::new()).unwrap();
         assert!(handle.is_none(), "no policy source means no reload handle");
 
         let dir = std::env::temp_dir().join("skimasque-server-policy-test");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("p.toml"), "name = \"any\"\n").unwrap();
         let args = parse(&["--policy-dir", dir.to_str().unwrap()]);
-        let (_, handle) = build_service(&args, None, None, None).unwrap();
+        let (_, handle) = build_service(&args, None, None, None, &skimasque::Revocations::new()).unwrap();
         assert!(handle.is_some(), "a policy source yields a reload handle");
         std::fs::remove_dir_all(&dir).ok();
     }

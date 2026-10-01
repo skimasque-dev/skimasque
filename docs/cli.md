@@ -71,6 +71,17 @@ The credential file lives at `$SKIMASQUE_CONFIG_HOME`, else
 
 `--org` is inferred when you belong to exactly one.
 
+### Give a coding agent access (needs `skimasque login`)
+
+| Command | Does |
+|---|---|
+| `skimasque agent-session start [--org ID] [--ttl 30m] [--runtime NAME] [--run-id ID] [--parent SESSION] (--token-file PATH [--force] \| --print-token)` | start a session and hand over its credential. `--token-file` writes a new owner-only file and prints the session id; `--print-token` prints only the credential. One of the two is required. |
+| `skimasque agent-session list [--org ID] [--all]` | the org's recent agent sessions (active only, unless `--all`) |
+| `skimasque agent-session end <SESSION_ID> [--org ID]` | end it now, and every session delegated from it |
+
+The lifetime defaults to 30 minutes and is capped at 4 hours. See
+[`agents.md`](agents.md) for the model and for sandboxing.
+
 ### Run a gateway or open a tunnel
 
 - `skimasque gateway <args…>` execs `skimasque-server` with the args — see below.
@@ -93,9 +104,12 @@ loopback, and runs `COMMAND` with `HTTPS_PROXY`/`HTTP_PROXY` (HTTP CONNECT),
 `ALL_PROXY` (`socks5h://`) and `NO_PROXY=localhost,127.0.0.1,::1` set. Access
 ends when the command exits.
 
-The `HTTP_PROXY` front end only tunnels `CONNECT`, i.e. HTTPS and other TLS.
-A plain `http://` request sent to it is refused (`405`, with a note on stderr);
-reach such services through `ALL_PROXY` (`socks5h://`) or a `--forward`.
+The `HTTP_PROXY` front end tunnels `CONNECT` (HTTPS and other TLS) and carries
+plain `http://` requests too: it opens a tunnel to the URL's host and port,
+sends the request to the origin with `Connection: close`, and relays the reply.
+One connection carries one request, so no keep-alive; a request that is not a
+`CONNECT` or an absolute-form `http://` URL is refused (`405`). Other TCP is
+reached through `ALL_PROXY` (`socks5h://`) or a `--forward`.
 
 The loopback listeners are not authenticated: while the command runs, any
 process on the machine can use the proxy and forward ports with your identity,
@@ -109,6 +123,12 @@ the same exposure as `ssh -L`. Don't run exec on a shared host you don't trust.
 | `--control-plane URL` / `$SKIMASQUE_CONTROL_PLANE` | Defaults to the control plane you signed in to, else SkiMasque Cloud. |
 | `--forward [LOCAL_PORT:]HOST:PORT` | A loopback listener tunnelled to one destination, for tools that ignore proxy settings (`psql`). Its address is in `$SKIMASQUE_FORWARD_<HOST>_<PORT>`. Pick `LOCAL_PORT` when your shell needs the port on the command line. |
 | `--quiet` | No access summary on stderr. |
+| `--agent` | Run as a coding agent: start an agent session for the command and end it when the command exits. Needs `skimasque login`. The credential stays in this process. See [`agents.md`](agents.md). |
+| `--ttl D`, `--runtime NAME`, `--run-id ID`, `--parent SESSION` | With `--agent`: lifetime (default 30m, max 4h), audit labels, and the parent session to delegate from. |
+| `--sandbox srt` | Confine the command with Anthropic's sandbox runtime so SkiMasque is its only way out. Checks first that a direct connection is blocked, and refuses to start if not. |
+| `--allow-domain DOMAIN` | With `--sandbox`: a domain the sandbox lets through to SkiMasque (repeatable, required). The gateway's policy still decides each connection. |
+| `--sandbox-settings PATH` | With `--sandbox`: your own `srt` settings, merged with the generated network settings. |
+| `--unsandboxed` | With `--agent`: run it with no sandbox. An agent must pass `--sandbox srt` or this. |
 
 With a `skimasque login` session exec checks your access with the control plane
 first and refuses to start when `--policy` does not apply or every
@@ -217,6 +237,7 @@ without contacting a gateway or reading credentials.
 | `--ca <PATH>` | trust these PEM certs instead of the system roots |
 | `--insecure` | accept any certificate — gives up MITM defence; use `--ca` instead |
 | `--auth-token <TOKEN>` (`SKIMASQUE_TOKEN`) | static bearer, for a `--auth-token` gateway |
+| `--auth-token-file <PATH>` (`SKIMASQUE_TOKEN_FILE`) | read the static bearer from a file, keeping it out of argv and the environment; for an agent session's credential. Exclusive with the other credential sources. |
 | `--github-oidc` | fetch the runner's OIDC token and exchange it (needs `--oidc-audience`) |
 | `--oidc-token <JWT>` (`SKIMASQUE_OIDC_TOKEN`) | supply a token you fetched another way |
 | `--oidc-audience <AUD>` | must match one of the gateway's `--oidc-audience` values |

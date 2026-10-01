@@ -102,6 +102,8 @@ pub enum DenyReason {
         requested: String,
         selected: Option<String>,
     },
+    /// A baseline policy's `deny` rule matched, so no policy can allow it.
+    Baseline { policy: String, rule: String },
 }
 
 impl DenyReason {
@@ -117,6 +119,9 @@ impl DenyReason {
             Self::PolicyMismatch { requested, selected: None } => format!(
                 "Policy \"{requested}\" does not apply to this identity; no policy does."
             ),
+            Self::Baseline { policy, rule } => {
+                format!("Denied by baseline policy \"{policy}\", rule {rule}; no policy can allow this.")
+            }
         }
     }
 }
@@ -186,7 +191,7 @@ impl PolicySet {
             }
         }
         match selected {
-            Some(policy) => policy.evaluate(ctx),
+            Some(policy) => self.with_baseline(policy.evaluate(ctx), ctx),
             None => Decision::Deny(Denied {
                 policy: None,
                 reason: DenyReason::NoPolicyMatch,
@@ -199,7 +204,41 @@ impl PolicySet {
     /// Evaluate against the named policy specifically, as `masque policy check
     /// <name>` does. Returns `None` if the set has no such policy.
     pub fn evaluate_named(&self, name: &str, ctx: &RequestContext) -> Option<Decision> {
-        self.get(name).map(|policy| policy.evaluate(ctx))
+        self.get(name)
+            .map(|policy| self.with_baseline(policy.evaluate(ctx), ctx))
+    }
+
+    /// Apply the baseline policies to an `allow`: a deny rule in any baseline
+    /// that matches the workload and the request overrides it. A decision that
+    /// is already a denial is left as it is.
+    fn with_baseline(&self, decision: Decision, ctx: &RequestContext) -> Decision {
+        let Decision::Allow(_) = &decision else {
+            return decision;
+        };
+        for baseline in self
+            .policies()
+            .iter()
+            .filter(|p| p.baseline && p.match_spec.matches(&ctx.workload))
+        {
+            for (index, rule) in baseline.rules.iter().enumerate() {
+                if rule.action == Action::Deny
+                    && rule.covers(&ctx.application, ctx.transport)
+                    && rule.destinations.iter().any(|d| d.matches(&ctx.destination))
+                {
+                    return Decision::Deny(Denied {
+                        policy: Some(baseline.name.clone()),
+                        reason: DenyReason::Baseline {
+                            policy: baseline.name.clone(),
+                            rule: rule_label(rule, index),
+                        },
+                        // No rule in any policy can fix this, so suggest none.
+                        suggested_rule: String::new(),
+                        closest: Vec::new(),
+                    });
+                }
+            }
+        }
+        decision
     }
 }
 
@@ -537,5 +576,124 @@ mod tests {
             .evaluate_named("broad", &pinned(Some("prod"), "acme/widget", "other.example:443"))
             .unwrap();
         assert!(d.is_allow());
+    }
+
+    mod baseline {
+        use super::*;
+        use crate::identity::WorkloadKind;
+
+        const SET: [(&str, &str); 3] = [
+            (
+                "dev.toml",
+                r#"
+                name = "dev"
+                [match]
+                actor = "octocat"
+                [[rules]]
+                application = "*"
+                action = "allow"
+                destinations = ["db.staging:5432", "db.prod:5432"]
+                "#,
+            ),
+            (
+                "agents-never-prod.toml",
+                r#"
+                name = "agents-never-prod"
+                baseline = true
+                [match]
+                kind = "agent"
+                [[rules]]
+                id = "no-prod"
+                application = "*"
+                action = "deny"
+                destinations = ["db.prod:5432"]
+                "#,
+            ),
+            (
+                "no-udp-for-agents.toml",
+                r#"
+                name = "no-udp-for-agents"
+                baseline = true
+                [match]
+                kind = "agent"
+                [[rules]]
+                application = "*"
+                transport = "udp"
+                action = "deny"
+                destinations = ["*:*"]
+                "#,
+            ),
+        ];
+
+        fn ctx(kind: Option<WorkloadKind>, destination: &str, transport: Transport) -> RequestContext {
+            RequestContext {
+                workload: WorkloadIdentity {
+                    actor: Some("octocat".into()),
+                    kind,
+                    ..Default::default()
+                },
+                application: "psql".into(),
+                transport,
+                destination: Destination::parse(destination).unwrap(),
+                requested_policy: None,
+            }
+        }
+
+        #[test]
+        fn a_baseline_denies_what_the_selected_policy_allows_but_only_for_its_kind() {
+            let set = PolicySet::from_documents(SET).unwrap();
+            let agent = Some(WorkloadKind::Agent);
+            let person = Some(WorkloadKind::Developer);
+
+            // The same person, same destination: allowed as a developer, refused as an agent.
+            assert!(matches!(set.evaluate(&ctx(person, "db.prod:5432", Transport::Tcp)), Decision::Allow(_)));
+            let Decision::Deny(denied) = set.evaluate(&ctx(agent, "db.prod:5432", Transport::Tcp)) else {
+                panic!("an agent reached prod");
+            };
+            assert_eq!(
+                denied.reason,
+                DenyReason::Baseline { policy: "agents-never-prod".into(), rule: "no-prod".into() }
+            );
+            assert_eq!(denied.policy.as_deref(), Some("agents-never-prod"));
+            assert!(denied.suggested_rule.is_empty(), "no rule can fix a baseline denial");
+            assert!(denied.reason.summary().contains("agents-never-prod"));
+
+            // Staging is untouched, for both.
+            assert!(matches!(set.evaluate(&ctx(agent, "db.staging:5432", Transport::Tcp)), Decision::Allow(_)));
+        }
+
+        #[test]
+        fn a_baseline_can_restrict_a_transport_and_applies_by_name_too() {
+            let set = PolicySet::from_documents(SET).unwrap();
+            let agent = Some(WorkloadKind::Agent);
+            let udp = set.evaluate(&ctx(agent, "db.staging:5432", Transport::Udp));
+            assert!(matches!(
+                udp,
+                Decision::Deny(Denied { reason: DenyReason::Baseline { .. }, .. })
+            ));
+            // `policy check <name>` sees the same guardrails.
+            let named = set
+                .evaluate_named("dev", &ctx(agent, "db.prod:5432", Transport::Tcp))
+                .unwrap();
+            assert!(matches!(named, Decision::Deny(_)));
+        }
+
+        #[test]
+        fn a_baseline_never_grants_and_is_never_selected() {
+            let set = PolicySet::from_documents(SET).unwrap();
+            // An identity only the baselines match gets no policy: deny by default.
+            let stranger = RequestContext {
+                workload: WorkloadIdentity {
+                    kind: Some(WorkloadKind::Agent),
+                    ..Default::default()
+                },
+                ..ctx(None, "db.staging:5432", Transport::Tcp)
+            };
+            assert!(set.select(&stranger.workload).is_none());
+            assert!(matches!(
+                set.evaluate(&stranger),
+                Decision::Deny(Denied { reason: DenyReason::NoPolicyMatch, .. })
+            ));
+        }
     }
 }

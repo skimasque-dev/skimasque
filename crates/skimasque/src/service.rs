@@ -332,11 +332,17 @@ pub struct TunnelLimits {
     pub(crate) bandwidth: Option<Arc<RateLimiter>>,
     pub(crate) packet_rate: Option<Arc<RateLimiter>>,
     pub(crate) total_bytes: Option<u64>,
+    /// Resolves when the tunnel's session is revoked; the server closes the
+    /// tunnel then. Set by [`RevocationLayer`](crate::RevocationLayer).
+    pub(crate) end: Option<crate::revocation::TunnelEnd>,
 }
 
 impl TunnelLimits {
     fn is_empty(&self) -> bool {
-        self.bandwidth.is_none() && self.packet_rate.is_none() && self.total_bytes.is_none()
+        self.bandwidth.is_none()
+            && self.packet_rate.is_none()
+            && self.total_bytes.is_none()
+            && self.end.is_none()
     }
 }
 
@@ -484,6 +490,18 @@ impl Accepted {
     pub fn with_limits(mut self, limits: TunnelLimits) -> Self {
         self.limits = limits;
         self
+    }
+
+    /// Close this tunnel when `end` resolves. [`RevocationLayer`](crate::RevocationLayer)
+    /// attaches the signal for a tunnel whose credential names a session.
+    pub fn with_end(mut self, end: crate::revocation::TunnelEnd) -> Self {
+        self.limits.end = Some(end);
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn end(&self) -> Option<&crate::revocation::TunnelEnd> {
+        self.limits.end.as_ref()
     }
 
     /// Count this tunnel's traffic against `meter` as well as the process-wide
@@ -1543,9 +1561,21 @@ fn policy_destination(target: &Target) -> skimasque_policy::Destination {
 /// and the fix in `Proxy-Status`.
 fn denial_rejection(denied: &skimasque_policy::Denied) -> Rejection {
     // A pin mismatch is not fixed by adding a rule, so it carries no suggestion.
-    let detail = match denied.reason {
-        skimasque_policy::DenyReason::PolicyMismatch { .. } => denied.reason.summary(),
-        _ => format!("{} suggested rule: {}", denied.reason.summary(), denied.suggested_rule),
+    // Name the policy that decided, so a person (or an agent) reading the
+    // refusal knows which one to look at.
+    let detail = match (&denied.reason, &denied.policy) {
+        // Neither a mismatched pin nor a baseline is fixed by adding a rule.
+        (
+            skimasque_policy::DenyReason::PolicyMismatch { .. }
+            | skimasque_policy::DenyReason::Baseline { .. },
+            _,
+        ) => denied.reason.summary(),
+        (_, Some(policy)) => format!(
+            "policy \"{policy}\": {} suggested rule: {}",
+            denied.reason.summary(),
+            denied.suggested_rule
+        ),
+        (_, None) => format!("{} suggested rule: {}", denied.reason.summary(), denied.suggested_rule),
     };
     Rejection::new(StatusCode::FORBIDDEN, detail).with_proxy_error("destination_prohibited")
 }
@@ -1687,6 +1717,7 @@ where
                 .packets_per_sec
                 .map(|pps| self.layer.packets_for(&key(&allowed.policy), pps)),
             total_bytes: allowed.limits.total_bytes,
+            end: None,
         });
 
         let permit = match permit {
@@ -2077,6 +2108,100 @@ mod tests {
             events[0].reason.as_deref(),
             Some(r#"Policy "staging" does not apply to this identity; "prod" does."#)
         );
+    }
+
+    #[test]
+    fn a_denial_names_the_policy_that_decided_it() {
+        let named = skimasque_policy::Denied {
+            policy: Some("agent-staging".into()),
+            reason: skimasque_policy::DenyReason::NoMatchingAllowRule,
+            suggested_rule: "allow psql db.prod:5432".into(),
+            closest: Vec::new(),
+        };
+        assert_eq!(
+            denial_rejection(&named).detail(),
+            r#"policy "agent-staging": No matching allow rule. suggested rule: allow psql db.prod:5432"#
+        );
+
+        // With no matching policy there is none to name.
+        let unmatched = skimasque_policy::Denied {
+            policy: None,
+            reason: skimasque_policy::DenyReason::NoPolicyMatch,
+            ..named
+        };
+        assert!(denial_rejection(&unmatched).detail().starts_with("No policy matches"));
+    }
+
+    #[tokio::test]
+    async fn the_policy_layer_applies_a_baseline_on_top_of_an_allow() {
+        let set = skimasque_policy::PolicySet::from_documents([
+            (
+                "dev.toml",
+                r#"
+                name = "dev"
+                [match]
+                actor = "octocat"
+                [[rules]]
+                application = "*"
+                transport = "any"
+                action = "allow"
+                destinations = ["db.prod:5432"]
+                "#,
+            ),
+            (
+                "guard.toml",
+                r#"
+                name = "agents-never-prod"
+                baseline = true
+                [match]
+                kind = "agent"
+                [[rules]]
+                id = "no-prod"
+                application = "*"
+                transport = "any"
+                action = "deny"
+                destinations = ["db.prod:5432"]
+                "#,
+            ),
+        ])
+        .unwrap();
+        let mut service = PolicyLayer::new(set).layer(AcceptAll);
+        let request = |kind| {
+            let mut request = udp_request("db.prod:5432", Some("psql"));
+            request.extensions_mut().insert(skimasque_policy::WorkloadIdentity {
+                actor: Some("octocat".into()),
+                kind: Some(kind),
+                ..Default::default()
+            });
+            request
+        };
+
+        assert!(service
+            .call(request(skimasque_policy::WorkloadKind::Developer))
+            .await
+            .is_ok());
+        let rejection = service
+            .call(request(skimasque_policy::WorkloadKind::Agent))
+            .await
+            .unwrap_err();
+        assert_eq!(rejection.status(), StatusCode::FORBIDDEN);
+        assert!(rejection.detail().contains("baseline policy"), "{}", rejection.detail());
+    }
+
+    #[test]
+    fn a_baseline_denial_says_so_and_suggests_nothing() {
+        let denied = skimasque_policy::Denied {
+            policy: Some("agents-never-prod".into()),
+            reason: skimasque_policy::DenyReason::Baseline {
+                policy: "agents-never-prod".into(),
+                rule: "no-prod".into(),
+            },
+            suggested_rule: String::new(),
+            closest: Vec::new(),
+        };
+        let detail = denial_rejection(&denied).detail().to_owned();
+        assert!(detail.contains("baseline policy \"agents-never-prod\""), "{detail}");
+        assert!(!detail.contains("suggested rule"), "{detail}");
     }
 
     #[test]

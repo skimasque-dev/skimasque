@@ -138,6 +138,8 @@ impl Policy {
             git_ref,
             environment: m.environment.clone(),
             actor: m.actor.clone(),
+            kind: m.kind,
+            ..Default::default()
         }
     }
 }

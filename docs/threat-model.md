@@ -56,6 +56,7 @@ what rate and volume limits.
 | **The policy set** | It *is* the authorization decision. A bad edit widens access silently. | Files under `--policy-dir` / `--policy-file`, or a ConfigMap. |
 | **The audit log** | The only record of what was allowed and denied. | `--audit-log` file, or the `masque::audit` tracing target. |
 | **In-flight tunnel traffic** | Contains the job's own secrets (registry creds, DB passwords, source). | QUIC streams/datagrams between runner and gateway; plaintext on the egress side. |
+| **An agent-session credential** | A bearer token for one session's access: whoever holds it has the session's reach until it expires or the session is ended. | The launcher's owner-only token file and the network client's memory; in transit to the gateway. |
 | **A runner's OIDC token** | A bearer token for the exchange endpoint; valid for its short lifetime and broad `aud`. | Runner memory; in transit to the gateway. |
 
 ## Actors and trust levels
@@ -67,6 +68,7 @@ what rate and volume limits.
 | **Legitimate CI job** | Semi-trusted | Runs code from a repository. Holds a valid OIDC token and, after exchange, a credential scoped to its identity. **May be running attacker-controlled code** (a malicious PR, a compromised dependency, a supply-chain attack in the job itself). |
 | **Attacker with their own GitHub repo** | Untrusted | Can obtain a validly-signed OIDC token for *their* `repository` / `workflow_ref` and hit the exchange endpoint. |
 | **Network attacker** | Untrusted | On-path between runner and gateway, or between gateway and the OIDC issuer; can send packets to any listener. |
+| **Coding agent** | Untrusted | Acts for a person but is driven by a model and by whatever text it reads, so assume prompt-injected or otherwise misled. Holds only a session credential. Will try any network path the sandbox leaves open. |
 | **Compromised gateway host** | Out of scope | Per [`SECURITY.md`](../SECURITY.md); if the host is owned, the model does not hold. |
 
 The central tension: **a legitimate CI job is the primary threat agent.** The
@@ -151,8 +153,25 @@ nothing else selects it, and there is no default tenant.
 | Audit events filed under the wrong org | Each event carries the org of its credential; one hash chain per gateway, events filed per org; an event naming no org is dropped, not shipped. | The chain is gateway-wide, so orgs' events interleave in the local `--audit-log`. |
 | A job obtains a credential for an org whose owner it is not | The job's `repository_owner` (and numeric owner id, when recorded) must be verified for the audience's org before the control plane is asked to mint; the control plane re-checks. Refusal: `owner_not_verified`. | Owner verification is the trust root. Owners are verified on github.com, which is why `--oidc-issuer` and non-GitHub providers are refused with `--platform`. |
 | A gateway compromise minting credentials | No local minting and no HS256 secret: private keys stay on the control plane. | A compromised gateway can still relay tunnels for credentials it sees until they expire. |
-| Control-plane outage | New exchanges fail closed (`502`); enforcement continues from the in-memory table, restored from `<state>/tenants.json` after a restart. | A removal is honoured only at the next successful refresh. A removed tenant is then cut off at once (the tenant is resolved from the current list on every tunnel); a removed owner can mint nothing new, but credentials already issued stay valid until they expire. No per-credential revocation. |
+| Control-plane outage | New exchanges fail closed (`502`); enforcement continues from the in-memory table, restored from `<state>/tenants.json` after a restart. | A removal is honoured only at the next successful refresh. A removed tenant is then cut off at once (the tenant is resolved from the current list on every tunnel); a removed owner can mint nothing new, but credentials already issued stay valid until they expire. Only agent sessions can be revoked individually (B8); CI and developer credentials cannot. |
 | Audience confusion across tenants | The slug is matched exactly (case not folded) and the token is verified for the audience that named the tenant. | |
+
+### B8 — Agent session and its sandbox
+
+A coding agent runs with a session credential (see [`agents.md`](agents.md)),
+issued by the control plane for a signed-in member and enforced by the gateway.
+
+| Threat | Mitigation | Residual |
+|---|---|---|
+| An agent reaches more than its owner could | The credential's identity is the owner's (`actor`) plus `kind = agent`, derived server-side from the owner's login; nothing in the request chooses it. It matches no policy the owner could not, and policies naming `kind = agent` can narrow it. | A policy that names `kind = agent` can also *widen* it. That is the policy author's choice. |
+| A workload mints itself an `agent` or `developer` credential, or names its own kind | `kind` is set only by the agent-session endpoint (`agent`), the developer endpoint (`developer`) and the provider mapping (`ci`). Both gateway-mediated mints refuse `agent`/`developer` and drop a gateway-supplied `sid`; a token claim cannot map onto `kind`. | — |
+| An agent claims a privileged name (`runtime`, `run_id`) | They are audit labels and are never matched by policy. | A misleading label can mislead a human reading the console. |
+| A session outlives its purpose | Default 30 minutes, capped at 4 hours; tunnels close at credential expiry, not only new ones refused. The owner or an org owner can end it at any time; ending cascades to delegated sessions. | See the gaps below. |
+| An ended session keeps working | Gateways long-poll the control plane for the ended list and refuse new tunnels, close open ones, and persist the list across restarts. | If a gateway cannot reach the control plane it keeps the last list; a session ended meanwhile is bounded by the credential's expiry (≤ 4 h). Propagation time on a healthy control plane is about one round trip; it has not been measured under load. |
+| The agent steals the credential and uses it elsewhere | Bearer token; bounded by lifetime and revocable. Org-scoped, so it works for one org only. | No proof-of-possession. If the agent can read the token file, `skimasque login`'s stored session, or the client's memory, it can use or extend it. A client started with no token falls back to the login session and mints a developer credential. Keep all of these outside the sandbox. |
+| The agent bypasses the gateway entirely | Out of SkiMasque's hands: it governs the gateway path, not the host. The sandbox must block direct outbound networking (TCP, UDP, IPv6, DNS) including from child processes and with proxy variables cleared. | A sandbox that only sets `HTTPS_PROXY` enforces nothing. |
+| A delegated session outlives or exceeds its parent | A child's expiry is capped at its parent's; its identity is the same; ending the parent ends it. | — |
+| An agent abuses what it may legitimately reach | Out of scope: SkiMasque grants connectivity, not application authorization. | Keep database permissions and API scopes at the destination. |
 
 ## The two authorization escape hatches
 
@@ -242,8 +261,10 @@ These are the questions the independent review should press on:
    keying on an unvalidated QUIC peer address acceptable, and is the residual —
    a NAT'd fleet sharing one bucket, and no *global* cap on exchange volume
    beyond `--max-concurrent-requests` — the right trade?
-2. **Per-session resource limits.** `[limits]` are aggregate per policy; a
-   session id in the credential would let them be per job.
+2. **Per-session resource limits.** `[limits]` are aggregate per policy. Agent
+   sessions now carry a session id (`sid`), so per-session limits are possible
+   for them; they are not implemented, and CI and developer credentials still
+   have no session id.
 3. **Bearer-token theft.** Is there a practical binding of the credential to the
    QUIC connection or the runner that would not break mid-session refresh?
 4. **Policy misconfiguration is the likeliest real-world failure.**
@@ -291,3 +312,16 @@ These are the questions the independent review should press on:
    watch), and `h3-quinn` runs from its registry release against patched `h3`
    with no lockstep guarantee. The clean exit is `h3` 0.0.9, or dropping
    `connect-ip` as a goal and reverting to `h3` 0.0.8.
+9. **Agent sessions** ([B8](#b8--agent-session-and-its-sandbox)). Open items for
+   the review: (a) revocation propagation is about one round trip by design but
+   has not been measured, and a gateway cut off from the control plane relies on
+   credential expiry (≤ 4 h) for sessions ended meanwhile; (b) `[session]
+   max_duration` is documented but the gateway does not enforce it, and CI and
+   developer credentials are not cut at expiry (a job longer than the credential
+   lifetime would break), so only agent sessions are cut mid-tunnel; (c) a client
+   with no token falls back to the stored `skimasque login` session and mints a
+   developer credential, so an agent that can run that client inside its sandbox
+   inherits the owner's login; (d) the expiry deadline is read from the bearer
+   token's `exp` below an identity layer that has already verified the token,
+   which is sound but is an ordering the stack must preserve; (e) a coding
+   agent's sandbox is not provided, only specified.

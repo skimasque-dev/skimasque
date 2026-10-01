@@ -760,6 +760,7 @@ async fn serve_request<S>(
     let extra_headers = extra_headers.map(|headers| *headers).unwrap_or_default();
     let idle = config.limits.tunnel_idle_timeout;
     let span = tracing::info_span!("tunnel", stream_id, %target);
+    let end = limits.end.clone();
 
     match kind {
         AcceptedKind::Udp { socket, peer } => {
@@ -778,9 +779,11 @@ async fn serve_request<S>(
             let _active =
                 ActiveTunnel::open(Protocol::ConnectUdp.upgrade_token(), meter.as_deref());
             info!(stream_id, %target, %peer, "tunnel open");
-            relay(socket, route, inbound, recv, idle, limits, meter)
-                .instrument(span)
-                .await;
+            until_ended(
+                end,
+                relay(socket, route, inbound, recv, idle, limits, meter).instrument(span),
+            )
+            .await;
         }
         AcceptedKind::Tcp { stream: tcp, peer } => {
             // A CONNECT-TCP stream carries raw bytes, not capsules: no datagram
@@ -798,9 +801,11 @@ async fn serve_request<S>(
             let _active =
                 ActiveTunnel::open(Protocol::ConnectTcp.upgrade_token(), meter.as_deref());
             info!(stream_id, %target, %peer, "tcp tunnel open");
-            relay_tcp(tcp, send, recv, idle, limits, meter)
-                .instrument(span)
-                .await;
+            until_ended(
+                end,
+                relay_tcp(tcp, send, recv, idle, limits, meter).instrument(span),
+            )
+            .await;
         }
         #[cfg(feature = "connect-ip")]
         AcceptedKind::Ip(_) => {
@@ -813,6 +818,29 @@ async fn serve_request<S>(
     // a layer reserved for it.
     drop(tunnel_guards);
     info!(stream_id, %target, "tunnel closed");
+}
+
+/// Run `relay`, but stop it, closing the tunnel, if its session is revoked.
+///
+/// Dropping the relay future drops the target socket and the QUIC stream, so
+/// both ends see the tunnel close at once rather than at the next idle check.
+async fn until_ended(end: Option<crate::revocation::TunnelEnd>, relay: impl std::future::Future<Output = ()>) {
+    match end {
+        None => relay.await,
+        Some(end) => {
+            tokio::select! {
+                () = relay => {}
+                reason = end.ended() => match reason {
+                    crate::revocation::EndReason::Revoked => {
+                        info!("the session was revoked; closing the tunnel")
+                    }
+                    crate::revocation::EndReason::Expired => {
+                        info!("the session's credential expired; closing the tunnel")
+                    }
+                },
+            }
+        }
+    }
 }
 
 /// Answer a tunnel request `503` because the connection is already carrying its

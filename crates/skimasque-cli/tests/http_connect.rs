@@ -151,11 +151,11 @@ async fn a_policy_denial_answers_403_with_the_reason() {
 }
 
 #[tokio::test]
-async fn other_methods_get_405_and_garbage_gets_400() {
+async fn origin_form_requests_get_405_and_garbage_gets_400() {
     let echo = spawn_echo(b"ok:").await;
     let (front, _) = spawn_front(echo).await;
     let mut s = TcpStream::connect(front).await.unwrap();
-    s.write_all(b"GET http://example.com/ HTTP/1.1\r\n\r\n")
+    s.write_all(b"GET /index.html HTTP/1.1\r\n\r\n")
         .await
         .unwrap();
     assert!(read_head(&mut s).await.starts_with("HTTP/1.1 405 "));
@@ -188,4 +188,69 @@ async fn a_forward_listener_splices_to_its_destination() {
     let mut reply = [0u8; 5];
     timeout(T, s.read_exact(&mut reply)).await.unwrap().unwrap();
     assert_eq!(&reply, b"fw:hi");
+}
+
+/// A one-shot origin: reads a request head, answers with a body that echoes it.
+async fn spawn_origin() -> SocketAddr {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        while let Ok((mut s, _)) = listener.accept().await {
+            tokio::spawn(async move {
+                let mut buf = vec![0u8; 8192];
+                let mut got = Vec::new();
+                while !got.windows(4).any(|w| w == b"\r\n\r\n") {
+                    let n = s.read(&mut buf).await.unwrap_or(0);
+                    if n == 0 {
+                        return;
+                    }
+                    got.extend_from_slice(&buf[..n]);
+                }
+                let body = got;
+                let head = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    body.len()
+                );
+                let _ = s.write_all(head.as_bytes()).await;
+                let _ = s.write_all(&body).await;
+            });
+        }
+    });
+    addr
+}
+
+#[tokio::test]
+async fn a_plain_http_request_reaches_the_origin_in_origin_form() {
+    let origin = spawn_origin().await;
+    let (front, _) = spawn_front(origin).await;
+    let mut s = TcpStream::connect(front).await.unwrap();
+    s.write_all(
+        format!(
+            "GET http://{origin}/path?q=1 HTTP/1.1\r\nHost: {origin}\r\n\
+             Proxy-Authorization: Basic c2VjcmV0\r\nProxy-Connection: keep-alive\r\n\r\n"
+        )
+        .as_bytes(),
+    )
+    .await
+    .unwrap();
+    let mut reply = Vec::new();
+    timeout(T, s.read_to_end(&mut reply)).await.unwrap().unwrap();
+    let reply = String::from_utf8(reply).unwrap();
+    assert!(reply.starts_with("HTTP/1.1 200 OK"), "{reply}");
+    assert!(reply.contains("GET /path?q=1 HTTP/1.1"), "origin form: {reply}");
+    assert!(reply.contains("Connection: close"), "{reply}");
+    assert!(!reply.contains("Proxy-Authorization") && !reply.contains("c2VjcmV0"), "{reply}");
+}
+
+#[tokio::test]
+async fn a_plain_http_request_to_a_denied_destination_is_refused_by_policy() {
+    let allowed = spawn_origin().await;
+    let other = spawn_origin().await;
+    let (front, _) = spawn_front(allowed).await;
+    let mut s = TcpStream::connect(front).await.unwrap();
+    s.write_all(format!("GET http://{other}/ HTTP/1.1\r\nHost: {other}\r\n\r\n").as_bytes())
+        .await
+        .unwrap();
+    let head = read_head(&mut s).await;
+    assert!(head.starts_with("HTTP/1.1 403 "), "{head}");
 }

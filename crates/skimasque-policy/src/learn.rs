@@ -115,6 +115,7 @@ pub fn suggest_policy(
             limits: Default::default(),
             rules,
             tests: Vec::new(),
+            baseline: false,
         },
         skipped,
     }
@@ -135,6 +136,7 @@ fn match_from_identity(identity: &WorkloadIdentity) -> MatchSpec {
         branch,
         environment: identity.environment.clone(),
         actor: identity.actor.clone(),
+        kind: identity.kind,
     }
 }
 

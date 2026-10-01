@@ -337,7 +337,14 @@ fn spawn_gateway(tenants: &PlatformTenants, minter: PlatformMinter) -> Gateway {
     let dispatch = Dispatch::new()
         .with_udp(UdpProxy::new(AddressPolicy::permissive()))
         .with_tcp(TcpProxy::new(AddressPolicy::permissive()));
-    let service = platform_service(dispatch, 64, tenants, audit.clone(), usage.clone());
+    let service = platform_service(
+        dispatch,
+        64,
+        tenants,
+        audit.clone(),
+        usage.clone(),
+        skimasque::Revocations::new(),
+    );
 
     let generated = tls::generate_self_signed(vec!["localhost".to_owned()]).unwrap();
     let server_tls = tls::server_config_from_pem(

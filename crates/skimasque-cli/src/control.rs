@@ -30,6 +30,7 @@ pub use skimasque_protocol::{
     RegisterResponse, ShipAuditRequest, ShipAuditResponse, SigningKey, UsageReport, AUDIT_GENESIS,
     PROTOCOL_VERSION,
 };
+pub use skimasque_protocol::{RevocationsResponse, RevokedSession};
 
 /// How stale the enforced policy is, relative to the control plane.
 /// Enforcement continues in every state — a control-plane outage never stops
@@ -194,6 +195,15 @@ pub enum PolicyFetch {
     None,
 }
 
+/// The outcome of a revocations poll.
+#[derive(Debug)]
+pub enum RevocationFetch {
+    /// The control plane's list has not moved since the generation asked about.
+    Unchanged,
+    /// The current list, already written to the on-disk cache.
+    Updated(RevocationsResponse),
+}
+
 /// A credential the control plane minted with the org's private key — the
 /// client-side view of [`skimasque_protocol::MintResponse`].
 #[derive(Debug, Clone)]
@@ -343,6 +353,75 @@ impl ControlPlane {
                 })
             }
         }
+    }
+
+    /// Poll for the list of ended sessions. With `wait` set the request is held
+    /// open that long server-side before a `304`. A platform gateway asks the
+    /// platform endpoint, which covers every organisation it serves.
+    pub async fn fetch_revocations(
+        &self,
+        identity: &GatewayIdentity,
+        platform: bool,
+        known_generation: Option<u64>,
+        wait: Option<Duration>,
+    ) -> Result<RevocationFetch> {
+        let path = if platform {
+            paths::platform_revocations(&identity.gateway_id)
+        } else {
+            paths::gateway_revocations(&identity.gateway_id)
+        };
+        let mut query = Vec::new();
+        if let Some(generation) = known_generation {
+            query.push(format!("generation={generation}"));
+        }
+        if let Some(wait) = wait {
+            query.push(format!("wait={}", wait.as_secs()));
+        }
+        let mut url = format!("{}{}", self.base_url, path);
+        if !query.is_empty() {
+            url.push('?');
+            url.push_str(&query.join("&"));
+        }
+
+        let response = self
+            .http
+            .get(&url)
+            .bearer_auth(&identity.secret)
+            .send()
+            .await
+            .context("polling for revoked sessions")?;
+        if response.status() == reqwest::StatusCode::NOT_MODIFIED {
+            return Ok(RevocationFetch::Unchanged);
+        }
+        let response = error_for_status(response, "revocation poll").await?;
+        let list: RevocationsResponse = response
+            .json()
+            .await
+            .context("parsing the revocation list")?;
+        // Best effort: a failed cache write must not stop the list being applied.
+        if let Err(error) = self.cache_revocations(&list) {
+            tracing::warn!(%error, "could not cache the revocation list");
+        }
+        Ok(RevocationFetch::Updated(list))
+    }
+
+    fn revocations_path(&self) -> PathBuf {
+        self.state_dir.join("revocations.json")
+    }
+
+    /// Persist the revocation list so a gateway restarted during a control-plane
+    /// outage still refuses the sessions it knew were ended.
+    pub fn cache_revocations(&self, list: &RevocationsResponse) -> Result<()> {
+        std::fs::create_dir_all(&self.state_dir).context("creating the state directory")?;
+        let staging = self.state_dir.join(".revocations.new");
+        std::fs::write(&staging, serde_json::to_vec(list)?).context("writing the revocation cache")?;
+        std::fs::rename(&staging, self.revocations_path()).context("swapping in the revocation cache")?;
+        Ok(())
+    }
+
+    /// The cached revocation list from a previous run, if there is one.
+    pub fn load_cached_revocations(&self) -> Option<RevocationsResponse> {
+        serde_json::from_slice(&std::fs::read(self.revocations_path()).ok()?).ok()
     }
 
     /// Send a heartbeat, optionally carrying the gateway's usage totals.
@@ -835,6 +914,25 @@ mod tests {
         assert_eq!(sanitize("a/b/c"), "abc.toml");
         assert_eq!(sanitize(""), "policy.toml");
         assert_eq!(sanitize("..."), "policy.toml");
+    }
+
+    #[test]
+    fn the_revocation_cache_round_trips_and_a_missing_one_is_none() {
+        let dir = std::env::temp_dir().join(format!("skmrev-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let cp = ControlPlane::new("https://example.invalid", &dir).unwrap();
+        assert!(cp.load_cached_revocations().is_none());
+
+        let list = RevocationsResponse {
+            generation: 4,
+            revoked: vec![RevokedSession {
+                sid: "sess_1".into(),
+                expires_at_ms: 10,
+            }],
+        };
+        cp.cache_revocations(&list).unwrap();
+        assert_eq!(cp.load_cached_revocations(), Some(list));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

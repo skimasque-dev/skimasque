@@ -9,7 +9,7 @@
 use std::time::Duration;
 
 use crate::destination::DestinationSpec;
-use crate::identity::WorkloadIdentity;
+use crate::identity::{WorkloadIdentity, WorkloadKind};
 use crate::units::Rate;
 
 /// One policy: an identity to match, and the rules that apply once it does.
@@ -30,6 +30,11 @@ pub struct Policy {
     pub rules: Vec<Rule>,
     /// Assertions that travel with the policy and run in CI.
     pub tests: Vec<PolicyTest>,
+    /// A baseline is a guardrail, not a grant: it holds only `deny` rules, is
+    /// never selected for a workload, and its denials apply on top of whichever
+    /// policy *is* selected. Use one to say "agents never reach `*.prod`"
+    /// without having to repeat it in every policy.
+    pub baseline: bool,
 }
 
 /// Which workloads a policy governs. Every field is a constraint: a `Some`
@@ -50,6 +55,8 @@ pub struct MatchSpec {
     pub branch: Option<String>,
     pub environment: Option<String>,
     pub actor: Option<String>,
+    /// The kind of workload. An identity with no kind never satisfies this.
+    pub kind: Option<WorkloadKind>,
 }
 
 impl MatchSpec {
@@ -95,6 +102,11 @@ impl MatchSpec {
                 return false;
             }
         }
+        if let Some(kind) = self.kind {
+            if identity.kind != Some(kind) {
+                return false;
+            }
+        }
         true
     }
 
@@ -109,6 +121,7 @@ impl MatchSpec {
             self.branch.is_some(),
             self.environment.is_some(),
             self.actor.is_some(),
+            self.kind.is_some(),
         ]
         .iter()
         .filter(|set| **set)
@@ -326,11 +339,12 @@ impl PolicySet {
         self.policies.iter().find(|p| p.name == name)
     }
 
-    /// The most specific policy whose match accepts `identity`.
+    /// The most specific policy whose match accepts `identity`. Baselines
+    /// guard but never grant, so they are not candidates.
     pub fn select(&self, identity: &WorkloadIdentity) -> Option<&Policy> {
         self.policies
             .iter()
-            .filter(|p| p.match_spec.matches(identity))
+            .filter(|p| !p.baseline && p.match_spec.matches(identity))
             .enumerate()
             .max_by_key(|(index, p)| (p.match_spec.specificity(), std::cmp::Reverse(*index)))
             .map(|(_, p)| p)
@@ -349,6 +363,7 @@ mod tests {
             git_ref: Some("refs/heads/main".into()),
             environment: Some("production".into()),
             actor: Some("octocat".into()),
+            ..Default::default()
         }
     }
 
@@ -384,6 +399,61 @@ mod tests {
     }
 
     #[test]
+    fn a_kind_match_requires_that_exact_kind() {
+        let agent_only = MatchSpec {
+            kind: Some(WorkloadKind::Agent),
+            ..Default::default()
+        };
+        let with_kind = |kind| WorkloadIdentity { kind, ..id() };
+        assert!(agent_only.matches(&with_kind(Some(WorkloadKind::Agent))));
+        assert!(!agent_only.matches(&with_kind(Some(WorkloadKind::Ci))));
+        assert!(!agent_only.matches(&with_kind(Some(WorkloadKind::Developer))));
+        // An identity with no kind is unspecified, and never satisfies a kind match.
+        assert!(!agent_only.matches(&with_kind(None)));
+
+        // Combined with other fields, every one must hold.
+        let agent_in_acme = MatchSpec {
+            organization: Some("acme".into()),
+            kind: Some(WorkloadKind::Agent),
+            ..Default::default()
+        };
+        assert!(agent_in_acme.matches(&with_kind(Some(WorkloadKind::Agent))));
+        assert!(!agent_in_acme.matches(&WorkloadIdentity {
+            organization: Some("other".into()),
+            ..with_kind(Some(WorkloadKind::Agent))
+        }));
+    }
+
+    #[test]
+    fn a_policy_that_names_no_kind_still_matches_every_kind() {
+        let spec = MatchSpec {
+            organization: Some("acme".into()),
+            ..Default::default()
+        };
+        for kind in [
+            None,
+            Some(WorkloadKind::Developer),
+            Some(WorkloadKind::Ci),
+            Some(WorkloadKind::Agent),
+        ] {
+            assert!(spec.matches(&WorkloadIdentity { kind, ..id() }));
+        }
+    }
+
+    #[test]
+    fn naming_a_kind_makes_a_match_more_specific() {
+        let without = MatchSpec {
+            organization: Some("acme".into()),
+            ..Default::default()
+        };
+        let with = MatchSpec {
+            kind: Some(WorkloadKind::Agent),
+            ..without.clone()
+        };
+        assert_eq!(with.specificity(), without.specificity() + 1);
+    }
+
+    #[test]
     fn every_named_field_is_a_constraint() {
         let spec = MatchSpec {
             environment: Some("staging".into()),
@@ -405,6 +475,7 @@ mod tests {
             limits: Limits::default(),
             rules: vec![],
             tests: vec![],
+            baseline: false,
         };
         let narrow = Policy {
             name: "narrow".into(),

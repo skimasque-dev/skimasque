@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context};
 use skimasque_policy::{
     suggest_policy, Decision, Destination, Observation, Policy, PolicySet, RequestContext, Transport,
-    WorkloadIdentity,
+    WorkloadIdentity, WorkloadKind,
 };
 
 /// A policy set together with the files it came from, so errors and `diff` can
@@ -186,6 +186,7 @@ pub struct IdentityArgs {
     pub branch: Option<String>,
     pub environment: Option<String>,
     pub actor: Option<String>,
+    pub kind: Option<WorkloadKind>,
 }
 
 impl IdentityArgs {
@@ -200,6 +201,8 @@ impl IdentityArgs {
             git_ref,
             environment: self.environment,
             actor: self.actor,
+            kind: self.kind,
+            ..Default::default()
         }
     }
 }

@@ -3,8 +3,14 @@
 //! `HTTPS_PROXY=http://…` is understood by far more software than
 //! `socks5h://` (Go, Python, Node, curl, git), so `skimasque exec` points those
 //! variables here. Each `CONNECT host:port` becomes a TCP tunnel through the
-//! gateway; the name is resolved there, not here. Nothing else is proxied:
-//! plain-HTTP requests are refused with `405`, and one stderr line says so.
+//! gateway; the name is resolved there, not here.
+//!
+//! An absolute-form `http://` request (`GET http://host/path HTTP/1.1`, what a
+//! program sends its proxy for a plain-HTTP URL) is carried too: the tunnel is
+//! opened to the request's host and port, the request is rewritten to origin
+//! form with `Connection: close`, and the rest is relayed raw. One connection
+//! carries one exchange, so the destination the gateway authorised is the only
+//! one that connection can reach. Anything else is refused with `405`.
 
 use std::sync::Arc;
 
@@ -67,6 +73,90 @@ pub fn plain_http_authority(target: &str) -> Option<&str> {
     (!host.is_empty()).then_some(host)
 }
 
+/// A plain-HTTP request ready to send down a tunnel.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Forward {
+    /// `host:port` to tunnel to; port 80 when the URL named none.
+    pub target: String,
+    /// The request head rewritten to origin form, ending in the blank line.
+    pub head: Vec<u8>,
+}
+
+/// Headers a proxy must not pass on, whatever the request says.
+const HOP_BY_HOP: &[&str] = &[
+    "connection",
+    "proxy-connection",
+    "proxy-authorization",
+    "proxy-authenticate",
+    "keep-alive",
+    "te",
+    "upgrade",
+    "host",
+];
+
+/// Rewrite an absolute-form `http://` request head for the origin server:
+/// request line to origin form, `Host` set from the URL, hop-by-hop headers
+/// (and any the `Connection` header names) dropped, `Connection: close` added so
+/// the connection carries exactly this one exchange. `None` when the head is not
+/// an absolute-form `http://` request.
+pub fn rewrite_plain(head: &[u8]) -> Option<Forward> {
+    let text = std::str::from_utf8(head).ok()?;
+    let mut lines = text.split("\r\n");
+    let request_line = lines.next()?;
+    let mut parts = request_line.split(' ');
+    let (method, target, version, None) =
+        (parts.next()?, parts.next()?, parts.next()?, parts.next())
+    else {
+        return None;
+    };
+    if method == "CONNECT" || !version.starts_with("HTTP/1.") {
+        return None;
+    }
+    let authority = plain_http_authority(target)?;
+    let rest = &target["http://".len()..];
+    let after_authority = &rest[rest.find(['/', '?', '#']).unwrap_or(rest.len())..];
+    let path = match after_authority.chars().next() {
+        None => "/".to_owned(),
+        Some('/') => after_authority.to_owned(),
+        Some(_) => format!("/{after_authority}"),
+    };
+
+    let headers: Vec<&str> = lines.take_while(|l| !l.is_empty()).collect();
+    // Headers the client named in `Connection` are hop-by-hop too.
+    let named: Vec<String> = headers
+        .iter()
+        .filter_map(|h| h.split_once(':'))
+        .filter(|(n, _)| n.trim().eq_ignore_ascii_case("connection"))
+        .flat_map(|(_, v)| v.split(',').map(|t| t.trim().to_ascii_lowercase()))
+        .collect();
+
+    let mut out = format!("{method} {path} {version}\r\nHost: {authority}\r\n");
+    for header in headers {
+        let (name, _) = header.split_once(':')?;
+        let name = name.trim().to_ascii_lowercase();
+        if HOP_BY_HOP.contains(&name.as_str()) || named.contains(&name) {
+            continue;
+        }
+        out.push_str(header);
+        out.push_str("\r\n");
+    }
+    out.push_str("Connection: close\r\n\r\n");
+
+    let has_port = match authority.strip_prefix('[') {
+        Some(v6) => v6.split_once(']').is_some_and(|(_, after)| after.starts_with(':')),
+        None => authority.contains(':'),
+    };
+    let target = if has_port {
+        authority.to_owned()
+    } else {
+        format!("{authority}:80")
+    };
+    Some(Forward {
+        target,
+        head: out.into_bytes(),
+    })
+}
+
 /// Accept connections on `listener` until it fails, handling each on its own
 /// task.
 pub async fn serve(listener: TcpListener, session: Arc<Session>) -> std::io::Result<()> {
@@ -85,15 +175,17 @@ async fn handle(mut stream: TcpStream, session: Arc<Session>) -> anyhow::Result<
     let Some((head, early)) = read_head(&mut stream).await? else {
         return respond(&mut stream, "400 Bad Request").await;
     };
+    let mut plain: Option<Vec<u8>> = None;
     let authority = match parse_head(&head) {
         Head::Connect(authority) => authority,
-        Head::OtherMethod(plain_http) => {
-            if let Some(authority) = plain_http {
-                eprintln!(
-                    "skimasque: plain-HTTP request to {authority} refused; only HTTPS (CONNECT) \
-                     goes through HTTP_PROXY. Use ALL_PROXY (socks5h) or --forward."
-                );
+        Head::OtherMethod(Some(_)) => match rewrite_plain(&head) {
+            Some(forward) => {
+                plain = Some(forward.head);
+                forward.target
             }
+            None => return respond(&mut stream, "400 Bad Request").await,
+        },
+        Head::OtherMethod(None) => {
             return respond(&mut stream, "405 Method Not Allowed\r\nAllow: CONNECT").await;
         }
         Head::Malformed => return respond(&mut stream, "400 Bad Request").await,
@@ -117,9 +209,15 @@ async fn handle(mut stream: TcpStream, session: Arc<Session>) -> anyhow::Result<
             return respond(&mut stream, status).await;
         }
     };
-    stream
-        .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-        .await?;
+    match plain {
+        // The request itself goes to the origin; there is no 200 to send.
+        Some(head) => tunnel.write(&head).await?,
+        None => {
+            stream
+                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                .await?
+        }
+    }
     if !early.is_empty() {
         tunnel.write(&early).await?;
     }
@@ -190,6 +288,51 @@ mod tests {
         assert_eq!(plain_http_authority("http:///path"), None);
         assert_eq!(plain_http_authority("https://x/"), None);
         assert_eq!(plain_http_authority("/index.html"), None);
+    }
+
+    fn rewritten(head: &str) -> Option<(String, String)> {
+        rewrite_plain(head.as_bytes()).map(|f| (f.target, String::from_utf8(f.head).unwrap()))
+    }
+
+    #[test]
+    fn a_plain_request_becomes_origin_form_for_one_exchange() {
+        let (target, head) = rewritten(
+            "POST http://api.example:8080/v1/x?q=1 HTTP/1.1\r\nHost: other\r\n\
+             Proxy-Authorization: Basic abc\r\nProxy-Connection: keep-alive\r\n\
+             Connection: keep-alive, X-Hop\r\nX-Hop: 1\r\nContent-Length: 2\r\n\
+             Accept: */*\r\n\r\n",
+        )
+        .unwrap();
+        assert_eq!(target, "api.example:8080");
+        assert_eq!(
+            head,
+            "POST /v1/x?q=1 HTTP/1.1\r\nHost: api.example:8080\r\nContent-Length: 2\r\n\
+             Accept: */*\r\nConnection: close\r\n\r\n",
+            "origin-form target, Host from the URL, no hop-by-hop or proxy credentials"
+        );
+    }
+
+    #[test]
+    fn the_port_defaults_and_the_path_is_never_empty() {
+        let (target, head) = rewritten("GET http://example.com HTTP/1.1\r\n\r\n").unwrap();
+        assert_eq!(target, "example.com:80");
+        assert!(head.starts_with("GET / HTTP/1.1\r\nHost: example.com\r\n"), "{head}");
+        let (_, head) = rewritten("GET http://example.com?x=1 HTTP/1.1\r\n\r\n").unwrap();
+        assert!(head.starts_with("GET /?x=1 HTTP/1.1\r\n"), "{head}");
+        assert_eq!(rewritten("GET http://[fd00::5]/ HTTP/1.1\r\n\r\n").unwrap().0, "[fd00::5]:80");
+        assert_eq!(rewritten("GET http://[fd00::5]:81/ HTTP/1.1\r\n\r\n").unwrap().0, "[fd00::5]:81");
+        let (target, head) = rewritten("GET http://u:p@host/ HTTP/1.1\r\n\r\n").unwrap();
+        assert_eq!(target, "host:80", "userinfo is not part of the destination");
+        assert!(!head.contains("u:p"), "{head}");
+    }
+
+    #[test]
+    fn only_absolute_http_requests_are_rewritten() {
+        assert!(rewritten("GET /index.html HTTP/1.1\r\n\r\n").is_none());
+        assert!(rewritten("GET https://x/ HTTP/1.1\r\n\r\n").is_none());
+        assert!(rewritten("CONNECT x:443 HTTP/1.1\r\n\r\n").is_none());
+        assert!(rewritten("GET http://x/ SPDY/3\r\n\r\n").is_none());
+        assert!(rewritten("GET http://x/ HTTP/1.1\r\nno colon here\r\n\r\n").is_none());
     }
 
     #[test]

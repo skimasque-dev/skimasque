@@ -19,6 +19,13 @@ falsifiable version (every "mitigated" claim points at code or config), and
   last good one.
 - **Short-lived access.** The platform credential defaults to a 1h TTL and is
   re-exchanged proactively; when the job ends nothing is left holding access.
+- **Agent sessions are stoppable.** A coding agent's access is a session you can
+  end: new tunnels are refused and open ones closed, and tunnels also close when
+  the session's credential expires (30 minutes by default, 4 hours at most). See
+  [`agents.md`](agents.md).
+- **A workload cannot choose its kind.** `developer`, `ci` and `agent` are set by
+  the identity provider mapping or the control plane, never read from a claim the
+  workload controls, and only the agent-session endpoint can mint `agent`.
 - **The gateway enforces locally.** `identity + application + destination +
   policy + expiry` must all resolve to an allow, checked in the gateway — not
   assumed because a control plane said so. A control-plane outage never becomes
@@ -42,6 +49,7 @@ falsifiable version (every "mitigated" claim points at code or config), and
 | **`[match]` scoping** | an over-broad `[match]` silently widens access. Run `skimasque policy validate --strict` in CI. |
 | **OIDC audience** | choose a stable, gateway-specific `aud` and mint each pipeline's token for exactly it |
 | **Control plane (Mode 3)** | its TLS, its store, its admin token, its GitHub OAuth app, its backups; the per-org Ed25519 signing keys are **not recoverable if lost** |
+| **Sandboxing a coding agent** | SkiMasque decides what an agent may reach through the gateway; making it *unable* to connect any other way is yours. Run the network client and the credential outside the sandbox and block direct outbound networking; see [`agents.md`](agents.md). |
 | **Credential-secret rotation** | rotating `--credential-secret` invalidates every issued credential within the TTL — do this on suspected compromise |
 
 ## Trust boundaries

@@ -9,7 +9,7 @@
 //! the mapping differs, and that lives here.
 
 use serde::Deserialize;
-use skimasque_policy::WorkloadIdentity;
+use skimasque_policy::{WorkloadIdentity, WorkloadKind};
 
 /// GitHub's hosted Actions OIDC issuer.
 ///
@@ -118,6 +118,10 @@ impl Provider {
     }
 }
 
+// Every provider here is a CI system, so every identity it produces is `ci`.
+// `kind` is deliberately not a mappable claim: it comes from the provider, never
+// from anything the workload can put in its own token.
+
 fn owned(value: Option<&str>) -> Option<String> {
     value.map(str::to_owned)
 }
@@ -132,6 +136,8 @@ fn github(c: &Claims) -> WorkloadIdentity {
         git_ref: owned(c.get("ref")),
         environment: owned(c.get("environment")),
         actor: owned(c.get("actor")),
+        kind: Some(WorkloadKind::Ci),
+        ..Default::default()
     }
 }
 
@@ -143,6 +149,8 @@ fn gitlab(c: &Claims) -> WorkloadIdentity {
         git_ref: gitlab_ref(c),
         environment: owned(c.get("environment")),
         actor: owned(c.get("user_login")),
+        kind: Some(WorkloadKind::Ci),
+        ..Default::default()
     }
 }
 
@@ -168,6 +176,8 @@ fn buildkite(c: &Claims) -> WorkloadIdentity {
             .or_else(|| c.get("build_tag").map(|t| format!("refs/tags/{t}"))),
         environment: None,
         actor: None,
+        kind: Some(WorkloadKind::Ci),
+        ..Default::default()
     }
 }
 
@@ -180,6 +190,8 @@ fn generic(names: &ClaimNames, c: &Claims) -> WorkloadIdentity {
         git_ref: pick(&names.git_ref),
         environment: pick(&names.environment),
         actor: pick(&names.actor),
+        kind: Some(WorkloadKind::Ci),
+        ..Default::default()
     }
 }
 
@@ -197,6 +209,36 @@ mod tests {
 
     fn claims(value: serde_json::Value) -> Claims {
         Claims::from_value(value)
+    }
+
+    #[test]
+    fn every_builtin_provider_marks_its_identities_as_ci() {
+        let github =
+            Provider::GitHubActions.identify(&claims(serde_json::json!({"repository": "a/b"})));
+        let gitlab = Provider::GitLab.identify(&claims(serde_json::json!({"project_path": "a/b"})));
+        let buildkite =
+            Provider::Buildkite.identify(&claims(serde_json::json!({"pipeline_slug": "p"})));
+        for id in [github, gitlab, buildkite] {
+            assert_eq!(id.kind, Some(WorkloadKind::Ci));
+        }
+    }
+
+    #[test]
+    fn a_token_cannot_choose_its_own_kind() {
+        // Even a claim literally named `kind`, or one mapped onto `actor`, stays data.
+        let c = claims(
+            serde_json::json!({"kind": "agent", "runtime": "x", "sid": "s", "actor": "agent"}),
+        );
+        let names = ClaimNames {
+            actor: Some("kind".into()),
+            ..Default::default()
+        };
+        for provider in [Provider::GitHubActions, Provider::Generic(names)] {
+            let id = provider.identify(&c);
+            assert_eq!(id.kind, Some(WorkloadKind::Ci));
+            assert_eq!(id.runtime, None);
+            assert_eq!(id.sid, None);
+        }
     }
 
     #[test]

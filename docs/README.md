@@ -10,6 +10,7 @@ Start with the [project README](../README.md) for what SkiMasque is, then:
 | [`deployment-modes.md`](deployment-modes.md) | you're choosing between fully managed, your own gateway, or fully self-hosted |
 | [`github-actions.md`](github-actions.md) | you want the OIDC details, other CI systems, or the composite action internals |
 | [`policies.md`](policies.md) | you're writing a policy — WHO → WHAT → WHERE → LIMITS, the DSL in full |
+| [`agents.md`](agents.md) | you want to give a coding agent time-limited, revocable access, and be able to stop it |
 | [`cli.md`](cli.md) | you need a specific command or flag of `skimasque` / `skimasque-server` / `skimasque-client` |
 | [`configuration.md`](configuration.md) | you need every flag, environment variable, and action input with its default |
 | [`troubleshooting.md`](troubleshooting.md) | something failed and you want the fix |

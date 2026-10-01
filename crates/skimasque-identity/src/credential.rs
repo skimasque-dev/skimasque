@@ -413,6 +413,27 @@ mod tests {
     }
 
     #[test]
+    fn kind_and_session_claims_survive_signing() {
+        use skimasque_policy::WorkloadKind;
+        let agent = WorkloadIdentity {
+            kind: Some(WorkloadKind::Agent),
+            run_id: Some("run-7".to_owned()),
+            runtime: Some("claude-code".to_owned()),
+            sid: Some("sess_123".to_owned()),
+            ..identity()
+        };
+        let issuer = CredentialIssuer::generate(Duration::from_secs(900));
+        let issued = issuer.issue(&agent, None).unwrap();
+        assert_eq!(issuer.verify(&issued.token).unwrap(), agent);
+
+        let (pkcs8, public) = ed25519_keypair();
+        let signer = CredentialSigner::from_pkcs8_der(&pkcs8, Duration::from_secs(900));
+        let issued = signer.issue(&agent, None).unwrap();
+        let verifier = CredentialVerifier::from_ed_public_key(&public);
+        assert_eq!(verifier.verify(&issued.token).unwrap(), agent);
+    }
+
+    #[test]
     fn a_credential_round_trips_through_issue_and_verify() {
         let issuer = CredentialIssuer::generate(Duration::from_secs(900));
         let issued = issuer
