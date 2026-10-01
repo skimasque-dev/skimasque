@@ -30,6 +30,11 @@ pub struct Policy {
     pub rules: Vec<Rule>,
     /// Assertions that travel with the policy and run in CI.
     pub tests: Vec<PolicyTest>,
+    /// A baseline is a guardrail, not a grant: it holds only `deny` rules, is
+    /// never selected for a workload, and its denials apply on top of whichever
+    /// policy *is* selected. Use one to say "agents never reach `*.prod`"
+    /// without having to repeat it in every policy.
+    pub baseline: bool,
 }
 
 /// Which workloads a policy governs. Every field is a constraint: a `Some`
@@ -334,11 +339,12 @@ impl PolicySet {
         self.policies.iter().find(|p| p.name == name)
     }
 
-    /// The most specific policy whose match accepts `identity`.
+    /// The most specific policy whose match accepts `identity`. Baselines
+    /// guard but never grant, so they are not candidates.
     pub fn select(&self, identity: &WorkloadIdentity) -> Option<&Policy> {
         self.policies
             .iter()
-            .filter(|p| p.match_spec.matches(identity))
+            .filter(|p| !p.baseline && p.match_spec.matches(identity))
             .enumerate()
             .max_by_key(|(index, p)| (p.match_spec.specificity(), std::cmp::Reverse(*index)))
             .map(|(_, p)| p)
@@ -469,6 +475,7 @@ mod tests {
             limits: Limits::default(),
             rules: vec![],
             tests: vec![],
+            baseline: false,
         };
         let narrow = Policy {
             name: "narrow".into(),

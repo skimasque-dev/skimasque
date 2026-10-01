@@ -94,6 +94,10 @@ Check what a given identity would get before you rely on it:
 $ skimasque why db.prod:5432 --kind agent --actor octocat
 ```
 
+To keep agents out of something regardless of what any policy allows, add a
+[baseline](policies.md#baselines--guardrails-over-every-policy) — for example
+`kind = "agent"` denying `*.prod.acme.dev:*`, or denying UDP.
+
 When an agent is refused, the message names the policy that decided it, and the
 console's explanation says if a policy was missed only because of its `kind`.
 

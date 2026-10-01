@@ -16,6 +16,9 @@ impl Policy {
     pub fn to_toml(&self) -> String {
         let mut out = String::new();
         let _ = writeln!(out, "name = {}", quote(&self.name));
+        if self.baseline {
+            let _ = writeln!(out, "baseline = true");
+        }
 
         let m = &self.match_spec;
         if m.specificity() > 0 {

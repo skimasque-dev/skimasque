@@ -115,6 +115,7 @@ pub fn suggest_policy(
             limits: Default::default(),
             rules,
             tests: Vec::new(),
+            baseline: false,
         },
         skipped,
     }

@@ -151,6 +151,38 @@ not silently also permit TCP to that host.
 | `[limits] connections` | aggregate | concurrent-tunnel cap (a semaphore) |
 | `[limits] bytes` | per tunnel | the relay closes a tunnel at this transfer ceiling |
 
+## Baselines — guardrails over every policy
+
+A policy selects *one* winner per workload (the most specific match), so a rule
+you want everywhere has to be repeated in every policy. A **baseline** is a
+policy that is applied on top instead:
+
+```toml
+name = "agents-never-prod"
+baseline = true
+
+[match]
+kind = "agent"
+
+[[rules]]
+id = "no-prod"
+application = "*"
+action = "deny"
+destinations = ["*.prod.acme.dev:*"]
+```
+
+- A baseline holds **only `deny` rules**; an `allow` in one is a parse error. It
+  can take access away, never grant it, and it is never selected for a workload
+  on its own.
+- Its `[match]` says whom it applies to, as for any policy: `kind = "agent"`
+  above, or an empty match for everyone.
+- When the selected policy allows a request, every matching baseline is checked;
+  one deny rule that matches overrides the allow. The denial names the baseline
+  and its rule, and suggests no fix, since no rule in any ordinary policy can
+  override it.
+- It is published and versioned with the rest of the org's policy, shown by
+  `skimasque why` and the console's explanation, and applied by `policy check`.
+
 ## Working with policy
 
 ```console

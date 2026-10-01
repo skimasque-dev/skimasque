@@ -1564,7 +1564,12 @@ fn denial_rejection(denied: &skimasque_policy::Denied) -> Rejection {
     // Name the policy that decided, so a person (or an agent) reading the
     // refusal knows which one to look at.
     let detail = match (&denied.reason, &denied.policy) {
-        (skimasque_policy::DenyReason::PolicyMismatch { .. }, _) => denied.reason.summary(),
+        // Neither a mismatched pin nor a baseline is fixed by adding a rule.
+        (
+            skimasque_policy::DenyReason::PolicyMismatch { .. }
+            | skimasque_policy::DenyReason::Baseline { .. },
+            _,
+        ) => denied.reason.summary(),
         (_, Some(policy)) => format!(
             "policy \"{policy}\": {} suggested rule: {}",
             denied.reason.summary(),
@@ -2125,6 +2130,78 @@ mod tests {
             ..named
         };
         assert!(denial_rejection(&unmatched).detail().starts_with("No policy matches"));
+    }
+
+    #[tokio::test]
+    async fn the_policy_layer_applies_a_baseline_on_top_of_an_allow() {
+        let set = skimasque_policy::PolicySet::from_documents([
+            (
+                "dev.toml",
+                r#"
+                name = "dev"
+                [match]
+                actor = "octocat"
+                [[rules]]
+                application = "*"
+                transport = "any"
+                action = "allow"
+                destinations = ["db.prod:5432"]
+                "#,
+            ),
+            (
+                "guard.toml",
+                r#"
+                name = "agents-never-prod"
+                baseline = true
+                [match]
+                kind = "agent"
+                [[rules]]
+                id = "no-prod"
+                application = "*"
+                transport = "any"
+                action = "deny"
+                destinations = ["db.prod:5432"]
+                "#,
+            ),
+        ])
+        .unwrap();
+        let mut service = PolicyLayer::new(set).layer(AcceptAll);
+        let request = |kind| {
+            let mut request = udp_request("db.prod:5432", Some("psql"));
+            request.extensions_mut().insert(skimasque_policy::WorkloadIdentity {
+                actor: Some("octocat".into()),
+                kind: Some(kind),
+                ..Default::default()
+            });
+            request
+        };
+
+        assert!(service
+            .call(request(skimasque_policy::WorkloadKind::Developer))
+            .await
+            .is_ok());
+        let rejection = service
+            .call(request(skimasque_policy::WorkloadKind::Agent))
+            .await
+            .unwrap_err();
+        assert_eq!(rejection.status(), StatusCode::FORBIDDEN);
+        assert!(rejection.detail().contains("baseline policy"), "{}", rejection.detail());
+    }
+
+    #[test]
+    fn a_baseline_denial_says_so_and_suggests_nothing() {
+        let denied = skimasque_policy::Denied {
+            policy: Some("agents-never-prod".into()),
+            reason: skimasque_policy::DenyReason::Baseline {
+                policy: "agents-never-prod".into(),
+                rule: "no-prod".into(),
+            },
+            suggested_rule: String::new(),
+            closest: Vec::new(),
+        };
+        let detail = denial_rejection(&denied).detail().to_owned();
+        assert!(detail.contains("baseline policy \"agents-never-prod\""), "{detail}");
+        assert!(!detail.contains("suggested rule"), "{detail}");
     }
 
     #[test]
