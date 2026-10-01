@@ -1,4 +1,4 @@
-//! The homepage (`/`): canonical spec §11.
+//! The homepage (`/`): canonical spec Â§11.
 
 use askama::Template;
 
@@ -26,10 +26,7 @@ pub fn page() -> Page {
             "SkiMasque provides identity-aware, least-privilege network access for developers \
              and CI/CD workloads.",
         )
-        .lead("No broad VPN membership.")
-        .lead("No permanent network credentials.")
-        .lead("No standing access.")
-        .lead("Just the network access required for the job.")
+        .lead("Grant a policy-bounded session for the destinations the job needs.")
         .cta(Cta::primary("Get Started", GET_STARTED_URL))
         .cta(Cta::secondary(
             "Watch the workflow",
@@ -50,13 +47,13 @@ pub fn page() -> Page {
                     "unrelated production infrastructure",
                 ])
                 .p("Traditional solutions often solve this by putting the workload somewhere inside the network.")
-                .p("SkiMasque solves the problem at the access layer."),
+                .p("SkiMasque checks the workloadâ€™s identity and requested destination against policy before the gateway opens a tunnel."),
         )
         .push(&public::traditional_vs_skimasque());
 
     let model = Section::new("Network access as a capability.")
         .alt()
-        .push(&Prose::new().p("Every request answers four questions."))
+        .push(&Prose::new().p("Specify who is asking, what application they name, where they need to connect, and the session limits."))
         .push(&public::policy_model())
         .push(&PolicyExplorer::new(
             &["acme/widget"],
@@ -93,8 +90,7 @@ pub fn page() -> Page {
 
     let cta = CtaBand::new("Network access should be temporary.")
         .line("Define the access your workloads need.")
-        .line("Give it to them.")
-        .line("Let it disappear when the work is done.")
+        .line("Test the policy, then run a command with the access it grants.")
         .cta(Cta::primary("Create Your First Policy", doc("policies.md")));
 
     Page {
@@ -102,7 +98,7 @@ pub fn page() -> Page {
         contents: SitePage::new(
             "",
             "",
-            "SkiMasque — identity-aware network access",
+            "SkiMasque â€” identity-aware network access",
             "SkiMasque provides identity-aware, least-privilege network access for developers and CI/CD workloads.",
         )
         .push(&hero)
@@ -127,9 +123,6 @@ mod tests {
         let s = p.contents.replace("&#x27;", "'").replace("&#39;", "'");
         for want in [
             "Give every workload exactly the network access it needs.",
-            "No broad VPN membership.",
-            "No permanent network credentials.",
-            "No standing access.",
             "Your deployment shouldn't need the whole network.",
             "Network access as a capability.",
             "WHO",

@@ -1,19 +1,24 @@
 <div class="v-network-demo">
   <p class="v-network-kicker">ONE JOB. ONE DESTINATION. TEMPORARY ACCESS.</p>
-  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 480 330" role="img" aria-label="A CI workload is authorized by policy, sends traffic through a gateway to one private database, and loses access when its session expires. Other services remain inaccessible.">
+  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 480 330" role="img" aria-label="A CI workload requests access from the control plane, receives approval, and the gateway acknowledges authorization. Traffic travels to the private database and responses return to the workload. The session expires; other services remain inaccessible.">
     <rect fill="var(--surface)" class="v-network-boundary" x="302" y="112" width="170" height="204" rx="14"/>
     <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" x="387" y="136" text-anchor="middle">PRIVATE NETWORK</text>
-    <path class="v-network-control" d="M80 190 V55 H215 V166"/>
+    <path class="v-network-control" d="M80 166 V55 H156 M215 90 V166"/>
     <path class="v-network-path" d="M132 200 H160 M270 200 H310"/>
     <path class="v-network-head" d="M150 194 L158 200 L150 206 M300 194 L308 200 L300 206"/>
+    <path class="v-network-direction v-network-request-head" d="M146 49 L154 55 L146 61"/>
+    <path class="v-network-direction v-network-approval-head" d="M74 156 L80 164 L86 156"/>
+    <path class="v-network-direction v-network-authorize-head" d="M209 156 L215 164 L221 156"/>
+    <path class="v-network-direction v-network-ack-head" d="M209 100 L215 92 L221 100"/>
+    <path class="v-network-direction v-network-return-head" d="M144 194 L136 200 L144 206 M282 194 L274 200 L282 206"/>
     <path class="v-network-blocked" d="M215 228 V282 H288 M300 282 H310"/>
     <path class="v-network-denied" d="M290 278 L298 286 M298 278 L290 286"/>
     <rect fill="var(--surface)" class="v-network-box" x="24" y="170" width="108" height="60" rx="10"/>
     <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" x="78" y="195" text-anchor="middle">CI WORKLOAD</text>
     <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" class="v-network-detail" x="78" y="215" text-anchor="middle">deploy job</text>
     <rect fill="var(--surface)" class="v-network-box" x="160" y="24" width="110" height="62" rx="10"/>
-    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" x="215" y="49" text-anchor="middle">POLICY</text>
-    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" class="v-network-detail" x="215" y="69" text-anchor="middle">identity checked</text>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" x="215" y="49" text-anchor="middle">CONTROL PLANE</text>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" class="v-network-detail" x="215" y="69" text-anchor="middle">identity + policy</text>
     <rect fill="var(--surface)" class="v-network-box" x="160" y="170" width="110" height="60" rx="10"/>
     <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" x="215" y="195" text-anchor="middle">GATEWAY</text>
     <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" class="v-network-detail" x="215" y="215" text-anchor="middle">scoped session</text>
@@ -21,7 +26,7 @@
     <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" x="387" y="195" text-anchor="middle">PRIVATE DATABASE</text>
     <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" class="v-network-detail" x="387" y="215" text-anchor="middle">db.prod:5432</text>
     <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" class="v-network-detail" x="387" y="286" text-anchor="middle">Other services</text>
-    <circle class="v-network-packet" r="4" cx="138" cy="200"/>
+    <circle class="v-network-packet v-network-message" r="4" cx="0" cy="0"/><circle class="v-network-packet v-network-data-a" r="4" cx="0" cy="0"/><circle class="v-network-packet v-network-data-b" r="4" cx="0" cy="0"/>
   </svg>
   <p class="v-network-caption" role="status" aria-live="off">Only the permitted database is reachable. Access closes when the session expires.</p>
   <div class="v-network-controls" hidden>

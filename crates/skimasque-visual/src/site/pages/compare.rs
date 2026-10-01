@@ -38,7 +38,7 @@ pub fn page() -> Page {
 
     let vpn = Section::new("VPN")
         .alt()
-        .push(&Prose::new().sub("Network first. Policy afterward."))
+        .push(&Prose::new().sub("Network connectivity and routing."))
         .push(
             &Prose::new()
                 .p("VPNs are designed around network connectivity.")
@@ -92,9 +92,8 @@ pub fn page() -> Page {
 
     let closing = Section::new("What should the unit of network access be?").push(
         &Prose::new()
-            .p("The important question is:")
-            .quote("What should the unit of network access be?")
-            .p("For SkiMasque:")
+            .p("Choose an approach based on what you need to connect: networks, machines, applications, or a workload performing a specific task.")
+            .p("SkiMasque makes the authorization decision around:")
             .quote("The workload and its request."),
     );
 
@@ -147,7 +146,7 @@ mod tests {
             assert!(body.contains(row), "{row}");
         }
         for h in [
-            "Network first. Policy afterward.",
+            "Network connectivity and routing.",
             "Self-hosted runners",
             "Bastions",
         ] {

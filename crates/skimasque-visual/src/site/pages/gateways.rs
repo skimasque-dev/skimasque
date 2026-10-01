@@ -1,4 +1,4 @@
-//! Gateways (`/gateways`): canonical spec §19.
+//! Gateways (`/gateways`): canonical spec Ã‚Â§19.
 
 use crate::diagrams::{platform, public};
 use crate::site::Page;
@@ -48,8 +48,8 @@ pub fn page() -> Page {
     let egress = Section::new("Egress IP")
         .alt()
         .push(&Prose::new().p(
-            "A customer-operated gateway egresses from the customer's own network address. That \
-             gives infrastructure allowlists a stable network source that the customer controls.",
+            "A customer-operated gateway uses the egress address configured in your network. \
+             Configure a stable address or NAT mapping if your infrastructure relies on source-IP allowlists.",
         ))
         .push(&PlannedBlock::new(
             "SkiMasque-provided dedicated egress IPs",
@@ -63,7 +63,7 @@ pub fn page() -> Page {
         contents: SitePage::new(
             "../",
             "gateways",
-            "Gateways · SkiMasque",
+            "Gateways Ã‚Â· SkiMasque",
             "The gateway is the point where SkiMasque-controlled sessions enter your network. Run it where your infrastructure lives.",
         )
         .push(&hero)
@@ -93,7 +93,7 @@ mod tests {
             "YOUR VPC",
             "Customer-operated gateway",
             "permit the gateway's traffic",
-            "customer's own network address",
+            "egress address configured in your network",
             "us-west",
         ] {
             assert!(main.contains(want), "missing {want:?}");

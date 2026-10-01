@@ -84,7 +84,7 @@ pub fn page() -> Page {
 
     let more = Section::new("More guides").push(&PlannedBlock::new(
         "guides that are not written yet",
-        &Prose::new().p("More guides are planned."),
+        &Prose::new().p("Additional walkthroughs are planned. The linked repository documentation covers the CLI, policies, gateways and security model today."),
     ));
     page = page.push(&more);
 
@@ -121,6 +121,6 @@ mod tests {
     #[test]
     fn the_index_says_more_guides_are_planned() {
         let s = page().contents;
-        assert!(s.contains("More guides are planned.") && s.contains("PLANNED"));
+        assert!(s.contains("Additional walkthroughs are planned. The linked repository documentation covers the CLI, policies, gateways and security model today.") && s.contains("PLANNED"));
     }
 }

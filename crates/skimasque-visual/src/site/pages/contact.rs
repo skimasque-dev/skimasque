@@ -11,15 +11,15 @@ pub fn page() -> Page {
         .line(
             "How does your infrastructure currently provide network access to CI/CD or developers?",
         )
-        .line("Answer in an issue on GitHub. The question itself tells us what to build next.")
+        .line("Open a GitHub issue with your workflow, the destinations it needs, and the access controls you use today.")
         .cta(Cta::primary("Open an issue", ISSUES_URL))
         .cta(Cta::secondary("View the repository", REPO_URL));
 
     let form = Section::new("Contact form").alt().push(&PlannedBlock::new(
-        "contact form (Name, Email, Company, Role)",
+        "contact form",
         &Prose::new()
-            .p("The intended form asks for a name, an email address, a company and a role, and one open question: how does your infrastructure currently provide network access to CI/CD or developers?")
-            .p("There is no contact form yet because nothing is in place to receive it. Until there is, open an issue on GitHub."),
+            .p("A contact form is planned for deployment and product enquiries.")
+            .p("For now, use GitHub issues for questions and feedback. Issues are public; leave out credentials and sensitive infrastructure details."),
     ));
 
     Page {

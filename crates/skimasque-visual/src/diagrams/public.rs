@@ -184,25 +184,15 @@ pub fn same_command_different_policy() -> Branch {
     .arm(control("production identity"), &production)
 }
 
-pub fn gateway() -> Flow {
-    Flow::new(
-        "The control plane tells the gateway which sessions are allowed; the gateway forwards \
-         traffic only to the private services in your network.",
-    )
-    .then(&Node::new(NodeKind::ControlPlane))
-    .via(
-        control("sessions and policy"),
-        &Node::new(NodeKind::Gateway),
-    )
-    .via(
-        active(),
-        &Boundary::region("YOUR NETWORK")
-            .child(&Node::new(NodeKind::Database))
-            .child(&Node::new(NodeKind::Api))
-            .child(&Node::new(NodeKind::Kubernetes)),
-    )
+pub fn gateway() -> crate::NetworkTopology {
+    crate::NetworkTopology::new(
+        "The control plane tells the gateway which sessions are allowed; the gateway forwards traffic only to the private services in your network.",
+        Node::new(NodeKind::ControlPlane),
+    ).network(crate::TopologyNetwork::new("YOUR NETWORK", Node::new(NodeKind::Gateway), control("sessions and policy"))
+        .service(active(), Node::new(NodeKind::Database))
+        .service(active(), Node::new(NodeKind::Api))
+        .service(active(), Node::new(NodeKind::Kubernetes)))
 }
-
 pub fn customer_vpc() -> Flow {
     Flow::new(
         "A session enters your VPC through the gateway, which forwards it to the database inside.",

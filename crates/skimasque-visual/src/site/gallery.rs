@@ -537,6 +537,23 @@ listening on 127.0.0.1:5432",
             ],
         },
         Group {
+            title: "Network topologies",
+            wide: true,
+            items: vec![
+                item("single network", &crate::diagrams::public::gateway()),
+                item("multiple networks · denied destination", &crate::NetworkTopology::new(
+                    "A CI job requests access through the control plane. The west gateway reaches the production database; the east gateway reaches an API but denies the database.",
+                    Node::new(NodeKind::ControlPlane).label("SkiMasque control plane"),
+                ).workload(Node::new(NodeKind::CiJob).label("Deployment job"), Connection::new(ConnKind::Control).label("identity and request"))
+                 .network(crate::TopologyNetwork::new("VPC · us-west", Node::new(NodeKind::Gateway).label("gw-west").status(Status::Healthy), Connection::new(ConnKind::Control).label("session policy"))
+                    .service(Connection::new(ConnKind::Active).label("permitted"), Node::new(NodeKind::Database).sub("db.prod:5432")))
+                 .network(crate::TopologyNetwork::new("VPC · us-east", Node::new(NodeKind::Gateway).label("gw-east").status(Status::Healthy), Connection::new(ConnKind::Control).label("session policy"))
+                    .service(Connection::new(ConnKind::Active), Node::new(NodeKind::Api).sub("api.internal:443"))
+                    .service(Connection::new(ConnKind::Denied).label("no allow rule"), Node::new(NodeKind::Database).sub("db.prod:5432")))),
+                item("no networks configured", &crate::NetworkTopology::new("No private networks configured.", Node::new(NodeKind::ControlPlane))),
+            ],
+        },
+        Group {
             title: "Public diagrams",
             wide: true,
             items: entry_items(crate::diagrams::public_set()),
