@@ -87,7 +87,7 @@ mod units;
 
 pub use destination::{Destination, DestinationSpec, Host, HostPattern, ParseDestinationError, PortPattern};
 pub use eval::{Allowed, Decision, DenyReason, Denied, RequestContext};
-pub use identity::WorkloadIdentity;
+pub use identity::{WorkloadIdentity, WorkloadKind};
 pub use learn::{suggest_policy, Observation, Suggestion};
 pub use lint::{Lint, LintCode};
 pub use model::{

@@ -31,7 +31,7 @@ use anyhow::{bail, Context};
 use clap::{Args, Parser, Subcommand};
 use skimasque_cli::policy::{self, IdentityArgs, Loaded};
 use skimasque_core::connect_udp::Target;
-use skimasque_policy::{Decision, Transport, WorkloadIdentity};
+use skimasque_policy::{Decision, Transport, WorkloadIdentity, WorkloadKind};
 
 /// SkiMasque Cloud — the default control plane. `--control-plane` /
 /// `$SKIMASQUE_CONTROL_PLANE` select another (a self-hosted one, or a staging
@@ -316,6 +316,14 @@ struct IdentityFlags {
     environment: Option<String>,
     #[arg(long, value_name = "NAME")]
     actor: Option<String>,
+    /// The kind of workload: `developer`, `ci` or `agent`.
+    #[arg(long, value_name = "KIND", value_parser = parse_kind)]
+    kind: Option<WorkloadKind>,
+}
+
+fn parse_kind(value: &str) -> Result<WorkloadKind, String> {
+    WorkloadKind::parse(value)
+        .ok_or_else(|| format!("expected developer, ci or agent, got {value:?}"))
 }
 
 impl IdentityFlags {
@@ -328,6 +336,7 @@ impl IdentityFlags {
             branch: self.branch.clone(),
             environment: self.environment.clone(),
             actor: self.actor.clone(),
+            kind: self.kind,
         }
     }
 }
@@ -1495,6 +1504,7 @@ mod tests {
                 branch: None,
                 environment: None,
                 actor: None,
+                kind: None,
             },
         };
 

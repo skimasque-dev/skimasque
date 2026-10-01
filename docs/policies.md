@@ -96,6 +96,14 @@ runner's OIDC token:
 | `branch` / `ref` | `ref` | `main` / `refs/heads/main` |
 | `environment` | `environment` | `production` |
 | `actor` | `actor` | `octocat` |
+| `kind` | set by the provider (always `ci`) | `ci` |
+
+`kind` is `developer`, `ci` or `agent`. It is a verified fact about the
+workload, set by the identity provider or the control plane and never read from
+a claim the workload controls. An identity with no kind (for example, a
+credential issued before kinds existed) matches every policy that does not name
+a `kind`, and no policy that does. The agent runtime name, run id and session id
+that may ride on an identity are for audit only; a policy cannot match on them.
 
 Because `[match]` *is* the authorization boundary, `skimasque policy validate`
 flags the common mistakes — an empty `[match]`, no `repository`, or a

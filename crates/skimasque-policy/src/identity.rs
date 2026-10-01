@@ -8,6 +8,51 @@
 
 use serde::{Deserialize, Serialize};
 
+/// What sort of workload is asking for access.
+///
+/// A verified claim, never something the workload says about itself: it is set
+/// by an identity-provider mapping, by a developer login, or by the control
+/// plane when it mints an agent session. Policy can match on it; an identity
+/// that carries no kind is "unspecified" and fails any match that names one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum WorkloadKind {
+    /// A person running the CLI from their own machine.
+    Developer,
+    /// An automated pipeline job (GitHub Actions, GitLab CI, Buildkite, ...).
+    Ci,
+    /// A coding agent acting on someone's behalf.
+    Agent,
+}
+
+impl WorkloadKind {
+    /// The wire / policy-file spelling: `developer`, `ci`, `agent`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Developer => "developer",
+            Self::Ci => "ci",
+            Self::Agent => "agent",
+        }
+    }
+
+    /// Parse the wire / policy-file spelling.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "developer" => Some(Self::Developer),
+            "ci" => Some(Self::Ci),
+            "agent" => Some(Self::Agent),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for WorkloadKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// A workload's identity, as far as policy cares about it.
 ///
 /// Every field is optional because different sources populate different
@@ -35,6 +80,22 @@ pub struct WorkloadIdentity {
     /// The human or bot that triggered the run, e.g. `octocat`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub actor: Option<String>,
+    /// What sort of workload this is. Matchable by policy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<WorkloadKind>,
+    /// The task or run this session serves, for correlation. Audit only: policy
+    /// never matches on it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_id: Option<String>,
+    /// A label for the agent runtime, e.g. `claude-code`. Informational and
+    /// self-reported, so audit only: policy never matches on it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime: Option<String>,
+    /// The id of the server-side access session this credential belongs to,
+    /// which is what revocation targets. Absent on credentials that predate
+    /// session records.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sid: Option<String>,
 }
 
 impl WorkloadIdentity {
@@ -56,6 +117,35 @@ impl WorkloadIdentity {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn kind_round_trips_in_snake_case_and_stays_optional() {
+        let id = WorkloadIdentity {
+            kind: Some(WorkloadKind::Agent),
+            run_id: Some("run-7".into()),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&id).unwrap();
+        assert_eq!(json, r#"{"kind":"agent","run_id":"run-7"}"#);
+        assert_eq!(serde_json::from_str::<WorkloadIdentity>(&json).unwrap(), id);
+
+        // An identity serialized before kinds existed still parses, as unspecified.
+        let old: WorkloadIdentity = serde_json::from_str(r#"{"actor":"octocat"}"#).unwrap();
+        assert_eq!(old.kind, None);
+        assert_eq!(
+            serde_json::to_string(&WorkloadIdentity::default()).unwrap(),
+            "{}"
+        );
+    }
+
+    #[test]
+    fn kind_parses_only_known_spellings() {
+        assert_eq!(WorkloadKind::parse("ci"), Some(WorkloadKind::Ci));
+        assert_eq!(WorkloadKind::parse("agent"), Some(WorkloadKind::Agent));
+        assert_eq!(WorkloadKind::parse("Agent"), None);
+        assert_eq!(WorkloadKind::parse("bot"), None);
+        assert_eq!(WorkloadKind::Developer.to_string(), "developer");
+    }
 
     #[test]
     fn a_branch_ref_yields_its_branch_name() {

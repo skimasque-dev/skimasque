@@ -43,6 +43,7 @@
 use serde::Deserialize;
 
 use crate::destination::{DestinationSpec, ParseDestinationError};
+use crate::identity::WorkloadKind;
 use crate::model::{
     Action, AppPattern, EgressSpec, Limits, MatchSpec, Policy, PolicyTest, Rule, SessionSpec,
     Transport, TransportPattern,
@@ -77,6 +78,8 @@ pub enum ParseError {
     BadAction { field: String, value: String },
     #[error("{field} must be \"tcp\", \"udp\" or \"any\", got {value:?}")]
     BadTransport { field: String, value: String },
+    #[error("match.kind must be \"developer\", \"ci\" or \"agent\", got {0:?}")]
+    BadKind(String),
 }
 
 impl Policy {
@@ -189,6 +192,7 @@ struct RawMatch {
     branch: Option<String>,
     environment: Option<String>,
     actor: Option<String>,
+    kind: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -349,6 +353,12 @@ impl RawPolicy {
     fn into_policy(self) -> Result<Policy, ParseError> {
         let name = self.name.filter(|n| !n.is_empty()).ok_or(ParseError::MissingName)?;
 
+        let kind = self
+            .match_spec
+            .kind
+            .map(|k| WorkloadKind::parse(&k).ok_or(ParseError::BadKind(k)))
+            .transpose()?;
+
         let match_spec = MatchSpec {
             organization: self.match_spec.organization,
             repository: self.match_spec.repository,
@@ -357,6 +367,7 @@ impl RawPolicy {
             branch: self.match_spec.branch,
             environment: self.match_spec.environment,
             actor: self.match_spec.actor,
+            kind,
         };
 
         let session = SessionSpec {
@@ -499,6 +510,58 @@ mod tests {
     use super::*;
     use crate::units::Rate;
     use std::time::Duration;
+
+    #[test]
+    fn match_kind_parses_in_toml_and_yaml() {
+        let toml = Policy::from_toml(
+            "name = \"a\"
+[match]
+kind = \"agent\"
+",
+        )
+        .unwrap();
+        assert_eq!(toml.match_spec.kind, Some(WorkloadKind::Agent));
+
+        let yaml = Policy::from_yaml(
+            "name: a
+identity:
+  kind: ci
+",
+        )
+        .unwrap();
+        assert_eq!(yaml.match_spec.kind, Some(WorkloadKind::Ci));
+    }
+
+    #[test]
+    fn an_unknown_match_kind_is_rejected_with_the_valid_choices() {
+        let err = Policy::from_toml(
+            "name = \"a\"
+[match]
+kind = \"bot\"
+",
+        )
+        .unwrap_err();
+        assert!(matches!(err, ParseError::BadKind(ref k) if k == "bot"));
+        let message = err.to_string();
+        assert!(
+            message.contains("developer") && message.contains("agent"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn match_kind_survives_a_render_round_trip() {
+        let policy = Policy::from_toml(
+            "name = \"a\"
+[match]
+organization = \"acme\"
+kind = \"agent\"
+",
+        )
+        .unwrap();
+        let again = Policy::from_toml(&policy.to_toml()).unwrap();
+        assert_eq!(again.match_spec, policy.match_spec);
+    }
 
     const SAMPLE: &str = r#"
         name = "production"

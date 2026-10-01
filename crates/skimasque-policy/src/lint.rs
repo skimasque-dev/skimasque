@@ -144,6 +144,9 @@ fn constrained_field_names(policy: &Policy) -> String {
     if m.actor.is_some() {
         names.push("actor");
     }
+    if m.kind.is_some() {
+        names.push("kind");
+    }
     names.join(", ")
 }
 

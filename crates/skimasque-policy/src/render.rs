@@ -33,6 +33,9 @@ impl Policy {
                     let _ = writeln!(out, "{key} = {}", quote(value));
                 }
             }
+            if let Some(kind) = m.kind {
+                let _ = writeln!(out, "kind = {}", quote(kind.as_str()));
+            }
         }
 
         if let Some(duration) = self.session.max_duration {

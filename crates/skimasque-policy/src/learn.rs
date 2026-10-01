@@ -135,6 +135,7 @@ fn match_from_identity(identity: &WorkloadIdentity) -> MatchSpec {
         branch,
         environment: identity.environment.clone(),
         actor: identity.actor.clone(),
+        kind: identity.kind,
     }
 }
 
