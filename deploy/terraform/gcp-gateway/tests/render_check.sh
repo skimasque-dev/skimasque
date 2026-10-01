@@ -13,24 +13,27 @@ example="$here/../examples/basic"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-(
-  cd "$example"
-  terraform init -backend=false -input=false >/dev/null
-  echo 'module.gateway.rendered_cloud_init' | terraform console >"$work/raw.txt"
-)
+for mode in single-tenant platform; do
+  (
+    cd "$example"
+    terraform init -backend=false -input=false >/dev/null
+    echo 'module.gateway.rendered_cloud_init' | TF_VAR_mode=$mode terraform console >"$work/raw.txt"
+  )
 
-# `terraform console` prints a multi-line string as a <<EOT ... EOT heredoc.
-python3 - "$work/raw.txt" "$work/rendered.yaml" <<'PY'
+  # `terraform console` prints a multi-line string as a <<EOT ... EOT heredoc.
+  python3 - "$work/raw.txt" "$work/rendered.yaml" <<'PY'
 import sys
 lines = open(sys.argv[1], encoding="utf-8-sig").read().splitlines()
 assert lines[0].startswith("<<EOT"), lines[0]
 end = max(i for i, line in enumerate(lines) if line.strip() == "EOT")
-open(sys.argv[2], "w", encoding="utf-8").write("\n".join(lines[1:end]) + "\n")
+open(sys.argv[2], "w", encoding="utf-8").write(chr(10).join(lines[1:end]) + chr(10))
 PY
 
-if command -v cloud-init >/dev/null 2>&1; then
-  cloud-init schema --config-file "$work/rendered.yaml"
-else
-  echo "note: cloud-init not installed; skipping the schema check (CI runs it)" >&2
-fi
-python3 "$here/check_cloud_init.py" "$work/rendered.yaml"
+  echo "== mode: $mode"
+  if command -v cloud-init >/dev/null 2>&1; then
+    cloud-init schema --config-file "$work/rendered.yaml"
+  else
+    echo "note: cloud-init not installed; skipping the schema check (CI runs it)" >&2
+  fi
+  python3 "$here/check_cloud_init.py" "$work/rendered.yaml" "$mode"
+done

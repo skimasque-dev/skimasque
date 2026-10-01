@@ -12,6 +12,11 @@ provider "google" {
   region  = "us-central1"
 }
 
+variable "mode" {
+  type    = string
+  default = "single-tenant" # or "platform": the shared multi-tenant gateway (skimasque-server --platform)
+}
+
 module "gateway" {
   source = "../.."
 
@@ -25,6 +30,7 @@ module "gateway" {
   control_plane_url = "https://control.example.com"
   release_source    = "gs://my-release-bucket"
   acme_email        = "ops@example.com"
+  mode              = var.mode
 }
 
 output "address" {

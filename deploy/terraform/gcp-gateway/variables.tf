@@ -87,6 +87,17 @@ variable "acme_email" {
   }
 }
 
+variable "mode" {
+  description = "`single-tenant`: one organisation, enrolled with a token minted for that org, GitHub OIDC audience https://<hostname>. `platform`: SkiMasque's shared multi-tenant gateway (skimasque-server --platform), enrolled with a platform registration token; each organisation's audience is https://<hostname>/o/<slug>. Needs skimasque-server 0.3.1 or newer."
+  type        = string
+  default     = "single-tenant"
+
+  validation {
+    condition     = contains(["single-tenant", "platform"], var.mode)
+    error_message = "mode must be single-tenant or platform."
+  }
+}
+
 variable "extra_args" {
   description = "Extra skimasque-server arguments, appended to the generated command line. Never put a secret here: it lands in instance metadata and Terraform state."
   type        = string

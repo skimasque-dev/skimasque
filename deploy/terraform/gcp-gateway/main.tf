@@ -21,7 +21,9 @@ locals {
     "--audit-log /var/lib/skimasque/audit.jsonl",
     "--metrics-listen 127.0.0.1:9090",
     "--github-oidc",
-    "--oidc-audience https://${var.hostname}",
+    # A platform gateway derives each organisation's audience itself and ignores
+    # --oidc-audience.
+    var.mode == "platform" ? "--platform" : "--oidc-audience https://${var.hostname}",
     var.extra_args,
   ]))
 

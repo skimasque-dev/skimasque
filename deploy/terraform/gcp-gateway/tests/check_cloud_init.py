@@ -18,7 +18,7 @@ import yaml
 REPO_DEPLOY = Path(__file__).resolve().parents[3]  # .../deploy
 
 
-def main(rendered: str) -> int:
+def main(rendered: str, mode: str = "single-tenant") -> int:
     doc = yaml.safe_load(Path(rendered).read_text())
     files = {f["path"]: f for f in doc["write_files"]}
     failures = []
@@ -65,9 +65,19 @@ def main(rendered: str) -> int:
         field = flag.replace("-", "_")
         if not (re.search(rf"\b{field}\s*:", server_source) or f'"{flag}"' in server_source):
             failures.append(f"gateway.env uses --{flag}, which skimasque-server does not define")
+    if (mode == "platform") != ("--platform" in args):
+        failures.append(f"mode {mode} does not match the --platform flag in gateway.env")
     if "--platform" in args:
-        failures.append("--platform is not supported by the released skimasque-server")
-    if "--github-oidc" in args and "--oidc-audience" not in args:
+        # Mode 1: the server derives every audience itself and refuses nothing here
+        # except the flags below, so the module must not emit them.
+        if "--oidc-audience" in args:
+            failures.append("--platform ignores --oidc-audience; the module must not emit it")
+        for refused in ("--oidc-issuer", "--policy-dir", "--policy-file", "--policy-reload", "--auth-token", "--policy-observe"):
+            if refused in args:
+                failures.append(f"--platform refuses {refused}")
+        if "--control-plane-state" not in args:
+            failures.append("--platform needs --control-plane-state for its identity and tenant cache")
+    elif "--github-oidc" in args and "--oidc-audience" not in args:
         failures.append("--github-oidc without --oidc-audience fails closed at startup")
 
     dropin = content("/etc/systemd/system/skimasque-gateway.service.d/deploy.conf")
@@ -96,4 +106,4 @@ def main(rendered: str) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1]))
+    sys.exit(main(*sys.argv[1:3]))

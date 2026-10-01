@@ -51,11 +51,19 @@ the module's rules.
 
 ## Modes
 
-The gateway runs single-tenant: one organisation, with the GitHub OIDC audience
-`https://<hostname>`. SkiMasque's shared multi-tenant mode (`--platform`) is not
-offered yet because the released `skimasque-server` has no such flag; the module
-will gain a `mode` input when it does. A test compares every flag the module
-emits with the server's source, so an unsupported flag is caught in CI.
+`mode` selects what the gateway is:
+
+- `single-tenant` (default): one organisation, with the GitHub OIDC audience
+  `https://<hostname>`. Enrol it with a token minted for that organisation
+  (`POST /v1/orgs/{org}/registration-tokens`).
+- `platform`: SkiMasque's shared multi-tenant gateway (`skimasque-server --platform`,
+  0.3.1 or newer). Each organisation's audience is `https://<hostname>/o/<slug>`.
+  Enrol it with a **platform** registration token
+  (`POST /v1/platform/registration-tokens`, admin token). It serves every organisation
+  the control plane lists, so use it only for the shared gateway.
+
+A test compares every flag the module emits with the server's source, and checks the
+flags `--platform` refuses are never emitted, so an unsupported flag is caught in CI.
 
 ## State and replacement
 
