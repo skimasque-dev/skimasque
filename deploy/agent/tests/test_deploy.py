@@ -517,6 +517,21 @@ class ReviewFixTests(Harness):
         self.assertEqual(sd.current_version(self.cfg), "v1")
         self.assertEqual(sd.read_bad(self.cfg), {"v2"})
 
+    def test_a_secret_added_after_a_failed_first_install_is_picked_up_and_recovers_it(self):
+        # The gateway cannot start without its registration token, and the token is
+        # added after the first promote: the unverified release must still load it.
+        self.promote("v1")
+        self.point("v1")
+        self.force_unhealthy = True
+        self.assertEqual(self.run_deploy(), 1)  # installed, unhealthy, nothing to roll back to
+        self.assertEqual(len(self.systemd.restarts), 1)
+
+        self.secrets_changed = True  # the token now exists
+        self.force_unhealthy = False  # ...and with it the service becomes healthy
+        self.assertEqual(self.run_deploy(), 0)
+        self.assertEqual(len(self.systemd.restarts), 2)  # restarted to load it
+        self.assertEqual(sd.read_state(self.cfg, "verified"), "v1")
+
     def test_a_first_install_that_was_unhealthy_recovers_once_the_cause_is_fixed(self):
         self.promote("v1")
         self.point("v1")
