@@ -130,7 +130,7 @@ deploy:
 The [connect Action](https://github.com/skimasque-dev/connect) is a Node 24 action
 with a supervised client and an always-running post hook. Use a runner supporting
 Node 24 and coordinated Action/client releases with `proxy-ready-v1`; transparent
-mode also requires `proxy-tun-v1`. A merged implementation does not change old tags.
+mode also requires `proxy-tun-v1`.
 
 ### Proxy-aware tools
 

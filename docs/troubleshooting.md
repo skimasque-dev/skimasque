@@ -11,7 +11,7 @@ The current Action defaults to transparent mode. On macOS, Windows or Linux
 without the required Ubuntu TUN/systemd-resolved setup, select `mode: proxy`.
 Use a Node 24-compatible runner and coordinated Action/client releases:
 `proxy-ready-v1` for proxies, plus `proxy-tun-v1` for transparent mode.
-Merging changes to main does not move old tags. `client-bin` still runs capability
+`client-bin` still runs capability
 checks; it does not bypass them.
 
 ## A database client ignores the proxy

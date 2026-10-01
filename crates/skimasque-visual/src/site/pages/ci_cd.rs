@@ -98,7 +98,7 @@ pub fn page() -> Page {
         &Prose::new()
             .p("Supported today:")
             .list(&["GitHub Actions", "generic OIDC", "GitLab CI", "Buildkite"])
-            .p("Use proxy mode for proxy-aware tools. For psql and other raw-socket tools, configure transparent routes and private DNS, with IP/CIDR policy and a gateway that can reach those networks. Use coordinated Action/client releases; old tags keep their previous interface.")
+            .p("Use proxy mode for proxy-aware tools. For psql and other raw-socket tools, configure transparent routes and private DNS, with IP/CIDR policy and a gateway that can reach those networks. Use compatible Action/client releases.")
             .p("Additional integrations under consideration:")
             .list(&["CircleCI", "Jenkins", "other workload identity providers"]),
     );

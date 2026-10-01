@@ -72,8 +72,7 @@ jobs:
       - run: curl --fail https://api.staging.example.com/health
 ```
 
-Use an Action/client release containing the current interface; merging to main
-does not move an existing release tag. Pin coordinated releases in production.
+Use compatible Action/client releases. Pin exact releases for reproducible workflows.
 For a customer gateway, replace `proxy` and `audience` with its configured values.
 Proxy mode exports HTTP, HTTPS and SOCKS proxy variables. It requires tools that
 honour them; `psql` does not use `ALL_PROXY`.
