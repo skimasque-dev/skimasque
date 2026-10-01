@@ -138,6 +138,22 @@ Multiple repos/workflows share one process.
 | One job exhausting shared resources to deny others | Per-policy `[limits]` (bandwidth, packets/s, concurrent connections) and per-tunnel `bytes`; global `ResourceLimits` as the backstop. | Limits are **aggregate per policy**, not per session/job — two jobs under the same policy share one bandwidth bucket. Per-session limits need the credential to carry a session id (roadmap). |
 | Learning-mode output leaking one tenant's destinations into another's draft | Learning groups by `(application, transport, destination)` and emits a draft for review; it is never auto-applied. | Operator process — review the draft. |
 
+### B7 — Shared platform gateway (`--platform`)
+
+One process serves many organisations. The tenant is named by the credential
+(its `org_id`) or, at exchange, by the audience `https://<hostname>/o/<slug>`;
+nothing else selects it, and there is no default tenant.
+
+| Threat | Mitigation | Residual |
+|---|---|---|
+| A credential signed with org A's key accepted as org B | A credential is verified with the key of the org it *names*, and only that key; a credential naming an unknown org, or none, is refused. | A leaked org key is a leak for that org only. |
+| A request resolved to A evaluated against B's policy, quota or meter | The tenant is resolved once per tunnel from the verified credential; every tenant lookup takes a `TenantId` that only the tenant table can mint; quota limiter keys include the tenant, so equal policy names do not share limits. | The aggregate-per-policy limits of B6 now apply per tenant. |
+| Audit events filed under the wrong org | Each event carries the org of its credential; one hash chain per gateway, events filed per org; an event naming no org is dropped, not shipped. | The chain is gateway-wide, so orgs' events interleave in the local `--audit-log`. |
+| A job obtains a credential for an org whose owner it is not | The job's `repository_owner` (and numeric owner id, when recorded) must be verified for the audience's org before the control plane is asked to mint; the control plane re-checks. Refusal: `owner_not_verified`. | Owner verification is the trust root. Owners are verified on github.com, which is why `--oidc-issuer` and non-GitHub providers are refused with `--platform`. |
+| A gateway compromise minting credentials | No local minting and no HS256 secret: private keys stay on the control plane. | A compromised gateway can still relay tunnels for credentials it sees until they expire. |
+| Control-plane outage | New exchanges fail closed (`502`); enforcement continues from the in-memory table, restored from `<state>/tenants.json` after a restart. | A removed tenant or owner is honoured only at the next successful refresh; issued credentials live out their TTL. No per-credential revocation. |
+| Audience confusion across tenants | The slug is matched exactly (case not folded) and the token is verified for the audience that named the tenant. | |
+
 ## The two authorization escape hatches
 
 Both are named to be greppable, and an audit against `20a7941`'s successors
