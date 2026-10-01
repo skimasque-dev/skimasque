@@ -60,7 +60,7 @@ permissions:
   id-token: write
   contents: read
 steps:
-  - uses: skimasque-dev/connect@v1
+  - uses: skimasque-dev/connect@v2
     with:
       mode: proxy
       proxy: gateway.skimasque.com:443

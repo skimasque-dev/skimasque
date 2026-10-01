@@ -34,7 +34,7 @@ gateway     │ SkiMasque │         │    You    │         │    You    �
 | You control the egress IP | No | Yes | Yes |
 | You operate a gateway | No | Yes | Yes |
 | You operate a control plane | No | No | Yes |
-| GitHub Action | `skimasque-dev/connect@v1` | `skimasque-dev/connect@v1` | `skimasque-dev/connect@v1` |
+| GitHub Action | `skimasque-dev/connect@v2` | `skimasque-dev/connect@v2` | `skimasque-dev/connect@v2` |
 | `--control-plane` endpoint | `control.skimasque.com` (default) | `control.skimasque.com` (default) | your URL |
 | Operational load | Lowest | Medium | Highest |
 | SkiMasque Cloud required | Yes | Yes | No |

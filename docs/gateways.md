@@ -18,7 +18,7 @@ give it an identity source        (--github-oidc, or --auth-token)
       ↓
 policy                            (a file, or --control-plane)
       ↓
-point CI at it                    (skimasque-dev/connect@v1)
+point CI at it                    (skimasque-dev/connect@v2)
 ```
 
 Your firewall stays the outer boundary — it decides what the gateway *can*

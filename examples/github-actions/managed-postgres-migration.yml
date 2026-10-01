@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: skimasque-dev/connect@v1
+      - uses: skimasque-dev/connect@v2
         with:
           mode: transparent
           proxy: gateway.example.com:443

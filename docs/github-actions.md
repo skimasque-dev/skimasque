@@ -142,7 +142,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: skimasque-dev/connect@v1
+      - uses: skimasque-dev/connect@v2
         with:
           mode: proxy
           proxy: gateway.skimasque.com:443
@@ -162,7 +162,7 @@ Transparent mode is the default. Configure all private destination CIDRs and
 split DNS explicitly:
 
 ```yaml
-- uses: skimasque-dev/connect@v1
+- uses: skimasque-dev/connect@v2
   with:
     mode: transparent
     proxy: gateway.example.com:443

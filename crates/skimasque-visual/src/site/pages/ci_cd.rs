@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// The real workflow step from the Action's documentation.
-const WORKFLOW: &str = "permissions:\n  id-token: write          # the job mints its own OIDC token\n  contents: read\n\nsteps:\n  - uses: skimasque-dev/connect@v1\n    with:\n      proxy: gateway.skimasque.com:443\n      audience: https://gateway.skimasque.com\n      mode: proxy\n      application: terraform\n\n  - run: terraform apply -auto-approve   # egresses through the gateway";
+const WORKFLOW: &str = "permissions:\n  id-token: write          # the job mints its own OIDC token\n  contents: read\n\nsteps:\n  - uses: skimasque-dev/connect@v2\n    with:\n      proxy: gateway.skimasque.com:443\n      audience: https://gateway.skimasque.com\n      mode: proxy\n      application: terraform\n\n  - run: terraform apply -auto-approve   # egresses through the gateway";
 
 pub fn page() -> Page {
     let hero = Hero::new(
@@ -150,7 +150,7 @@ mod tests {
             "db.prod:5432",
             "api.prod:443",
             "These are illustrative policies, not automatic permissions. Configure repository, branch and workflow matches to grant each job the access it needs.",
-            "skimasque-dev/connect@v1",
+            "skimasque-dev/connect@v2",
             "CI/CD integrations",
             "GitLab CI",
             "Buildkite",
