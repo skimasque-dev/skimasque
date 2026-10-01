@@ -10,6 +10,7 @@ pub mod ops;
 pub mod platform;
 pub mod policy;
 pub mod probe;
+pub mod sandbox;
 pub mod session;
 pub mod socks5;
 

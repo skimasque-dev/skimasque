@@ -66,6 +66,61 @@ pub struct ExecArgs {
     #[arg(long = "forward", value_name = "[LOCAL_PORT:]HOST:PORT", value_parser = ForwardSpec::parse)]
     pub forwards: Vec<ForwardSpec>,
 
+    /// Run the command as a coding agent: start an agent session for it (your
+    /// identity plus `kind = agent`), give the command only that session's
+    /// access, and end the session when the command exits. Needs
+    /// `skimasque login`. The credential stays in this process; the command
+    /// never sees it.
+    #[arg(long)]
+    pub agent: bool,
+
+    /// How long the agent session lasts, e.g. `45m`. Default 30m, at most 4h.
+    #[arg(long, requires = "agent", value_name = "DURATION")]
+    pub ttl: Option<String>,
+
+    /// Label the session with the agent runtime, for the audit log. Defaults to
+    /// the command's file name. Never matched by policy.
+    #[arg(long, requires = "agent", value_name = "NAME", value_parser = NonEmptyStringValueParser::new())]
+    pub runtime: Option<String>,
+
+    /// Label the session with a run id, for the audit log. Never matched by policy.
+    #[arg(long, requires = "agent", value_name = "ID", value_parser = NonEmptyStringValueParser::new())]
+    pub run_id: Option<String>,
+
+    /// Delegate from this agent session: the new one never outlives it.
+    #[arg(long, requires = "agent", value_name = "SESSION", value_parser = NonEmptyStringValueParser::new())]
+    pub parent: Option<String>,
+
+    /// Confine the command so SkiMasque is its only way out. `srt` is
+    /// Anthropic's sandbox runtime (`npm install -g @anthropic-ai/sandbox-runtime`),
+    /// which must be on PATH. exec checks that the sandbox really blocks a
+    /// direct connection before it starts the command, and refuses to if not.
+    #[arg(long, value_enum, value_name = "RUNTIME")]
+    pub sandbox: Option<SandboxRuntime>,
+
+    /// A domain the sandbox may let through to SkiMasque, e.g. `*.acme.dev` or
+    /// `api.acme.dev:443`. Repeatable; required with `--sandbox`, because the
+    /// sandbox runtime accepts no bare `*`. The gateway's policy still decides
+    /// every connection; this is an outer fence.
+    #[arg(
+        long = "allow-domain",
+        requires = "sandbox",
+        value_name = "DOMAIN",
+        value_parser = crate::sandbox::check_allow_domain
+    )]
+    pub allow_domains: Vec<String>,
+
+    /// Your own sandbox-runtime settings (filesystem rules and so on), merged
+    /// with the network settings exec generates. Its `network.allowedDomains`
+    /// and `network.parentProxy` are replaced.
+    #[arg(long, requires = "sandbox", value_name = "PATH")]
+    pub sandbox_settings: Option<std::path::PathBuf>,
+
+    /// Run an agent with no sandbox. Nothing then stops it connecting directly,
+    /// bypassing SkiMasque; use only when something else confines it.
+    #[arg(long, requires = "agent", conflicts_with = "sandbox")]
+    pub unsandboxed: bool,
+
     /// Do not print the access summary.
     #[arg(long, short)]
     pub quiet: bool,
@@ -79,6 +134,42 @@ pub struct ExecArgs {
     /// The command to run, after `--`.
     #[arg(last = true, required = true, value_name = "COMMAND")]
     pub command: Vec<OsString>,
+}
+
+/// The sandbox runtimes exec can confine a command with.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum SandboxRuntime {
+    /// Anthropic's sandbox runtime.
+    Srt,
+}
+
+/// Combinations that make no sense or would run an agent unconfined by
+/// accident. Checked before anything is started.
+pub fn validate(args: &ExecArgs) -> Result<(), String> {
+    if args.agent && args.sandbox.is_none() && !args.unsandboxed {
+        return Err(
+            "an agent needs a sandbox: pass --sandbox srt (with --allow-domain), or \
+             --unsandboxed to run it with nothing stopping direct connections"
+                .to_owned(),
+        );
+    }
+    if args.sandbox.is_some() {
+        if args.allow_domains.is_empty() {
+            return Err(
+                "--sandbox needs at least one --allow-domain: the sandbox runtime allows no \
+                 network access until domains are named, and it will not accept \"*\""
+                    .to_owned(),
+            );
+        }
+        if !args.forwards.is_empty() {
+            return Err(
+                "--forward cannot be combined with --sandbox: the sandboxed command cannot \
+                 reach loopback listeners outside the sandbox"
+                    .to_owned(),
+            );
+        }
+    }
+    Ok(())
 }
 
 /// `--control-plane` / `$SKIMASQUE_CONTROL_PLANE`, else the signed-in
@@ -349,17 +440,114 @@ fn failed(message: impl std::fmt::Display) -> Failure {
 }
 
 async fn run_inner(args: ExecArgs) -> Result<i32, Failure> {
+    validate(&args).map_err(failed)?;
     // Registered before anything else, so no signal ends exec by its default
     // action while the session is half built; one that arrives during setup
     // ends it here instead, before the command starts.
     let mut signals =
         Signals::register().map_err(|e| failed(format!("listening for signals: {e}")))?;
+    let interrupted = |signal: i32| {
+        Failure(128 + signal, "interrupted before the command started".to_owned())
+    };
+    // The agent session is started here, outside `launch`, so that every way
+    // out of it -- success, failure, a signal during setup -- ends the session.
+    let lease = if args.agent {
+        Some(tokio::select! {
+            lease = AgentLease::start(&args) => lease?,
+            signal = signals.next() => return Err(interrupted(signal)),
+        })
+    } else {
+        None
+    };
+    let outcome = launch(&args, &mut signals, lease.as_ref()).await;
+    if let Some(lease) = &lease {
+        lease.end().await;
+    }
+    outcome
+}
+
+/// An agent session this process started, and ends.
+struct AgentLease {
+    api: crate::account::Api,
+    login_token: String,
+    org: String,
+    session_id: String,
+    /// The session's credential. Held here and handed to the gateway client;
+    /// never written anywhere or put in the command's environment.
+    credential: String,
+}
+
+impl AgentLease {
+    async fn start(args: &ExecArgs) -> Result<Self, Failure> {
+        use crate::account;
+        let creds = account::load()
+            .map_err(|e| failed(format!("{e:#}")))?
+            .ok_or_else(|| {
+                failed("--agent needs a SkiMasque login to start the session: run `skimasque login`")
+            })?;
+        let api = account::Api::new(&creds.control_plane).map_err(|e| failed(format!("{e:#}")))?;
+        let org = account::resolve_org(&api, &creds, args.auth.org.clone())
+            .await
+            .map_err(|e| failed(format!("{e:#}")))?;
+        let ttl_seconds = args
+            .ttl
+            .as_deref()
+            .map(|t| {
+                skimasque_policy::parse_duration(t)
+                    .map(|d| d.as_secs())
+                    .map_err(|e| failed(format!("--ttl: {e}")))
+            })
+            .transpose()?;
+        let request = skimasque_protocol::AgentSessionRequest {
+            ttl_seconds,
+            run_id: args.run_id.clone(),
+            runtime: Some(
+                args.runtime
+                    .clone()
+                    .unwrap_or_else(|| default_app(&args.command[0])),
+            ),
+            parent: args.parent.clone(),
+        };
+        let started = api
+            .start_agent_session(&creds.session_token, &org, &request)
+            .await
+            .map_err(|e| failed(format!("starting the agent session: {e:#}")))?;
+        Ok(Self {
+            api,
+            login_token: creds.session_token,
+            org,
+            session_id: started.session_id,
+            credential: started.credential,
+        })
+    }
+
+    async fn end(&self) {
+        if let Err(error) = self
+            .api
+            .end_agent_session(&self.login_token, &self.org, &self.session_id)
+            .await
+        {
+            eprintln!(
+                "skimasque exec: could not end agent session {}: {error:#}. End it with: \
+                 skimasque agent-session end {}",
+                self.session_id, self.session_id
+            );
+        }
+    }
+}
+
+async fn launch(
+    args: &ExecArgs,
+    signals: &mut Signals,
+    lease: Option<&AgentLease>,
+) -> Result<i32, Failure> {
     let Prepared {
         session,
         tasks,
         env,
+        http_addr,
     } = tokio::select! {
-        prepared = prepare(&args) => prepared?,
+        prepared = prepare(args, lease.map(|l| l.credential.as_str())) => prepared?,
         signal = signals.next() => {
             return Err(Failure(
                 128 + signal,
@@ -368,7 +556,18 @@ async fn run_inner(args: ExecArgs) -> Result<i32, Failure> {
         }
     };
 
-    let program = &args.command[0];
+    // Under a sandbox the command is `srt ... -- <command>`, after a check that
+    // the sandbox blocks direct connections. The settings directory is removed
+    // when this guard drops.
+    let (command_line, _settings_dir) = match &args.sandbox {
+        Some(SandboxRuntime::Srt) => {
+            let (line, dir) = srt_command_line(args, http_addr).await?;
+            (line, Some(dir))
+        }
+        None => (args.command.clone(), None),
+    };
+    let program = &command_line[0];
+
     // Rust looks up only `.exe` on Windows; resolve `npm` to `npm.cmd` etc.
     #[cfg(windows)]
     let executable = resolve_program(
@@ -381,7 +580,14 @@ async fn run_inner(args: ExecArgs) -> Result<i32, Failure> {
     #[cfg(not(windows))]
     let executable = std::path::PathBuf::from(program);
     let mut child = tokio::process::Command::new(&executable);
-    child.args(&args.command[1..]).envs(env);
+    // An agent's command must not inherit a credential or a proxy of its own
+    // from this environment; the variables exec sets are added after.
+    if args.agent || args.sandbox.is_some() {
+        for name in crate::sandbox::SCRUBBED_ENV {
+            child.env_remove(name);
+        }
+    }
+    child.args(&command_line[1..]).envs(env);
     let code = match child.spawn() {
         Err(error) => {
             let code = spawn_error_code(&error);
@@ -393,7 +599,7 @@ async fn run_inner(args: ExecArgs) -> Result<i32, Failure> {
             eprintln!("skimasque exec: {}: {what}", program.to_string_lossy());
             code
         }
-        Ok(mut child) => match supervise(&mut child, &mut signals).await {
+        Ok(mut child) => match supervise(&mut child, signals).await {
             Ok(code) => code,
             Err(error) => {
                 // Never leave the command running without its tunnel.
@@ -425,11 +631,13 @@ struct Prepared {
     tasks: Vec<tokio::task::JoinHandle<()>>,
     /// The variables added to the child's environment.
     env: Vec<(String, String)>,
+    /// The loopback HTTP CONNECT front end; a sandbox chains to it.
+    http_addr: SocketAddr,
 }
 
 /// Open the session, run the preflight, start the loopback listeners and
 /// print the header.
-async fn prepare(args: &ExecArgs) -> Result<Prepared, Failure> {
+async fn prepare(args: &ExecArgs, agent_credential: Option<&str>) -> Result<Prepared, Failure> {
     use std::sync::Arc;
 
     use http::{HeaderMap, HeaderValue};
@@ -457,7 +665,20 @@ async fn prepare(args: &ExecArgs) -> Result<Prepared, Failure> {
         );
     }
 
-    let connected = crate::session::open_session(&gateway, &args.tls, &args.auth, headers)
+    // An agent presents its session's credential and nothing else: not a token
+    // from the environment, and not the login that started the session.
+    let auth = match agent_credential {
+        Some(credential) => AuthArgs {
+            auth_token: Some(credential.to_owned()),
+            auth_token_file: None,
+            github_oidc: false,
+            oidc_token: None,
+            oidc_audience: None,
+            org: args.auth.org.clone(),
+        },
+        None => args.auth.clone(),
+    };
+    let connected = crate::session::open_session(&gateway, &args.tls, &auth, headers)
         .await
         .map_err(|e| failed(format!("{e:#}")))?;
     let identity = connected
@@ -565,8 +786,83 @@ async fn prepare(args: &ExecArgs) -> Result<Prepared, Failure> {
     Ok(Prepared {
         session,
         tasks,
-        env: child_env(http_addr, socks_addr, &forwards),
+        // A sandbox gets its proxy settings from srt, which points them at
+        // itself; ours would be unreachable from inside it.
+        env: if args.sandbox.is_some() {
+            Vec::new()
+        } else {
+            child_env(http_addr, socks_addr, &forwards)
+        },
+        http_addr,
     })
+}
+
+/// Build `srt --settings <file> -- <command>`, and prove the sandbox blocks a
+/// direct connection before returning it.
+async fn srt_command_line(
+    args: &ExecArgs,
+    http_addr: SocketAddr,
+) -> Result<(Vec<OsString>, crate::sandbox::SettingsDir), Failure> {
+    use crate::sandbox;
+
+    let srt = sandbox::locate(
+        OsStr::new("srt"),
+        std::env::var_os("PATH").as_deref(),
+        std::env::var_os("PATHEXT").as_deref(),
+    )
+    .ok_or_else(|| {
+        failed(
+            "--sandbox srt needs the sandbox runtime on PATH: \
+             npm install -g @anthropic-ai/sandbox-runtime",
+        )
+    })?;
+
+    let base = match &args.sandbox_settings {
+        Some(path) => {
+            let text = std::fs::read_to_string(path)
+                .map_err(|e| failed(format!("reading {}: {e}", path.display())))?;
+            Some(
+                serde_json::from_str(&text)
+                    .map_err(|e| failed(format!("{} is not valid JSON: {e}", path.display())))?,
+            )
+        }
+        None => None,
+    };
+    let doc = sandbox::settings(base, &args.allow_domains, http_addr).map_err(failed)?;
+    let (dir, settings_file) = sandbox::SettingsDir::create(&doc)
+        .map_err(|e| failed(format!("writing the sandbox settings: {e}")))?;
+
+    // Enforcement check: inside the sandbox, a direct connection to this host's
+    // own non-loopback address must fail.
+    let (listener, target) = sandbox::probe_target().map_err(|e| {
+        failed(format!(
+            "cannot check the sandbox: this host has no non-loopback address to test against ({e})"
+        ))
+    })?;
+    let me = std::env::current_exe().map_err(|e| failed(format!("locating skimasque: {e}")))?;
+    let probe: Vec<OsString> = vec![
+        me.into_os_string(),
+        "sandbox-probe".into(),
+        target.to_string().into(),
+    ];
+    let mut check = tokio::process::Command::new(&srt);
+    check.args(sandbox::argv(&settings_file, &probe)).kill_on_drop(true);
+    for name in sandbox::SCRUBBED_ENV {
+        check.env_remove(name);
+    }
+    let output = tokio::time::timeout(std::time::Duration::from_secs(30), check.output())
+        .await
+        .map_err(|_| failed("the sandbox check timed out; refusing to start the agent"))?
+        .map_err(|e| failed(format!("running {}: {e}", srt.display())))?;
+    drop(listener);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // srt may print its own banner; the verdict is the last line.
+    let verdict = stdout.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("");
+    sandbox::judge_probe(verdict, output.status.success()).map_err(failed)?;
+
+    let mut line: Vec<OsString> = vec![srt.into_os_string()];
+    line.extend(sandbox::argv(&settings_file, &args.command));
+    Ok((line, dir))
 }
 
 /// The signals exec handles: SIGINT, SIGTERM and SIGHUP on Unix, Ctrl-C on
@@ -1044,5 +1340,54 @@ mod tests {
             128 + 15
         );
         assert_eq!(status_code(std::process::ExitStatus::from_raw(3 << 8)), 3);
+    }
+
+    fn parse(args: &[&str]) -> Result<ExecArgs, clap::Error> {
+        Harness::try_parse_from(std::iter::once("x").chain(args.iter().copied())).map(|h| h.exec)
+    }
+
+    #[test]
+    fn agent_options_need_agent() {
+        for flag in ["--ttl", "--runtime", "--run-id", "--parent"] {
+            assert!(parse(&[flag, "v", "--", "true"]).is_err(), "{flag} without --agent");
+            assert!(parse(&["--agent", "--unsandboxed", flag, "v", "--", "true"]).is_ok(), "{flag}");
+        }
+        assert!(parse(&["--unsandboxed", "--", "true"]).is_err(), "--unsandboxed is for agents");
+    }
+
+    #[test]
+    fn an_agent_is_never_run_unconfined_by_accident() {
+        let bare = parse(&["--agent", "--", "claude"]).unwrap();
+        let why = validate(&bare).unwrap_err();
+        assert!(why.contains("--sandbox srt") && why.contains("--unsandboxed"), "{why}");
+
+        assert!(validate(&parse(&["--agent", "--unsandboxed", "--", "claude"]).unwrap()).is_ok());
+        assert!(
+            parse(&["--agent", "--unsandboxed", "--sandbox", "srt", "--", "claude"]).is_err(),
+            "the two choices contradict each other"
+        );
+    }
+
+    #[test]
+    fn a_sandbox_needs_named_domains_and_no_loopback_forwards() {
+        let none = parse(&["--sandbox", "srt", "--", "true"]).unwrap();
+        assert!(validate(&none).unwrap_err().contains("--allow-domain"));
+
+        let ok = parse(&["--sandbox", "srt", "--allow-domain", "*.acme.dev", "--", "true"]).unwrap();
+        assert!(validate(&ok).is_ok());
+        assert_eq!(ok.allow_domains, ["*.acme.dev"]);
+
+        let forwarded = parse(&[
+            "--sandbox", "srt", "--allow-domain", "a.dev", "--forward", "db.prod:5432", "--", "true",
+        ])
+        .unwrap();
+        assert!(validate(&forwarded).unwrap_err().contains("--forward"));
+
+        assert!(parse(&["--allow-domain", "a.dev", "--", "true"]).is_err(), "needs --sandbox");
+        assert!(
+            parse(&["--sandbox", "srt", "--allow-domain", "*", "--", "true"]).is_err(),
+            "srt refuses a bare *, so we do at the prompt"
+        );
+        assert!(parse(&["--sandbox", "bwrap", "--allow-domain", "a.dev", "--", "true"]).is_err());
     }
 }

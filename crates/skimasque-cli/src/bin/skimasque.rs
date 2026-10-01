@@ -150,6 +150,13 @@ enum Command {
     /// (125 if exec itself fails, 126/127 if the command cannot be run).
     Exec(skimasque_cli::exec::ExecArgs),
 
+    /// Used by `exec --sandbox` to check, from inside the sandbox, that a direct
+    /// connection is blocked. Prints `blocked` or `connected`.
+    #[command(hide = true)]
+    SandboxProbe {
+        addr: std::net::SocketAddr,
+    },
+
     /// Work with network-access policies.
     #[command(subcommand)]
     Policy(PolicyCommand),
@@ -501,6 +508,10 @@ fn run() -> anyhow::Result<ExitCode> {
         Command::Whoami => run_whoami(),
         Command::Org { command } => run_org(command),
         Command::AgentSession { command } => run_agent_session(command),
+        Command::SandboxProbe { addr } => {
+            println!("{}", skimasque_cli::sandbox::probe_connect(addr));
+            Ok(ExitCode::SUCCESS)
+        }
         Command::Audit {
             org,
             gateway,
