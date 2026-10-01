@@ -490,7 +490,7 @@ html { scroll-padding-top: 72px; }
 @media (min-width: 900px) { .v-footer-grid { grid-template-columns: minmax(200px, 1fr) minmax(0, 3fr); } }
 
 /* Homepage network demonstration. */
-.v-network-demo { width: 100%; max-width: 560px; padding: 20px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--surface); }
+.v-network-demo { box-sizing: border-box; min-width: 0; width: 100%; max-width: 560px; padding: 20px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--surface); }
 .v-network-demo svg { display: block; width: 100%; height: auto; overflow: visible; }
 .v-network-demo svg text { fill: var(--text); font: 12px var(--font); }
 .v-network-demo svg .v-network-detail { fill: var(--text-muted); font-size: 11px; }
