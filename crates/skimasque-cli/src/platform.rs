@@ -31,6 +31,7 @@ use skimasque::service::{
     Accepted, Dispatch, PolicyLayer, QuotaLayer, Rejection, TenantLayer, TenantMeterLayer,
     TunnelRequest,
 };
+use skimasque::{RevocationLayer, Revocations};
 use skimasque::{
     CredentialMinter, MintError, MintedCredential, TenantId, TenantSpec, TenantTable, TenantUsage,
     TenantVerifier,
@@ -265,6 +266,7 @@ pub fn platform_service(
     tenants: &PlatformTenants,
     audit: Arc<dyn AuditSink>,
     usage: Arc<TenantUsage>,
+    revocations: Revocations,
 ) -> BoxCloneService<TunnelRequest, Accepted, Rejection> {
     BoxCloneService::new(
         ServiceBuilder::new()
@@ -272,6 +274,8 @@ pub fn platform_service(
             .layer(TenantLayer::new(Arc::new(PlatformTenantVerifier::new(
                 tenants.clone(),
             ))))
+            // Outside the quota layer, which replaces a tunnel's limits wholesale.
+            .layer(RevocationLayer::new(revocations))
             .layer(PolicyLayer::tenants(tenants.table.clone()).with_audit(audit))
             .layer(QuotaLayer::new())
             .layer(TenantMeterLayer::new(usage))

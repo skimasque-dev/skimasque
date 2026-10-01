@@ -332,11 +332,17 @@ pub struct TunnelLimits {
     pub(crate) bandwidth: Option<Arc<RateLimiter>>,
     pub(crate) packet_rate: Option<Arc<RateLimiter>>,
     pub(crate) total_bytes: Option<u64>,
+    /// Resolves when the tunnel's session is revoked; the server closes the
+    /// tunnel then. Set by [`RevocationLayer`](crate::RevocationLayer).
+    pub(crate) end: Option<crate::revocation::TunnelEnd>,
 }
 
 impl TunnelLimits {
     fn is_empty(&self) -> bool {
-        self.bandwidth.is_none() && self.packet_rate.is_none() && self.total_bytes.is_none()
+        self.bandwidth.is_none()
+            && self.packet_rate.is_none()
+            && self.total_bytes.is_none()
+            && self.end.is_none()
     }
 }
 
@@ -484,6 +490,18 @@ impl Accepted {
     pub fn with_limits(mut self, limits: TunnelLimits) -> Self {
         self.limits = limits;
         self
+    }
+
+    /// Close this tunnel when `end` resolves. [`RevocationLayer`](crate::RevocationLayer)
+    /// attaches the signal for a tunnel whose credential names a session.
+    pub fn with_end(mut self, end: crate::revocation::TunnelEnd) -> Self {
+        self.limits.end = Some(end);
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn end(&self) -> Option<&crate::revocation::TunnelEnd> {
+        self.limits.end.as_ref()
     }
 
     /// Count this tunnel's traffic against `meter` as well as the process-wide
@@ -1687,6 +1705,7 @@ where
                 .packets_per_sec
                 .map(|pps| self.layer.packets_for(&key(&allowed.policy), pps)),
             total_bytes: allowed.limits.total_bytes,
+            end: None,
         });
 
         let permit = match permit {

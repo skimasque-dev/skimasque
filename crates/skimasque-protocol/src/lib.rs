@@ -58,6 +58,14 @@ pub mod paths {
         format!("/v1/gateways/{id}/policy")
     }
 
+    /// `GET` — the sessions that have been ended early
+    /// ([`crate::RevocationsResponse`]). `?generation=<n>` and `?wait=<seconds>`
+    /// long-poll like [`gateway_policy`]: `304` while the generation is
+    /// unchanged, `200` with the full current list once it moves.
+    pub fn gateway_revocations(id: &str) -> String {
+        format!("/v1/gateways/{id}/revocations")
+    }
+
     /// `POST` [`crate::HeartbeatRequest`] — liveness and usage counters.
     pub fn gateway_heartbeat(id: &str) -> String {
         format!("/v1/gateways/{id}/heartbeat")
@@ -129,6 +137,12 @@ pub mod paths {
         format!("/v1/platform/gateways/{id}/audit/head")
     }
 
+    /// `GET` — as [`gateway_revocations`], for the sessions of every organisation
+    /// the platform gateway serves.
+    pub fn platform_revocations(id: &str) -> String {
+        format!("/v1/platform/gateways/{id}/revocations")
+    }
+
     /// `POST` [`crate::platform::PlatformHeartbeatRequest`] — liveness and
     /// per-organisation usage.
     pub fn platform_heartbeat(id: &str) -> String {
@@ -178,6 +192,29 @@ pub struct PolicyResponse {
     /// `If-None-Match` on the next poll.
     pub version: u64,
     pub documents: Vec<PolicyDocument>,
+}
+
+/// The `200` body of a revocations poll (see [`paths::gateway_revocations`]):
+/// every session that has been ended and could still be presented.
+///
+/// It is always the complete current list, never a delta, so a gateway that
+/// missed an update catches up on the next one.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RevocationsResponse {
+    /// Moves whenever the list changes. Echoed back as `?generation=` so the
+    /// control plane can answer `304` while nothing has.
+    pub generation: u64,
+    pub revoked: Vec<RevokedSession>,
+}
+
+/// One ended session.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RevokedSession {
+    /// The `sid` its credentials carry.
+    pub sid: String,
+    /// When the credentials it could have issued run out. Past this the entry
+    /// is no longer listed, because there is nothing left to refuse.
+    pub expires_at_ms: u64,
 }
 
 /// `POST /v1/gateways/{id}/heartbeat`.
@@ -387,6 +424,24 @@ mod tests {
         assert_eq!(paths::gateway_policy("gw_1"), "/v1/gateways/gw_1/policy");
         assert_eq!(paths::org_signing_key("org_1"), "/v1/orgs/org_1/signing-key");
         assert_eq!(paths::org_credentials("org_1"), "/v1/orgs/org_1/credentials");
+    }
+
+    #[test]
+    fn revocation_paths_and_body_round_trip() {
+        assert_eq!(paths::gateway_revocations("gw_1"), "/v1/gateways/gw_1/revocations");
+        assert_eq!(
+            paths::platform_revocations("gw_1"),
+            "/v1/platform/gateways/gw_1/revocations"
+        );
+        let body = RevocationsResponse {
+            generation: 3,
+            revoked: vec![RevokedSession {
+                sid: "sess_1".into(),
+                expires_at_ms: 99,
+            }],
+        };
+        let json = serde_json::to_string(&body).unwrap();
+        assert_eq!(serde_json::from_str::<RevocationsResponse>(&json).unwrap(), body);
     }
 
     #[test]
