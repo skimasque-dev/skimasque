@@ -87,8 +87,10 @@ The lifetime defaults to 30 minutes and is capped at 4 hours. See
 - `skimasque gateway <args…>` execs `skimasque-server` with the args — see below.
 - `skimasque connect <DEST> [client args…]` execs `skimasque-client … connect
   --target <DEST>`, bridging the tunnel to stdin/stdout (an SSH `ProxyCommand`,
-  a pipeline). Needs at least `--proxy <gateway>`. Not yet control-plane-aware —
-  pass the gateway address explicitly.
+  a pipeline). Uses the client
+  default gateway or an explicit `--proxy`; without an explicit credential, the
+  client can mint one from your signed-in session. Automatic customer-gateway
+  discovery is not implemented.
 
 ### Run a command with access
 

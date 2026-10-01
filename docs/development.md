@@ -40,6 +40,21 @@ and real UDP sockets on loopback — no mocks in the transport path.
 `.github/workflows/e2e-oidc.yml` runs the whole OIDC path against real GitHub
 OIDC on every push. `fuzz/` targets are built and briefly run in CI.
 
+## Website content
+
+Public pages are authored in `crates/skimasque-visual/src/site/pages/` and rendered
+to `site/`. Edit the source, regenerate and check the committed output:
+
+```console
+cargo test -p skimasque-visual --features site
+cargo run -p skimasque-visual --features site --bin sitegen
+cargo run -p skimasque-visual --features site --bin sitegen -- --check
+```
+
+The private control plane uses Askama templates and the same visual crate. Check
+its templates against the matching core revision. Content must distinguish
+implemented features, deployment-enabled services and planned capabilities.
+
 ## Dependency notes
 
 - **`h3`** is pinned to a `master` revision via `[patch.crates-io]` (the

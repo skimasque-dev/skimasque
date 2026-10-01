@@ -1,11 +1,8 @@
-//! Pricing (`/pricing`): canonical spec §25. Only the Free tier is live; the
-//! paid tiers and their prices are planned, not final (billing is not in place).
+//! Pricing: entitlements and Stripe integration exist; availability is deployment-specific.
 
 use crate::site::Page;
 use crate::site_chrome::{link, SIGN_IN_URL};
 use crate::{Component, Cta, CtaBand, Hero, Prose, Section, SitePage, TierCard, TierGrid};
-
-const PAID_NOTE: &str = "paid plans — billing is not available yet";
 
 pub fn page() -> Page {
     let hero = Hero::new("Start free. Choose where traffic runs.");
@@ -15,26 +12,24 @@ pub fn page() -> Page {
         .include("personal projects")
         .include("small workloads")
         .live();
-    let team = TierCard::new("Team", "$49 / month", "For small engineering teams.")
+    let team = TierCard::new("Team", "See console", "For small engineering teams.")
         .include("core policies")
         .include("workload identities")
         .include("CI/CD access")
         .include("developer CLI")
         .include("basic audit")
-        .include("managed gateway options")
-        .planned(PAID_NOTE);
+        .include("managed gateway options; check console availability");
     let business = TierCard::new(
         "Business",
-        "$199 / month",
+        "See console",
         "For teams with production infrastructure.",
     )
     .include("advanced policy controls")
     .include("multiple gateways")
     .include("richer audit")
     .include("team controls")
-    .include("advanced integrations")
-    .include("higher limits")
-    .planned(PAID_NOTE);
+    .include("policy revision and audit workflows")
+    .include("higher limits; check console availability");
     let enterprise = TierCard::new("Enterprise", "Custom", "Potential capabilities:")
         .include("SSO (Planned)")
         .include("advanced RBAC (Planned)")
@@ -47,7 +42,7 @@ pub fn page() -> Page {
 
     let tiers = Section::new("Plans")
         .push(&Prose::new().p(
-            "The Free tier and SkiMasque Cloud are available now. Team, Business and Enterprise are planned: billing is not available yet, and the paid prices shown here are planned, not final.",
+            "Free, Team and Business entitlements and Stripe billing are implemented. Online upgrades, invoices and plan management appear in Settings → Billing when enabled on your control plane. Paid pricing is not final; check the console for current availability and pricing. Enterprise capabilities remain planned.",
         ))
         .push(
             &TierGrid::new()
@@ -59,18 +54,18 @@ pub fn page() -> Page {
 
     let philosophy = Section::new("Pricing philosophy").alt().push(
         &Prose::new()
-            .p("The proposed paid plans focus on managed access controls rather than metering:")
+            .p("Plans use resource entitlements and usage counters. Review the console for included limits; the service tracks:")
             .list(&[
-                "bandwidth",
-                "packet counts",
-                "individual users",
-                "number of policy rules",
+                "organisation members",
+                "registered gateways",
+                "published policy documents",
+                "shared-gateway tunnels per calendar month",
             ])
-            .p("Paid pricing and limits are still proposals. Review the planned tiers above; only the Free tier is available today."),
+            .p("Payment integration does not make every proposed capability available. Dedicated Cloud egress, SSO and advanced RBAC remain planned. Current entitlements are shown in Settings → Billing."),
     );
 
     let cta = CtaBand::new("Start with the Free tier.")
-        .line("The Free tier is available now. Paid plans are planned.")
+        .line("Start free and check Settings → Billing for available upgrades.")
         .cta(Cta::primary("Try SkiMasque", SIGN_IN_URL))
         .cta(Cta::secondary("Talk to Us", link("../", "contact")));
 
@@ -80,7 +75,7 @@ pub fn page() -> Page {
             "../",
             "pricing",
             "Pricing · SkiMasque",
-            "SkiMasque pricing: a Free tier is available now; Team, Business and Enterprise plans are planned and their prices are not final.",
+            "SkiMasque plans: Free, Team and Business entitlements, deployment-configured billing, and planned Enterprise capabilities. Check the console for current pricing.",
         )
         .push(&hero)
         .push(&tiers)
@@ -107,8 +102,8 @@ mod tests {
             "Business",
             "Enterprise",
             "$0",
-            "$49 / month",
-            "$199 / month",
+            "See console",
+            "See console",
             "Custom",
             "Available now",
             "not final",
@@ -125,8 +120,8 @@ mod tests {
             .unwrap();
         assert_eq!(
             main.matches("PLANNED").count(),
-            3,
-            "Team, Business, Enterprise"
+            1,
+            "Only Enterprise remains a planned tier"
         );
         let free = main
             .split("<article")

@@ -1,4 +1,4 @@
-//! Gateways (`/gateways`): canonical spec Ã‚Â§19.
+//! Gateways (`/gateways`): canonical spec §19.
 
 use crate::diagrams::{platform, public};
 use crate::site::Page;
@@ -63,7 +63,7 @@ pub fn page() -> Page {
         contents: SitePage::new(
             "../",
             "gateways",
-            "Gateways Ã‚Â· SkiMasque",
+            "Gateways · SkiMasque",
             "The gateway is the point where SkiMasque-controlled sessions enter your network. Run it where your infrastructure lives.",
         )
         .push(&hero)

@@ -114,29 +114,43 @@ companion to `--help`, not a replacement — run `skimasque-server --help`,
 | `--ca <PATH>` | — | system roots | trust this PEM instead |
 | `--insecure` | — | off | accept any cert — **gives up MITM defence**; use `--ca` |
 | `--auth-token <TOKEN>` | `SKIMASQUE_TOKEN` | — | bearer token |
+| `--auth-token-file <PATH>` | `SKIMASQUE_TOKEN_FILE` | — | credential file, exclusive with other sources |
+| `--org <ORG>` | — | inferred for one org | mint from a signed-in developer session |
 | `--github-oidc` | — | off | fetch the runner's OIDC token and exchange it; needs `--oidc-audience` |
 | `--oidc-token <JWT>` | `SKIMASQUE_OIDC_TOKEN` | — | supply a token instead of fetching one |
 | `--oidc-audience <AUD>` | — | — | must match a gateway `--oidc-audience` |
 | `--app <NAME>` | — | — | declared application (`X-Masque-Application`); policy matches on it |
 
-Subcommands: `socks5 --listen <ADDR>`, `connect --target <HOST:PORT>`,
+Subcommands: `capabilities --json`, `proxy --http-listen <ADDR> --socks-listen <ADDR>`
+(with optional `--ready-file <PATH>` and Linux `--tun-interface <NAME>`),
+`socks5 --listen <ADDR>`, `connect --target <HOST:PORT>`,
 `probe --target <HOST:PORT> [--text <S> | --dns <NAME>]`.
 
-## The GitHub Action (`skimasque-dev/connect@v1`)
+## The GitHub Action (`skimasque-dev/connect`)
 
 | Input | Required | Default | Notes |
 |---|---|---|---|
-| `proxy` | yes | — | gateway address `host:port` |
-| `audience` | yes | — | OIDC audience; must equal a gateway `--oidc-audience` |
-| `authority` | no | proxy host | TLS server name / `:authority` |
-| `application` | no | — | declared application, matched by policy |
-| `ca` | no | — | PEM the gateway's cert chains to (private CA) |
-| `listen` | no | `127.0.0.1:1080` | local SOCKS5 relay address |
-| `version` | no | the action's ref | `skimasque` release to install; a moving ref resolves to latest |
-| `repository` | no | `skimasque-dev/skimasque` | where to download the release from |
-| `client-bin` | no | — | use this binary instead of downloading |
+| `proxy` | yes | — | gateway `host:port` |
+| `audience` | yes | — | gateway OIDC audience |
+| `mode` | no | `transparent` | `transparent` or `proxy`; no automatic fallback |
+| `routes` | transparent | — | comma/newline-separated private IPv4/IPv6 CIDRs |
+| `dns-servers` | transparent | — | private resolver IPs; automatically routed |
+| `dns-domains` | transparent | — | split DNS domains, e.g. `~internal.example`; not `~.` |
+| `authority` | no | proxy hostname | TLS name / HTTP authority |
+| `application` | no | — | declared context, not verified process identity |
+| `ca` | no | — | private CA PEM |
+| `listen` | no | `127.0.0.1:1080` | SOCKS listener; port 0 chooses a free port |
+| `http-listen` | no | `127.0.0.1:8080` | HTTP listener; port 0 chooses a free port |
+| `version` | no | action ref | exact client release; moving refs resolve to latest |
+| `repository` | no | `skimasque-dev/skimasque` | client release source |
+| `client-bin` | no | — | existing client; capabilities still checked |
+| `probe-target` | no | — | TCP `host:port` checked before readiness |
+| `startup-timeout` | no | `30` | seconds, 1–300 |
 
-It writes `ALL_PROXY=socks5h://<listen>` to `GITHUB_ENV`.
+Outputs: `mode`, `http-proxy`, `socks-proxy`, `state-file`. Proxy mode exports
+uppercase/lowercase HTTP, HTTPS and SOCKS variables. Transparent mode exports no
+global proxy variables. The post hook removes owned resources. See
+[GitHub Actions](github-actions.md) for platform prerequisites and release compatibility.
 
 ## `run-gateway.sh` environment (Docker)
 

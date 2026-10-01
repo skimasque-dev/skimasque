@@ -1,162 +1,119 @@
 # Getting started
 
-> **Applies to:** ✓ Mode 1 (this page) · Mode 2 → [`gateways.md`](gateways.md) · Mode 3 → [`self-hosting.md`](self-hosting.md)
+SkiMasque gives CI jobs, developers and coding agents policy-controlled TCP/UDP
+access through a MASQUE gateway. Choose a gateway that can reach your resource:
+the shared Cloud gateway for reachable destinations, or a customer gateway inside
+your network for private services. A Cloud account does not create a route into
+your VPC. See [deployment modes](deployment-modes.md).
 
-By the end you will have a GitHub Actions job reaching **one protected
-destination** through a policy — and denying everything else. About 5 minutes
-with [SkiMasque Cloud](deployment-modes.md#mode-1--fully-managed) (Mode 1): no
-infrastructure to run.
-
-```
-GitHub Actions job                      SkiMasque Cloud               your resource
-  OIDC token  ──exchange──▶  gateway.skimasque.com ──policy: ALLOW──▶  db.internal:5432
-  credential  ──tunnel────▶     (deny by default)          ✗────▶  anything else
-```
-
-## 1. Sign in and create an org
+## Sign in and publish a policy
 
 ```console
-$ skimasque login                 # opens the GitHub device flow; SkiMasque Cloud by default
-$ skimasque org create "Acme"
+skimasque login
+skimasque org create "Acme"
+skimasque init
 ```
 
-## 2. Write and publish a policy
-
-Scaffold one, edit it for your repo and target, and check it locally — no
-network:
-
-```console
-$ skimasque init                  # writes .masque/policies/example.toml
-```
+In the console, verify the GitHub owner associated with your organisation before
+using its repositories for CI access. Write a policy for your actual identity and
+destination, test it locally, then save and publish it under **Policies**.
 
 ```toml
-# .masque/policies/production.toml
-name = "production"
-
+name = "staging-api"
 [match]
-repository = "your-org/your-repo"   # who this policy governs
-branch = "main"                     # a fork's PR branch will not match
-
-[session]
-max_duration = "15m"
+repository = "acme/widget"
+workflow = "deploy.yml"
+branch = "main"
+kind = "ci"
 
 [[rules]]
-id = "db"
-application = "psql"                # the name the job declares
+application = "curl"
 action = "allow"
-destinations = ["db.internal:5432"]
+destinations = ["api.staging.example.com:443"]
 
-[[tests]]                           # travels with the policy, runs in CI
-application = "psql"
-destination = "db.internal:5432"
+[[tests]]
+application = "curl"
+destination = "api.staging.example.com:443"
 expect = "allow"
 
 [[tests]]
-application = "psql"
-destination = "secrets.internal:443"
+application = "curl"
+destination = "api.production.example.com:443"
 expect = "deny"
 ```
 
 ```console
-$ skimasque policy test
-production
-  ok   psql -> db.internal:5432        (expect allow)
-  ok   psql -> secrets.internal:443    (expect deny)
-
-$ skimasque policy validate --strict   # fail CI if a [match] is too broad
+skimasque policy validate --strict
+skimasque policy test
 ```
 
-Publish it: in the dashboard (`https://control.skimasque.com`) open your org →
-**Access → Policy editor**, paste the document, and **Publish** it as revision 1.
-(Or keep it in `.masque/policies/` and let CI publish it — see
-[`github-actions.md`](github-actions.md).)
+Replace the repository, workflow and destination. No matching allow rule means
+deny when policy enforcement is enabled. Application names are declared context;
+verified identity and destination rules provide the authorization boundary.
 
-## 3. Wire the workflow
+## Connect a GitHub Actions job
 
-The job needs `id-token: write` to mint an OIDC token.
+Start with explicit proxy mode for a proxy-aware tool:
 
 ```yaml
 jobs:
-  migrate:
-    runs-on: ubuntu-latest
+  check-api:
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: skimasque-dev/connect@v1
+      - uses: skimasque-dev/connect@v2
         with:
+          mode: proxy
           proxy: gateway.skimasque.com:443
           audience: https://gateway.skimasque.com
-          application: psql
-
-      - name: Run the migration through the gateway
-        env:
-          ALL_PROXY: socks5h://127.0.0.1:1080
-        run: psql "postgresql://ci@db.internal:5432/app" -f migrations/latest.sql
+          application: curl
+      - run: curl --fail https://api.staging.example.com/health
 ```
 
-`socks5h://` (with the `h`) resolves the destination name gateway-side, so DNS
-also goes through policy. Tools that honour `ALL_PROXY` — `psql`, `curl`, `git`,
-most cloud SDKs — now egress through the gateway, subject to policy.
+Use compatible Action/client releases. Pin exact releases for reproducible workflows.
+For a customer gateway, replace `proxy` and `audience` with its configured values.
+Proxy mode exports HTTP, HTTPS and SOCKS proxy variables. It requires tools that
+honour them; `psql` does not use `ALL_PROXY`.
 
-The full, copy-pasteable workflow — with the matching policy and every
-placeholder marked — is
-[`examples/github-actions/managed-postgres-migration.yml`](../examples/github-actions/managed-postgres-migration.yml).
+For a private database on a dedicated Ubuntu runner, use **transparent mode** with
+explicit private CIDRs, DNS servers and DNS routing domains. Ordinary TCP/UDP
+sockets then use the tunnel for those routes. DNS and service IPs need matching
+policy rules, and the gateway must permit those ranges through its address floor.
+See [GitHub Actions](github-actions.md) and the
+[Postgres example](../examples/github-actions/managed-postgres-migration.yml).
 
-## 4. Verify
+The Action supervises the client and registers a post-job cleanup hook. Public
+traffic outside configured routes remains on the runner's normal network;
+transparent mode does not confine the job.
 
-- The **"Run the migration"** step succeeds.
-- Point a step at something not in the policy (`secrets.internal:443`) — the
-  tunnel is refused with the reason in `Proxy-Status`, and the step fails.
-- The dashboard's **Activity** view has one line per decision: identity,
-  application, destination, the rule or the denial reason, a timestamp.
+## Verify the decision
 
-That is the whole enforcement loop. Iterate on the policy; publish a new
-revision and gateways pick it up.
+Check **Audit** in the console for the identity, application, destination and
+allow/deny reason. Test a denied destination through the same proxy or a configured
+private route. A direct request outside the tunnel does not test gateway policy.
+Publish policy revisions to change authorization for new tunnels.
 
----
+## Run a local command
 
-## Without the composite action
-
-`skimasque-client` does the exchange itself — useful for GitLab, Buildkite, or
-debugging:
-
-```yaml
-      - name: Install skimasque-client
-        run: curl -sSL "$SKIMASQUE_CLIENT_URL" | tar xz -C /usr/local/bin skimasque-client
-
-      - name: Open the tunnel
-        run: |
-          skimasque-client --proxy gateway.skimasque.com:443 \
-            --github-oidc --oidc-audience https://gateway.skimasque.com \
-            --app psql \
-            socks5 --listen 127.0.0.1:1080 &
-          for _ in $(seq 20); do nc -z 127.0.0.1 1080 && break; sleep 0.5; done
-```
-
-For a one-off check instead of a relay:
+After publishing a policy for your developer identity:
 
 ```console
-$ skimasque-client --proxy gateway.skimasque.com:443 \
-    --github-oidc --oidc-audience https://gateway.skimasque.com --app psql \
-    probe --target db.internal:5432 --text ping
+skimasque exec --app curl -- curl --fail https://api.staging.example.com/health
+skimasque exec --forward 15432:db.internal:5432 -- psql -h 127.0.0.1 -p 15432
 ```
 
-## Local development, no CI
-
-`skimasque` and `skimasque-client` also work from a laptop against a gateway you
-can reach — a static token, or a signed-in session. See
-[`cli.md`](cli.md#skimasque-client) and [`policies.md`](policies.md).
+The second command requires its own matching database rule and a gateway that can
+reach the database. Local listeners close when the command exits. For a coding
+agent, use `exec --agent` with `--sandbox srt` or an explicit `--unsandboxed` choice;
+read [agent sessions](agents.md) before granting access.
 
 ## Next
 
-| You want… | See |
-|---|---|
-| To run the gateway in your own network | [`gateways.md`](gateways.md) (Mode 2) |
-| To run everything yourself | [`self-hosting.md`](self-hosting.md) (Mode 3) |
-| The policy DSL in full | [`policies.md`](policies.md) |
-| OIDC details, other CI systems | [`github-actions.md`](github-actions.md) |
-| Every command and flag | [`cli.md`](cli.md), [`configuration.md`](configuration.md) |
-| Something failed | [`troubleshooting.md`](troubleshooting.md) |
+- [GitHub Actions](github-actions.md): modes, prerequisites, identity and cleanup.
+- [Policies](policies.md): workload kinds, baselines and enforcement limits.
+- [CLI](cli.md): exec, tunnels, agent sessions and management commands.
+- [Gateways](gateways.md): deploy inside your network.
+- [Self-hosting](self-hosting.md): operate a licensed or compatible control plane.
+- [Troubleshooting](troubleshooting.md): diagnose routing and policy decisions.

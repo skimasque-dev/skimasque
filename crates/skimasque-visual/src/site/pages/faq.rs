@@ -69,7 +69,7 @@ pub fn page() -> Page {
             "Does access expire?",
             &[
                 "Yes.",
-                "Policy sets the session duration. The command wrapper also closes its local tunnels when the command exits.",
+                "Credentials expire and exec closes its local tunnels when the command exits. Agent sessions also close active tunnels at expiry or once revocation reaches the gateway. Policy max_duration is currently metadata; it does not enforce a tunnel timeout for CI or developer credentials.",
             ],
         )
         .item(
@@ -81,7 +81,7 @@ pub fn page() -> Page {
         )
         .item(
             "Can CI use it?",
-            &["Yes.", "The GitHub Action exchanges the job’s OIDC token for a short-lived credential and starts a local proxy for tools that honour ALL_PROXY."],
+            &["Yes.", "The GitHub Action exchanges OIDC for a renewable credential. Dedicated Ubuntu runners can use transparent private TCP/UDP routing and split DNS; select mode: proxy for tools that honour HTTP, HTTPS or SOCKS proxies."],
         );
 
     let faq = Section::new("Questions")
