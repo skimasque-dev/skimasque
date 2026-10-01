@@ -828,7 +828,13 @@ async fn srt_command_line(
         }
         None => None,
     };
-    let doc = sandbox::settings(base, &args.allow_domains, http_addr).map_err(failed)?;
+    // The command must not be able to read the login that started its session.
+    let login_dir: Vec<String> = crate::account::credentials_path()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_string_lossy().into_owned()))
+        .into_iter()
+        .collect();
+    let doc = sandbox::settings(base, &args.allow_domains, http_addr, &login_dir).map_err(failed)?;
     let (dir, settings_file) = sandbox::SettingsDir::create(&doc)
         .map_err(|e| failed(format!("writing the sandbox settings: {e}")))?;
 
@@ -858,7 +864,17 @@ async fn srt_command_line(
     let stdout = String::from_utf8_lossy(&output.stdout);
     // srt may print its own banner; the verdict is the last line.
     let verdict = stdout.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("");
-    sandbox::judge_probe(verdict, output.status.success()).map_err(failed)?;
+    sandbox::judge_probe(verdict, output.status.success()).map_err(|why| {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stderr = stderr.trim();
+        if stderr.is_empty() {
+            failed(why)
+        } else {
+            failed(format!("{why}
+The sandbox said:
+{stderr}"))
+        }
+    })?;
 
     let mut line: Vec<OsString> = vec![srt.into_os_string()];
     line.extend(sandbox::argv(&settings_file, &args.command));

@@ -120,6 +120,12 @@ the same exposure as `ssh -L`. Don't run exec on a shared host you don't trust.
 | `--control-plane URL` / `$SKIMASQUE_CONTROL_PLANE` | Defaults to the control plane you signed in to, else SkiMasque Cloud. |
 | `--forward [LOCAL_PORT:]HOST:PORT` | A loopback listener tunnelled to one destination, for tools that ignore proxy settings (`psql`). Its address is in `$SKIMASQUE_FORWARD_<HOST>_<PORT>`. Pick `LOCAL_PORT` when your shell needs the port on the command line. |
 | `--quiet` | No access summary on stderr. |
+| `--agent` | Run as a coding agent: start an agent session for the command and end it when the command exits. Needs `skimasque login`. The credential stays in this process. See [`agents.md`](agents.md). |
+| `--ttl D`, `--runtime NAME`, `--run-id ID`, `--parent SESSION` | With `--agent`: lifetime (default 30m, max 4h), audit labels, and the parent session to delegate from. |
+| `--sandbox srt` | Confine the command with Anthropic's sandbox runtime so SkiMasque is its only way out. Checks first that a direct connection is blocked, and refuses to start if not. |
+| `--allow-domain DOMAIN` | With `--sandbox`: a domain the sandbox lets through to SkiMasque (repeatable, required). The gateway's policy still decides each connection. |
+| `--sandbox-settings PATH` | With `--sandbox`: your own `srt` settings, merged with the generated network settings. |
+| `--unsandboxed` | With `--agent`: run it with no sandbox. An agent must pass `--sandbox srt` or this. |
 
 With a `skimasque login` session exec checks your access with the control plane
 first and refuses to start when `--policy` does not apply or every

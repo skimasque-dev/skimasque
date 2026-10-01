@@ -71,10 +71,21 @@ pub fn check_allow_domain(raw: &str) -> Result<String, String> {
 /// The settings document handed to `srt --settings`.
 ///
 /// `base` is the user's own file (filesystem rules and the like) and is kept as
-/// it is, except for what this function owns: the network allowlist and the
-/// parent proxy. Anything the base said there is replaced, because a different
-/// parent proxy would send the agent's traffic somewhere other than SkiMasque.
-pub fn settings(base: Option<Value>, allow: &[String], parent: SocketAddr) -> Result<Value, String> {
+/// it is, except for what this function owns: the network allowlist, the parent
+/// proxy, and `deny_read` -- paths added to `filesystem.denyRead` so the
+/// command cannot read what would let it act as someone else (the `skimasque
+/// login` session). Anything the base said about the first two is replaced,
+/// because a different parent proxy would send the agent's traffic somewhere
+/// other than SkiMasque.
+///
+/// srt refuses a file missing `filesystem` or `network.deniedDomains`, so those
+/// are filled in: writes to the working directory only, nothing else.
+pub fn settings(
+    base: Option<Value>,
+    allow: &[String],
+    parent: SocketAddr,
+    deny_read: &[String],
+) -> Result<Value, String> {
     let mut doc = match base {
         None => json!({}),
         Some(Value::Object(map)) => Value::Object(map),
@@ -88,11 +99,29 @@ pub fn settings(base: Option<Value>, allow: &[String], parent: SocketAddr) -> Re
         );
     }
     let object = doc.as_object_mut().expect("checked above");
+
+    let filesystem = object.entry("filesystem").or_insert_with(|| json!({}));
+    let filesystem = filesystem
+        .as_object_mut()
+        .ok_or_else(|| "\"filesystem\" in the sandbox settings must be an object".to_owned())?;
+    filesystem.entry("allowWrite").or_insert_with(|| json!(["."]));
+    filesystem.entry("denyWrite").or_insert_with(|| json!([]));
+    let denied = filesystem.entry("denyRead").or_insert_with(|| json!([]));
+    let denied = denied
+        .as_array_mut()
+        .ok_or_else(|| "\"filesystem.denyRead\" must be a list".to_owned())?;
+    for path in deny_read {
+        if !denied.iter().any(|p| p.as_str() == Some(path)) {
+            denied.push(json!(path));
+        }
+    }
+
     let network = object.entry("network").or_insert_with(|| json!({}));
     let network = network
         .as_object_mut()
         .ok_or_else(|| "\"network\" in the sandbox settings must be an object".to_owned())?;
     let url = format!("http://{parent}");
+    network.entry("deniedDomains").or_insert_with(|| json!([]));
     network.insert("allowedDomains".to_owned(), json!(allow));
     network.insert(
         "parentProxy".to_owned(),
@@ -234,7 +263,7 @@ mod tests {
                 "parentProxy": { "http": "http://corp:3128", "noProxy": "*.acme.dev" }
             }
         });
-        let doc = settings(Some(base), &["api.acme.dev".into()], parent()).unwrap();
+        let doc = settings(Some(base), &["api.acme.dev".into()], parent(), &[]).unwrap();
         assert_eq!(doc["filesystem"]["denyRead"], json!(["~/.ssh"]), "kept");
         assert_eq!(doc["network"]["deniedDomains"], json!(["evil.example"]), "kept");
         assert_eq!(doc["network"]["allowedDomains"], json!(["api.acme.dev"]));
@@ -247,11 +276,28 @@ mod tests {
 
     #[test]
     fn settings_need_domains_and_an_object() {
-        assert!(settings(None, &[], parent()).unwrap_err().contains("--allow-domain"));
-        assert!(settings(Some(json!([1])), &["a.dev".into()], parent()).is_err());
-        assert!(settings(Some(json!({"network": 3})), &["a.dev".into()], parent()).is_err());
-        let doc = settings(None, &["a.dev".into()], parent()).unwrap();
+        assert!(settings(None, &[], parent(), &[]).unwrap_err().contains("--allow-domain"));
+        assert!(settings(Some(json!([1])), &["a.dev".into()], parent(), &[]).is_err());
+        assert!(settings(Some(json!({"network": 3})), &["a.dev".into()], parent(), &[]).is_err());
+        let doc = settings(None, &["a.dev".into()], parent(), &[]).unwrap();
         assert_eq!(doc["network"]["allowedDomains"], json!(["a.dev"]));
+    }
+
+    #[test]
+    fn settings_fill_what_srt_insists_on_and_hide_the_login() {
+        let login = "/home/u/.config/skimasque".to_owned();
+        let doc = settings(None, &["a.dev".into()], parent(), std::slice::from_ref(&login)).unwrap();
+        // srt rejects a file without these.
+        assert_eq!(doc["network"]["deniedDomains"], json!([]));
+        assert_eq!(doc["filesystem"]["allowWrite"], json!(["."]));
+        assert_eq!(doc["filesystem"]["denyWrite"], json!([]));
+        assert_eq!(doc["filesystem"]["denyRead"], json!([login]));
+
+        // Added to the user's list once, not duplicated, and theirs is kept.
+        let base = json!({"filesystem": {"denyRead": ["~/.ssh", login], "allowWrite": ["/work"]}});
+        let doc = settings(Some(base), &["a.dev".into()], parent(), std::slice::from_ref(&login)).unwrap();
+        assert_eq!(doc["filesystem"]["denyRead"], json!(["~/.ssh", login]));
+        assert_eq!(doc["filesystem"]["allowWrite"], json!(["/work"]), "not overridden");
     }
 
     #[test]

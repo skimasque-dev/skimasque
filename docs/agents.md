@@ -107,7 +107,64 @@ console's explanation says if a policy was missed only because of its `kind`.
 ## Making the agent use it
 
 SkiMasque grants and audits access; **a sandbox makes the agent unable to go
-around it.** The shape that works:
+around it.**
+
+### One command: `exec --agent --sandbox srt`
+
+```console
+$ npm install -g @anthropic-ai/sandbox-runtime     # once; Anthropic's sandbox runtime
+$ skimasque exec --agent --sandbox srt \
+      --allow-domain '*.acme.dev' --allow-domain github.com \
+      --runtime claude-code --ttl 45m -- claude
+```
+
+This starts an agent session, runs the command inside the sandbox runtime
+(`srt`) with SkiMasque as the only way out, and ends the session when the command
+exits, however it exits. In detail:
+
+- The credential lives only in the `exec` process. It is not written to a file,
+  not in the command's environment, not in any argument. `SKIMASQUE_TOKEN`,
+  `SKIMASQUE_TOKEN_FILE` and proxy variables are removed from the environment
+  the command inherits.
+- `srt`'s proxy is chained to `exec`'s own, so HTTPS and other TCP from the
+  command (including through `srt`'s SOCKS5 proxy) reach the gateway, and the
+  gateway's policy decides each connection. UDP is not available inside the
+  sandbox.
+- `--allow-domain` is `srt`'s own allowlist, an outer fence, and it is required
+  because `srt` accepts no bare `*` (nor a whole TLD like `*.com`). A domain
+  allowed here but denied by policy is still denied, with the policy named in the
+  message.
+- Before the command starts, `exec` runs a probe **inside** the sandbox that tries
+  a direct connection to this host's own network address. If that is not
+  blocked, or the probe cannot run to completion, `exec` refuses to start the
+  command. It never runs an agent it could not confirm was confined.
+- The directory holding your `skimasque login` session is added to the sandbox's
+  `denyRead`, so the command cannot read the login that started it. The sandbox
+  may write to the working directory only; `--sandbox-settings <file>` merges
+  your own `srt` settings (its `network.allowedDomains` and `network.parentProxy`
+  are replaced, since a different parent proxy would send traffic elsewhere).
+- An agent must choose: `--sandbox srt`, or `--unsandboxed` to run it with
+  nothing stopping direct connections (for when something else confines it).
+
+What this was tried against: Linux (bubblewrap), `srt` 0.0.78, in a container.
+There, a request to an allowed host through the gateway succeeds; the same host
+on a port policy forbids is refused by the gateway; a direct connection with
+proxy variables bypassed fails; and the login directory is unreadable. macOS
+(Seatbelt) is `srt`'s documented behaviour and has not been tried here. On
+Windows `srt` needs a one-time administrator `windows-install` to set up its
+firewall rules; untried here too, and the probe is what tells you if it is
+working.
+
+Known limits: plain `http://` through the sandbox is refused, because
+`exec`'s HTTP front end only tunnels `CONNECT` (see `docs/cli.md`); use HTTPS.
+`--forward` cannot be combined with `--sandbox`, since the sandboxed command
+cannot reach loopback listeners outside it. The sandbox's DNS resolution, as `srt`
+documents, is not fenced on every platform.
+
+### Doing it yourself
+
+Anything that can confine a process and accept an external proxy works. The
+shape:
 
 ```
 sandboxed agent ──▶ local proxy (outside the sandbox) ──▶ gateway ──▶ destination
