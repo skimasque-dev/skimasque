@@ -488,3 +488,38 @@ html { scroll-padding-top: 72px; }
 .v-site-footer .v-planned { color: var(--slate-300); border-color: var(--slate-300); }
 .v-footer-legal { position: relative; margin: 32px auto 0; font-size: 12px; }
 @media (min-width: 900px) { .v-footer-grid { grid-template-columns: minmax(200px, 1fr) minmax(0, 3fr); } }
+
+/* Homepage network demonstration. */
+.v-network-demo { width: 100%; max-width: 560px; padding: 20px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--surface); }
+.v-network-demo svg { display: block; width: 100%; height: auto; overflow: visible; }
+.v-network-demo svg text { fill: var(--text); font: 12px var(--font); }
+.v-network-demo svg .v-network-detail { fill: var(--text-muted); font-size: 11px; }
+.v-network-kicker { font-size: 12px; color: var(--accent-text); line-height: 1.6; }
+.v-network-boundary { fill: var(--surface-raised); stroke: var(--line-strong); stroke-dasharray: 5 5; }
+.v-network-box { fill: var(--surface); stroke: var(--v-structure); stroke-width: 1.5; }
+.v-network-control { fill: none; stroke: var(--v-neutral); stroke-width: 2; stroke-dasharray: 4 5; }
+.v-network-path { fill: none; stroke: var(--v-active); stroke-width: 3; }
+.v-network-head { fill: none; stroke: var(--v-active); stroke-width: 2; }
+.v-network-blocked { fill: none; stroke: var(--v-neutral); stroke-dasharray: 2 6; opacity: .5; }
+.v-network-demo svg .v-network-denied { fill: var(--v-deny); font-size: 22px; }
+.v-network-packet { fill: var(--v-active); opacity: 0; }
+.v-network-demo[data-step="0"] .v-network-path,
+.v-network-demo[data-step="0"] .v-network-head,
+.v-network-demo[data-step="1"] .v-network-path,
+.v-network-demo[data-step="1"] .v-network-head,
+.v-network-demo[data-step="3"] .v-network-path,
+.v-network-demo[data-step="3"] .v-network-head { stroke: var(--v-neutral); opacity: .35; }
+.v-network-demo[data-step="1"] .v-network-control { stroke: var(--v-active); }
+.v-network-demo[data-step="2"] .v-network-database { stroke: var(--v-active); stroke-width: 3; }
+.v-network-demo[data-step="2"] .v-network-packet { opacity: 1; animation: v-network-traffic 1.6s linear infinite; }
+.v-network-demo[data-playing="false"] .v-network-packet { animation-play-state: paused; }
+@keyframes v-network-traffic { from { transform: translateX(0); } to { transform: translateX(166px); } }
+.v-network-caption { min-height: 3em; font-size: 13px; line-height: 1.6; color: var(--text); }
+.v-network-note { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+.v-network-controls { display: flex; gap: 8px; }
+.v-network-controls[hidden] { display: none; }
+.v-network-controls button { min-height: 44px; padding: 8px 16px; font: inherit; font-size: 12px; color: var(--text); background: var(--surface-raised); border: 1px solid var(--line-strong); border-radius: 6px; cursor: pointer; }
+.v-network-controls button:disabled { opacity: .5; cursor: default; }
+.v-network-controls button:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+@media (max-width: 560px) { .v-network-demo { padding: 12px; } }
+@media (prefers-reduced-motion: reduce) { .v-network-demo[data-step="2"] .v-network-packet { animation: none; opacity: 0; } }
