@@ -13,7 +13,7 @@ installs three binaries:
 |---|---|
 | **`skimasque`** | the front door: scaffold and check policy locally, run a gateway or open a tunnel, sign in to skimasque's control plane, and manage an organisation's fleet |
 | **`skimasque-server`** | the gateway data plane — verifies identity, enforces policy, and relays authorized tunnels |
-| **`skimasque-client`** | opens tunnels: a one-shot probe, a raw `CONNECT` stream, or a local SOCKS5 relay in front of the tunnel |
+| **`skimasque-client`** | opens tunnels: a one-shot probe, a raw `CONNECT` stream, or authenticated HTTP/HTTPS and SOCKS5 TCP/UDP proxies (`proxy`) |
 
 ## Check a policy without a network
 
