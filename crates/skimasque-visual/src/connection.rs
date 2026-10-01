@@ -215,7 +215,7 @@ mod tests {
         assert!(Connection::new(ConnKind::Denied)
             .html()
             .as_str()
-            .contains(r#"<span class="v-conn-x" aria-hidden="true">×</span>"#));
+            .contains(r#"class="v-denial-mark""#));
     }
 
     #[test]

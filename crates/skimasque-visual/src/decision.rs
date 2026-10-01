@@ -196,7 +196,7 @@ mod tests {
             "destination not allowed",
         );
         let s = e.html().as_str().to_owned();
-        assert!(s.contains("v-check-fail") && s.contains("×") && s.contains("did not match"));
+        assert!(s.contains("v-check-fail") && s.contains("v-denial-mark") && s.contains("did not match"));
         assert!(s.contains("db.staging:5432 is not in this policy") && s.contains("ACCESS DENIED"));
     }
 

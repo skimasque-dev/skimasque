@@ -1,1 +1,1 @@
-{% if allow %}<span class="v-decision v-tone-active"><span aria-hidden="true">✓</span> {{ self.word() }}</span>{% else %}<span class="v-decision v-tone-deny"><span aria-hidden="true">×</span> {{ self.word() }}</span>{% endif %}
+{% if allow %}<span class="v-decision v-tone-active"><span aria-hidden="true">✓</span> {{ self.word() }}</span>{% else %}<span class="v-decision v-tone-deny"><span aria-hidden="true">{% include "denial_mark.html" %}</span> {{ self.word() }}</span>{% endif %}

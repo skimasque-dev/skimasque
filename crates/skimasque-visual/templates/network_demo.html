@@ -1,26 +1,26 @@
 <div class="v-network-demo">
   <p class="v-network-kicker">ONE JOB. ONE DESTINATION. TEMPORARY ACCESS.</p>
-  <svg viewBox="0 0 480 330" role="img" aria-label="A CI workload is authorized by policy, sends traffic through a gateway to one private database, and loses access when its session expires. Other services remain inaccessible.">
-    <rect class="v-network-boundary" x="302" y="112" width="170" height="204" rx="14"/>
-    <text x="387" y="136" text-anchor="middle">PRIVATE NETWORK</text>
+  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 480 330" role="img" aria-label="A CI workload is authorized by policy, sends traffic through a gateway to one private database, and loses access when its session expires. Other services remain inaccessible.">
+    <rect fill="var(--surface)" class="v-network-boundary" x="302" y="112" width="170" height="204" rx="14"/>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" x="387" y="136" text-anchor="middle">PRIVATE NETWORK</text>
     <path class="v-network-control" d="M80 190 V55 H215 V166"/>
     <path class="v-network-path" d="M132 200 H160 M270 200 H310"/>
     <path class="v-network-head" d="M150 194 L158 200 L150 206 M300 194 L308 200 L300 206"/>
-    <path class="v-network-blocked" d="M215 228 V282 H310"/>
-    <text class="v-network-denied" x="290" y="276">×</text>
-    <rect class="v-network-box" x="24" y="170" width="108" height="60" rx="10"/>
-    <text x="78" y="195" text-anchor="middle">CI WORKLOAD</text>
-    <text class="v-network-detail" x="78" y="215" text-anchor="middle">deploy job</text>
-    <rect class="v-network-box" x="160" y="24" width="110" height="62" rx="10"/>
-    <text x="215" y="49" text-anchor="middle">POLICY</text>
-    <text class="v-network-detail" x="215" y="69" text-anchor="middle">identity checked</text>
-    <rect class="v-network-box" x="160" y="170" width="110" height="60" rx="10"/>
-    <text x="215" y="195" text-anchor="middle">GATEWAY</text>
-    <text class="v-network-detail" x="215" y="215" text-anchor="middle">scoped session</text>
-    <rect class="v-network-box v-network-database" x="314" y="170" width="146" height="60" rx="10"/>
-    <text x="387" y="195" text-anchor="middle">PRIVATE DATABASE</text>
-    <text class="v-network-detail" x="387" y="215" text-anchor="middle">db.prod:5432</text>
-    <text class="v-network-detail" x="387" y="286" text-anchor="middle">Other services</text>
+    <path class="v-network-blocked" d="M215 228 V282 H288 M300 282 H310"/>
+    <path class="v-network-denied" d="M290 278 L298 286 M298 278 L290 286"/>
+    <rect fill="var(--surface)" class="v-network-box" x="24" y="170" width="108" height="60" rx="10"/>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" x="78" y="195" text-anchor="middle">CI WORKLOAD</text>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" class="v-network-detail" x="78" y="215" text-anchor="middle">deploy job</text>
+    <rect fill="var(--surface)" class="v-network-box" x="160" y="24" width="110" height="62" rx="10"/>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" x="215" y="49" text-anchor="middle">POLICY</text>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" class="v-network-detail" x="215" y="69" text-anchor="middle">identity checked</text>
+    <rect fill="var(--surface)" class="v-network-box" x="160" y="170" width="110" height="60" rx="10"/>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" x="215" y="195" text-anchor="middle">GATEWAY</text>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" class="v-network-detail" x="215" y="215" text-anchor="middle">scoped session</text>
+    <rect fill="var(--surface)" class="v-network-box v-network-database" x="314" y="170" width="146" height="60" rx="10"/>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" x="387" y="195" text-anchor="middle">PRIVATE DATABASE</text>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" class="v-network-detail" x="387" y="215" text-anchor="middle">db.prod:5432</text>
+    <text fill="currentColor" stroke="none" font-family="monospace" font-size="12" class="v-network-detail" x="387" y="286" text-anchor="middle">Other services</text>
     <circle class="v-network-packet" r="4" cx="138" cy="200"/>
   </svg>
   <p class="v-network-caption" role="status" aria-live="off">Only the permitted database is reachable. Access closes when the session expires.</p>
