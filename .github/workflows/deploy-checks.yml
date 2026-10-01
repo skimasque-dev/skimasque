@@ -1,0 +1,64 @@
+name: deploy-checks
+
+# The deployment automation under deploy/: the release agent, the disk helper,
+# and the GCP gateway Terraform module. None of it touches a cloud account: the
+# Terraform is only formatted, validated and rendered.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deploy/**"
+      - "crates/skimasque-cli/src/bin/skimasque-server.rs"
+      - ".github/workflows/deploy-checks.yml"
+  pull_request:
+    paths:
+      - "deploy/**"
+      - "crates/skimasque-cli/src/bin/skimasque-server.rs"
+      - ".github/workflows/deploy-checks.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  agent:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Agent unit tests
+        run: python3 -W error::ResourceWarning -m unittest discover -s deploy/agent/tests -v
+
+      - name: Disk helper tests
+        run: bash deploy/agent/tests/test_prepare_disk.sh
+
+      - name: shellcheck
+        run: |
+          shellcheck -x \
+            deploy/agent/skimasque-prepare-disk \
+            deploy/agent/tests/test_prepare_disk.sh \
+            deploy/terraform/gcp-gateway/tests/render_check.sh
+
+  terraform:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Format
+        run: terraform fmt -check -recursive deploy/terraform
+
+      - name: Validate the gateway module (through its example)
+        working-directory: deploy/terraform/gcp-gateway/examples/basic
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Render the gateway cloud-init and check it
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cloud-init python3-yaml
+          deploy/terraform/gcp-gateway/tests/render_check.sh
