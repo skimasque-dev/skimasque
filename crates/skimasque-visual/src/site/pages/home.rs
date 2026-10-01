@@ -6,52 +6,21 @@ use super::doc;
 use crate::diagrams::public;
 use crate::site::Page;
 use crate::site_chrome::{link, GET_STARTED_URL};
-use crate::{
-    Component, ConnKind, Connection, Cta, CtaBand, FeatureGrid, Flow, Hero, Html, Node, NodeKind,
-    PolicyExplorer, Prose, Route, Section, SitePage, Status,
-};
+use crate::{Component, Cta, CtaBand, FeatureGrid, Hero, PolicyExplorer, Prose, Section, SitePage};
 
-/// The hero artwork: the session path with the animated route beneath it.
+/// A self-contained network illustration with progressive enhancement.
 #[derive(Template)]
-#[template(
-    source = r#"<div class="v-hero-art">{{ flow|safe }}{{ route|safe }}</div>"#,
-    ext = "html"
-)]
-struct HeroArt {
-    flow: Html,
-    route: Html,
+#[template(path = "network_demo.html")]
+struct HeroArt;
+impl HeroArt {
+    fn script(&self) -> &'static str {
+        include_str!("../../../static/network_demo.js")
+    }
 }
 impl Component for HeroArt {}
 
-fn hero_flow() -> Flow {
-    let active = || Connection::new(ConnKind::Active);
-    Flow::new(
-        "An identity is checked against policy, a temporary session is opened, and the gateway \
-         carries it to the private service.",
-    )
-    .then(&Node::new(NodeKind::Identity).label("IDENTITY"))
-    .via(
-        Connection::new(ConnKind::Control).label("checked"),
-        &Node::new(NodeKind::Policy).label("POLICY"),
-    )
-    .via(
-        Connection::new(ConnKind::Control).label("authorized"),
-        &Node::new(NodeKind::Session)
-            .label("TEMPORARY SESSION")
-            .status(Status::Active),
-    )
-    .via(active(), &Node::new(NodeKind::Gateway).label("GATEWAY"))
-    .via(
-        active(),
-        &Node::new(NodeKind::Service).label("PRIVATE SERVICE"),
-    )
-}
-
 pub fn page() -> Page {
-    let art = HeroArt {
-        flow: hero_flow().html(),
-        route: Route::new().flowing().html(),
-    };
+    let art = HeroArt;
     let hero = Hero::new("Give every workload exactly the network access it needs.")
         .lead(
             "SkiMasque provides identity-aware, least-privilege network access for developers \
@@ -184,7 +153,9 @@ mod tests {
                 "missing {want:?}"
             );
         }
-        assert!(s.contains("v-route"), "the hero route motif");
+        assert!(s.contains("v-network-demo"), "the animated network diagram");
+        assert!(s.contains("Other services"));
+        assert!(s.contains("Replay"));
         assert!(
             !s.to_lowercase().contains("command wrapper"),
             "exec is built: no planned command-wrapper card"
