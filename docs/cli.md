@@ -104,9 +104,12 @@ loopback, and runs `COMMAND` with `HTTPS_PROXY`/`HTTP_PROXY` (HTTP CONNECT),
 `ALL_PROXY` (`socks5h://`) and `NO_PROXY=localhost,127.0.0.1,::1` set. Access
 ends when the command exits.
 
-The `HTTP_PROXY` front end only tunnels `CONNECT`, i.e. HTTPS and other TLS.
-A plain `http://` request sent to it is refused (`405`, with a note on stderr);
-reach such services through `ALL_PROXY` (`socks5h://`) or a `--forward`.
+The `HTTP_PROXY` front end tunnels `CONNECT` (HTTPS and other TLS) and carries
+plain `http://` requests too: it opens a tunnel to the URL's host and port,
+sends the request to the origin with `Connection: close`, and relays the reply.
+One connection carries one request, so no keep-alive; a request that is not a
+`CONNECT` or an absolute-form `http://` URL is refused (`405`). Other TCP is
+reached through `ALL_PROXY` (`socks5h://`) or a `--forward`.
 
 The loopback listeners are not authenticated: while the command runs, any
 process on the machine can use the proxy and forward ports with your identity,

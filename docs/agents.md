@@ -155,9 +155,8 @@ Windows `srt` needs a one-time administrator `windows-install` to set up its
 firewall rules; untried here too, and the probe is what tells you if it is
 working.
 
-Known limits: plain `http://` through the sandbox is refused, because
-`exec`'s HTTP front end only tunnels `CONNECT` (see `docs/cli.md`); use HTTPS.
-`--forward` cannot be combined with `--sandbox`, since the sandboxed command
+Known limits: plain `http://` through the sandbox works, one request per
+connection (no keep-alive; see `docs/cli.md`). `--forward` cannot be combined with `--sandbox`, since the sandboxed command
 cannot reach loopback listeners outside it. The sandbox's DNS resolution, as `srt`
 documents, is not fenced on every platform.
 
