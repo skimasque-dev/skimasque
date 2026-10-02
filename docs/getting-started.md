@@ -79,6 +79,11 @@ ensure none allows `hello.skimasque.com:8081`, which is the denial test below.
 
 ## 4. Create the complete workflow
 
+This repository includes the [hello workflow](../.github/workflows/hello-skimasque.yml)
+and its [hello CI policy](../.github/policies/hello-ci.toml), scoped to
+`skimasque-dev/skimasque` on `main`. Repository CI validates the policy; publish
+it in the console before manually running the workflow on `main`.
+
 Create `.github/workflows/hello-skimasque.yml` in your repository and paste:
 
 ```yaml

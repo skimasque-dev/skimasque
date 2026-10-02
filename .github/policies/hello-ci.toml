@@ -1,0 +1,24 @@
+# Publish this document in the SkiMasque console before running the managed hello job.
+name = "hello-ci"
+
+[match]
+repository = "skimasque-dev/skimasque"
+workflow = "hello-skimasque.yml"
+branch = "main"
+kind = "ci"
+
+[[rules]]
+application = "skimasque-test"
+transport = "tcp"
+action = "allow"
+destinations = ["hello.skimasque.com:8080"]
+
+[[tests]]
+application = "skimasque-test"
+destination = "hello.skimasque.com:8080"
+expect = "allow"
+
+[[tests]]
+application = "skimasque-test"
+destination = "hello.skimasque.com:8081"
+expect = "deny"

@@ -1,0 +1,50 @@
+# Run on main after publishing .github/policies/hello-ci.toml in the console.
+name: Hello through SkiMasque
+
+on:
+  workflow_dispatch:
+
+jobs:
+  hello:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Connect to the managed gateway
+        id: network
+        uses: skimasque-dev/connect@v2
+        with:
+          mode: proxy
+          proxy: gateway.skimasque.com:443
+          audience: https://gateway.skimasque.com
+          application: skimasque-test
+
+      - name: Reach the allowed hello service
+        shell: bash
+        env:
+          SKIMASQUE_HTTP_PROXY: ${{ steps.network.outputs.http-proxy }}
+        run: |
+          curl --fail-with-body --show-error --silent \
+            --connect-timeout 10 --max-time 30 \
+            --proxy "$SKIMASQUE_HTTP_PROXY" --noproxy '' \
+            http://hello.skimasque.com:8080/ | tee hello-response.txt
+          grep -Fx 'private endpoint ok' hello-response.txt
+
+      - name: Verify an unlisted port is denied
+        shell: bash
+        env:
+          SKIMASQUE_HTTP_PROXY: ${{ steps.network.outputs.http-proxy }}
+        run: |
+          status=$(curl --show-error --silent \
+            --connect-timeout 10 --max-time 30 \
+            --proxy "$SKIMASQUE_HTTP_PROXY" --noproxy '' \
+            --output denied-response.txt --write-out '%{http_code}' \
+            http://hello.skimasque.com:8081/)
+          test "$status" = 403 || {
+            echo "Expected gateway policy denial (403), got $status"
+            cat denied-response.txt
+            exit 1
+          }
+          echo 'Gateway refused the unlisted port (403).'
