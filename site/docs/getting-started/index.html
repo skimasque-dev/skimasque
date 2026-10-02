@@ -114,6 +114,10 @@ workflow and branch scope. If you want only that scope, remove the broader
 starter document from the draft before publishing. Preserve unrelated policies;
 ensure none allows <code>hello.skimasque.com:8081</code>, which is the denial test below.</p>
 <h2 id="4-create-the-complete-workflow">4. Create the complete workflow</h2>
+<p>This repository includes the <a href="https://github.com/skimasque-dev/skimasque/blob/main/.github/workflows/hello-skimasque.yml">hello workflow</a>
+and its <a href="https://github.com/skimasque-dev/skimasque/blob/main/.github/policies/hello-ci.toml">hello CI policy</a>, scoped to
+<code>skimasque-dev/skimasque</code> on <code>main</code>. Repository CI validates the policy; publish
+it in the console before manually running the workflow on <code>main</code>.</p>
 <p>Create <code>.github/workflows/hello-skimasque.yml</code> in your repository and paste:</p>
 <pre><code class="language-yaml">name: Hello through SkiMasque
 
