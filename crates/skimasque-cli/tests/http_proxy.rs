@@ -33,6 +33,10 @@ impl Drop for Fixture {
 }
 
 async fn fixture() -> Fixture {
+    fixture_with_policy(AddressPolicy::permissive()).await
+}
+
+async fn fixture_with_policy(address_policy: AddressPolicy) -> Fixture {
     let generated = tls::generate_self_signed(vec!["localhost".into()]).unwrap();
     let server = Server::bind(
         "127.0.0.1:0".parse().unwrap(),
@@ -41,7 +45,7 @@ async fn fixture() -> Fixture {
             generated.key_pem.as_bytes(),
         )
         .unwrap(),
-        Dispatch::new().with_tcp(TcpProxy::new(AddressPolicy::permissive())),
+        Dispatch::new().with_tcp(TcpProxy::new(address_policy)),
         ProxyConfig::new("localhost").unwrap(),
     )
     .unwrap();
@@ -66,6 +70,25 @@ async fn fixture() -> Fixture {
     Fixture {
         proxy,
         tasks: vec![driver, relay],
+    }
+}
+
+#[tokio::test]
+async fn gateway_denials_remain_forbidden_for_http_and_connect() {
+    let f = fixture_with_policy(AddressPolicy::default()).await;
+    for head in [
+        "GET http://127.0.0.1:1/ HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+        "CONNECT 127.0.0.1:1 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+    ] {
+        let mut stream = TcpStream::connect(f.proxy).await.unwrap();
+        stream.write_all(head.as_bytes()).await.unwrap();
+        let mut response = Vec::new();
+        timeout(Duration::from_secs(10), stream.read_to_end(&mut response))
+            .await
+            .unwrap()
+            .unwrap();
+        let response = String::from_utf8(response).unwrap();
+        assert!(response.starts_with("HTTP/1.1 403"), "{response}");
     }
 }
 
