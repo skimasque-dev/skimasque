@@ -58,7 +58,7 @@ gateway; your runner does not need to resolve or reach it directly.</p>
 <code>YOUR_OWNER/YOUR_REPO</code>, the branch <code>main</code>, and the workflow file
 <code>hello-skimasque.yml</code>. Substitute your real owner and repository everywhere;
 replace <code>main</code> in both the policy and workflow if your default branch differs.
-Enable GitHub Actions in the repository's <strong>Settings → Actions → General</strong> and
+Enable GitHub Actions in the repository's <strong>Settings â†’ Actions â†’ General</strong> and
 allow <code>skimasque-dev/connect</code> if your organisation restricts third-party Actions.
 Use the GitHub-hosted <code>ubuntu-24.04</code> runner for this walkthrough.</p>
 <p>No SkiMasque token or GitHub personal access token goes in repository secrets.
@@ -117,11 +117,14 @@ ensure none allows <code>hello.skimasque.com:8081</code>, which is the denial te
 <p>This repository includes the <a href="https://github.com/skimasque-dev/skimasque/blob/main/.github/workflows/hello-skimasque.yml">hello workflow</a>
 and its <a href="https://github.com/skimasque-dev/skimasque/blob/main/.github/policies/hello-ci.toml">hello CI policy</a>, scoped to
 <code>skimasque-dev/skimasque</code> on <code>main</code>. Repository CI validates the policy; publish
-it in the console before manually running the workflow on <code>main</code>.</p>
+it in the console before running the workflow on <code>main</code>. The repository job runs
+automatically on every push to <code>main</code> and also supports manual dispatch.</p>
 <p>Create <code>.github/workflows/hello-skimasque.yml</code> in your repository and paste:</p>
 <pre><code class="language-yaml">name: Hello through SkiMasque
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -140,6 +143,7 @@ jobs:
           proxy: gateway.skimasque.com:443
           audience: https://gateway.skimasque.com
           application: skimasque-test
+          version: v0.3.2
 
       - name: Reach the allowed hello service
         shell: bash
@@ -176,14 +180,16 @@ The application name must match the policy; it is declared context, not proof
 of the executable. The explicit proxy output and <code>--noproxy ''</code> ensure both
 requests use the gateway even if the runner has inherited proxy exclusions.
 The gateway resolves the hello hostname.</p>
-<p><code>@v2</code> selects the moving Action major release and, without <code>version</code>, the latest
-client release. For reproducible production jobs, pin the Action to a reviewed
-commit and set <code>with.version</code> to a compatible client release providing
-<code>proxy-ready-v1</code>. Action and client versions are independent.</p>
+<p>This example pins client <code>v0.3.2</code>, which provides the capabilities required by
+<code>connect@v2</code>. The older <code>v0.3.1</code> client does not implement <code>capabilities</code> and
+cannot run this Action. Action and client versions are independent: <code>@v2</code>
+without an explicit <code>version</code> downloads the latest client release. Pin the
+Action to a reviewed commit as well for reproducible production workflows.</p>
 <h2 id="5-run-the-job-and-check-its-output">5. Run the job and check its output</h2>
-<p>In GitHub, open <strong>Actions → Hello through SkiMasque → Run workflow</strong>, select
+<p>In GitHub, open <strong>Actions â†’ Hello through SkiMasque â†’ Run workflow</strong>, select
 <code>main</code> (or the branch you placed in the policy), and click <strong>Run workflow</strong>.
-Open the run and expand the <code>hello</code> job's steps.</p>
+Every push to <code>main</code> also starts the job automatically. Open the run and expand
+the <code>hello</code> job's steps.</p>
 <ul>
 <li><strong>Connect to the managed gateway</strong> must finish successfully: the Action
 exchanges GitHub OIDC and starts authenticated local proxy listeners.</li>
@@ -212,6 +218,7 @@ does not test gateway policy.</p>
 <table><thead><tr><th>Symptom</th><th>What to check</th></tr></thead><tbody>
 <tr><td>Workflow missing or no Run workflow button</td><td>Commit to the default branch, keep <code>workflow_dispatch</code>, and enable Actions.</td></tr>
 <tr><td>OIDC or credential exchange fails</td><td>Keep job-level <code>id-token: write</code>, the exact audience <code>https://gateway.skimasque.com</code>, and a verified repository owner in the selected organisation.</td></tr>
+<tr><td>Action reports unrecognized subcommand capabilities</td><td>The downloaded client is too old for the Action. Set <code>version: v0.3.2</code> or a newer compatible release.</td></tr>
 <tr><td>Action cannot connect or times out</td><td>Check managed gateway health and UDP 443 reachability; QUIC requires UDP. Inspect the Action's startup diagnostics.</td></tr>
 <tr><td>Hello request returns 403</td><td>Check the published revision and gateway acknowledgement, actual repository/branch/workflow filename, <code>kind = "ci"</code>, application and port. Read the audit denial reason.</td></tr>
 <tr><td>Hello request returns 502</td><td>Check gateway-side DNS/reachability and that the managed hello endpoint is enabled. Do not add public runner DNS overrides for this private service.</td></tr>

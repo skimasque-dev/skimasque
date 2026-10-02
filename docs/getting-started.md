@@ -11,7 +11,7 @@ Use a repository you can commit to and run Actions in. This guide uses
 `YOUR_OWNER/YOUR_REPO`, the branch `main`, and the workflow file
 `hello-skimasque.yml`. Substitute your real owner and repository everywhere;
 replace `main` in both the policy and workflow if your default branch differs.
-Enable GitHub Actions in the repository's **Settings → Actions → General** and
+Enable GitHub Actions in the repository's **Settings â†’ Actions â†’ General** and
 allow `skimasque-dev/connect` if your organisation restricts third-party Actions.
 Use the GitHub-hosted `ubuntu-24.04` runner for this walkthrough.
 
@@ -82,7 +82,8 @@ ensure none allows `hello.skimasque.com:8081`, which is the denial test below.
 This repository includes the [hello workflow](../.github/workflows/hello-skimasque.yml)
 and its [hello CI policy](../.github/policies/hello-ci.toml), scoped to
 `skimasque-dev/skimasque` on `main`. Repository CI validates the policy; publish
-it in the console before manually running the workflow on `main`.
+it in the console before running the workflow on `main`. The repository job runs
+automatically on every push to `main` and also supports manual dispatch.
 
 Create `.github/workflows/hello-skimasque.yml` in your repository and paste:
 
@@ -90,6 +91,8 @@ Create `.github/workflows/hello-skimasque.yml` in your repository and paste:
 name: Hello through SkiMasque
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -108,6 +111,7 @@ jobs:
           proxy: gateway.skimasque.com:443
           audience: https://gateway.skimasque.com
           application: skimasque-test
+          version: v0.3.2
 
       - name: Reach the allowed hello service
         shell: bash
@@ -146,16 +150,18 @@ of the executable. The explicit proxy output and `--noproxy ''` ensure both
 requests use the gateway even if the runner has inherited proxy exclusions.
 The gateway resolves the hello hostname.
 
-`@v2` selects the moving Action major release and, without `version`, the latest
-client release. For reproducible production jobs, pin the Action to a reviewed
-commit and set `with.version` to a compatible client release providing
-`proxy-ready-v1`. Action and client versions are independent.
+This example pins client `v0.3.2`, which provides the capabilities required by
+`connect@v2`. The older `v0.3.1` client does not implement `capabilities` and
+cannot run this Action. Action and client versions are independent: `@v2`
+without an explicit `version` downloads the latest client release. Pin the
+Action to a reviewed commit as well for reproducible production workflows.
 
 ## 5. Run the job and check its output
 
-In GitHub, open **Actions → Hello through SkiMasque → Run workflow**, select
+In GitHub, open **Actions â†’ Hello through SkiMasque â†’ Run workflow**, select
 `main` (or the branch you placed in the policy), and click **Run workflow**.
-Open the run and expand the `hello` job's steps.
+Every push to `main` also starts the job automatically. Open the run and expand
+the `hello` job's steps.
 
 - **Connect to the managed gateway** must finish successfully: the Action
   exchanges GitHub OIDC and starts authenticated local proxy listeners.
@@ -190,6 +196,7 @@ does not test gateway policy.
 |---|---|
 | Workflow missing or no Run workflow button | Commit to the default branch, keep `workflow_dispatch`, and enable Actions. |
 | OIDC or credential exchange fails | Keep job-level `id-token: write`, the exact audience `https://gateway.skimasque.com`, and a verified repository owner in the selected organisation. |
+| Action reports unrecognized subcommand capabilities | The downloaded client is too old for the Action. Set `version: v0.3.2` or a newer compatible release. |
 | Action cannot connect or times out | Check managed gateway health and UDP 443 reachability; QUIC requires UDP. Inspect the Action's startup diagnostics. |
 | Hello request returns 403 | Check the published revision and gateway acknowledgement, actual repository/branch/workflow filename, `kind = "ci"`, application and port. Read the audit denial reason. |
 | Hello request returns 502 | Check gateway-side DNS/reachability and that the managed hello endpoint is enabled. Do not add public runner DNS overrides for this private service. |
