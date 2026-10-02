@@ -24,6 +24,24 @@ jobs:
           application: skimasque-test
           version: v0.3.2
 
+      - name: Show client startup diagnostics
+        if: failure() && steps.network.outcome == 'failure'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          for name in ("client.log", "supervisor.log"):
+              for log in Path(os.environ["RUNNER_TEMP"]).glob(f"skimasque-*/{name}"):
+                  print(f"--- {log.name} ---")
+                  text = log.read_text(errors="replace")[-16384:]
+                  text = re.sub(r"(?i)Bearer\s+\S+", "Bearer [redacted]", text)
+                  text = re.sub(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", "[redacted JWT]", text)
+                  print(text)
+          PY
+
       - name: Reach the allowed hello service
         shell: bash
         env:
