@@ -22,7 +22,7 @@ jobs:
           proxy: gateway.skimasque.com:443
           audience: https://gateway.skimasque.com/o/skimasque-dev
           application: skimasque-test
-          version: v0.3.2
+          version: v0.3.3
 
       - name: Reach the allowed hello service
         shell: bash

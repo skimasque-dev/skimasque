@@ -117,7 +117,7 @@ jobs:
           proxy: gateway.skimasque.com:443
           audience: https://gateway.skimasque.com/o/YOUR_ORG_SLUG
           application: skimasque-test
-          version: v0.3.2
+          version: v0.3.3
 
       - name: Reach the allowed hello service
         shell: bash
@@ -156,8 +156,9 @@ of the executable. The explicit proxy output and `--noproxy ''` ensure both
 requests use the gateway even if the runner has inherited proxy exclusions.
 The gateway resolves the hello hostname.
 
-This example pins client `v0.3.2`, which provides the capabilities required by
-`connect@v2`. The older `v0.3.1` client does not implement `capabilities` and
+This example pins client `v0.3.3`, which provides the capabilities required by
+`connect@v2`, and preserves HTTP 403 for gateway policy denials. Client
+`v0.3.2` supports startup but incorrectly maps those denials to 502. The older `v0.3.1` client does not implement `capabilities` and
 cannot run this Action. Action and client versions are independent: `@v2`
 without an explicit `version` downloads the latest client release. Pin the
 Action to a reviewed commit as well for reproducible production workflows.
@@ -202,7 +203,7 @@ does not test gateway policy.
 |---|---|
 | Workflow missing or no Run workflow button | Commit to the default branch, keep `workflow_dispatch`, and enable Actions. |
 | OIDC or credential exchange fails | Keep job-level `id-token: write`, the organisation-specific audience copied from **Gateways**, and a verified repository owner in the selected organisation. |
-| Action reports unrecognized subcommand capabilities | The downloaded client is too old for the Action. Set `version: v0.3.2` or a newer compatible release. |
+| Action reports unrecognized subcommand capabilities | The downloaded client is too old for the Action. Set `version: v0.3.3` or a newer compatible release. |
 | Credential exchange returns unknown_org | Copy the selected organisation's audience from **Gateways**: `https://gateway.skimasque.com/o/YOUR_ORG_SLUG`. The bare gateway URL cannot identify your organisation. |
 | Action cannot connect or times out | Check managed gateway health and UDP 443 reachability; QUIC requires UDP. Inspect the Action's startup diagnostics. |
 | Hello request returns 403 | Check the published revision and gateway acknowledgement, actual repository/branch/workflow filename, `kind = "ci"`, application and port. Read the audit denial reason. |
