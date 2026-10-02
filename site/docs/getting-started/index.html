@@ -58,7 +58,7 @@ gateway; your runner does not need to resolve or reach it directly.</p>
 <code>YOUR_OWNER/YOUR_REPO</code>, the branch <code>main</code>, and the workflow file
 <code>hello-skimasque.yml</code>. Substitute your real owner and repository everywhere;
 replace <code>main</code> in both the policy and workflow if your default branch differs.
-Enable GitHub Actions in the repository's <strong>Settings â†’ Actions â†’ General</strong> and
+Enable GitHub Actions in the repository's <strong>Settings → Actions → General</strong> and
 allow <code>skimasque-dev/connect</code> if your organisation restricts third-party Actions.
 Use the GitHub-hosted <code>ubuntu-24.04</code> runner for this walkthrough.</p>
 <p>No SkiMasque token or GitHub personal access token goes in repository secrets.
@@ -186,7 +186,7 @@ cannot run this Action. Action and client versions are independent: <code>@v2</c
 without an explicit <code>version</code> downloads the latest client release. Pin the
 Action to a reviewed commit as well for reproducible production workflows.</p>
 <h2 id="5-run-the-job-and-check-its-output">5. Run the job and check its output</h2>
-<p>In GitHub, open <strong>Actions â†’ Hello through SkiMasque â†’ Run workflow</strong>, select
+<p>In GitHub, open <strong>Actions → Hello through SkiMasque → Run workflow</strong>, select
 <code>main</code> (or the branch you placed in the policy), and click <strong>Run workflow</strong>.
 Every push to <code>main</code> also starts the job automatically. Open the run and expand
 the <code>hello</code> job's steps.</p>

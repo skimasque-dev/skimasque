@@ -2,28 +2,28 @@
 
 **Identity-aware network access for CI jobs, developers and coding agents.**
 
-Give a CI/CD job exactly the network access it needs â€” and nothing else, only
-for as long as it needs it â€” without putting it on a broad VPN or handing it a
+Give a CI/CD job exactly the network access it needs — and nothing else, only
+for as long as it needs it — without putting it on a broad VPN or handing it a
 standing set of credentials.
 
 A workload proves *who* it is (a GitHub Actions job proves its repository,
 workflow, and branch with an OIDC token), declares *what* it is running, and
-asks to reach a *destination*. A policy decides â€” **no matching allow rule means
-DENY** â€” and if it allows, the job gets a short-lived, identity-bound tunnel to
+asks to reach a *destination*. A policy decides — **no matching allow rule means
+DENY** — and if it allows, the job gets a short-lived, identity-bound tunnel to
 that one destination through an enforcement gateway. The client closes its tunnels when it stops; agent sessions also have enforced
 expiry and revocation. Traffic must use the gateway for its policy to apply.
 
 ```
 GitHub Actions job
-      â”‚  workload identity  (OIDC: acme/widget, deploy.yml, refs/heads/main)
-      â–¼
-identity + policy            WHO â†’ WHAT â†’ WHERE â†’ LIMITS
-      â”‚  short-lived authorization
-      â–¼
+      │  workload identity  (OIDC: acme/widget, deploy.yml, refs/heads/main)
+      ▼
+identity + policy            WHO → WHAT → WHERE → LIMITS
+      │  short-lived authorization
+      ▼
 MASQUE gateway               enforces; deny by default
-      â”‚
-      â–¼
-db.prod:5432                 (allowed 20m, 100 Mbps â€” and nothing else)
+      │
+      ▼
+db.prod:5432                 (allowed 20m, 100 Mbps — and nothing else)
 ```
 
 ---
@@ -55,7 +55,7 @@ Use a repository you can commit to and run Actions in. This guide uses
 `YOUR_OWNER/YOUR_REPO`, the branch `main`, and the workflow file
 `hello-skimasque.yml`. Substitute your real owner and repository everywhere;
 replace `main` in both the policy and workflow if your default branch differs.
-Enable GitHub Actions in the repository's **Settings â†’ Actions â†’ General** and
+Enable GitHub Actions in the repository's **Settings → Actions → General** and
 allow `skimasque-dev/connect` if your organisation restricts third-party Actions.
 Use the GitHub-hosted `ubuntu-24.04` runner for this walkthrough.
 
@@ -202,7 +202,7 @@ Action to a reviewed commit as well for reproducible production workflows.
 
 ### 5. Run the job and check its output
 
-In GitHub, open **Actions â†’ Hello through SkiMasque â†’ Run workflow**, select
+In GitHub, open **Actions → Hello through SkiMasque → Run workflow**, select
 `main` (or the branch you placed in the policy), and click **Run workflow**.
 Every push to `main` also starts the job automatically. Open the run and expand
 the `hello` job's steps.
@@ -277,7 +277,7 @@ See [agents](docs/agents.md).
 **Start managed. Own more when you need to.** All three use the same policy
 model, the same gateway, and the same GitHub Action.
 
-|  | Mode 1 â€” Fully managed | Mode 2 â€” Customer gateway | Mode 3 â€” Fully self-hosted |
+|  | Mode 1 — Fully managed | Mode 2 — Customer gateway | Mode 3 — Fully self-hosted |
 |---|---|---|---|
 | Control plane | SkiMasque | SkiMasque | **You** |
 | Gateway | SkiMasque | **You** | **You** |
@@ -288,14 +288,14 @@ model, the same gateway, and the same GitHub Action.
 | SkiMasque Cloud required | Yes | Yes | No |
 | Best for | Fastest adoption | Traffic path in your network | Maximum control / air-gapped |
 
-- **Mode 1** â€” *"Just use it."* SkiMasque runs everything; you configure identity
+- **Mode 1** — *"Just use it."* SkiMasque runs everything; you configure identity
   and policy. Start here.
-- **Mode 2** â€” *"Keep the network path in my infrastructure."* You run the
+- **Mode 2** — *"Keep the network path in my infrastructure."* You run the
   open-source gateway (`skimasque-server`) in your VPC; SkiMasque Cloud provides
   identity, policy, and the dashboard.
-- **Mode 3** â€” *"Operate everything myself."* The advanced path, for air-gapped
+- **Mode 3** — *"Operate everything myself."* The advanced path, for air-gapped
   or heavily regulated environments. You run the gateway **and** a control plane
-  that speaks the [control protocol](docs/protocol.md) â€” which you implement, or
+  that speaks the [control protocol](docs/protocol.md) — which you implement, or
   licence from SkiMasque. Real work; not a config switch.
 
 See [`docs/deployment-modes.md`](docs/deployment-modes.md).
@@ -304,28 +304,28 @@ See [`docs/deployment-modes.md`](docs/deployment-modes.md).
 
 ## Open source vs SkiMasque Cloud
 
-SkiMasque's **enforcement edge** is open source â€” the gateway, the client, the
+SkiMasque's **enforcement edge** is open source — the gateway, the client, the
 CLI, the Action, the policy engine, and the protocol a gateway speaks to a
-control plane. **SkiMasque Cloud** â€” the control-plane implementation, the
-managed policy workflow, the dashboard, audit, support â€” is proprietary, and is
+control plane. **SkiMasque Cloud** — the control-plane implementation, the
+managed policy workflow, the dashboard, audit, support — is proprietary, and is
 what almost every team should use (Modes 1 and 2).
 
 | Open source (this repo, MIT OR Apache-2.0) | SkiMasque Cloud (proprietary) |
 |---|---|
-| The MASQUE transport stack (`skimasque-core`, `skimasque`) | The managed control plane â€” hosted, kept available, upgraded |
+| The MASQUE transport stack (`skimasque-core`, `skimasque`) | The managed control plane — hosted, kept available, upgraded |
 | The gateway (`skimasque-server`) | Managed gateways and global egress (Mode 1) |
 | The tunnel client (`skimasque-client`) and CLI (`skimasque`) | The web dashboard: who has access, is it working, why was this denied |
-| The policy **engine** (`skimasque-policy`) â€” evaluation, deny-by-default, `check` / `test` / `explain` / `learn` | The managed policy **workflow** â€” reviewed revisions, diffs, simulation, access requests, history |
+| The policy **engine** (`skimasque-policy`) — evaluation, deny-by-default, `check` / `test` / `explain` / `learn` | The managed policy **workflow** — reviewed revisions, diffs, simulation, access requests, history |
 | OIDC verification (`skimasque-identity`) | Organizations, teams, roles, membership |
-| The **control protocol** (`skimasque-protocol`) â€” the Gatewayâ†”control-plane contract | Audit history, usage metering, notifications, support |
+| The **control protocol** (`skimasque-protocol`) — the Gateway↔control-plane contract | Audit history, usage metering, notifications, support |
 | The GitHub Action ([`skimasque-dev/connect`](https://github.com/skimasque-dev/connect)) | |
 
-The open-source gateway is **not** crippled â€” it does full policy enforcement,
+The open-source gateway is **not** crippled — it does full policy enforcement,
 deny-by-default, and the SSRF floor on its own, and it keeps enforcing through a
 control-plane outage. What SkiMasque Cloud sells is *operating* the control
 plane: hosting, availability, upgrades, the dashboard, managed gateways and
 egress, and support. Mode 3 (running your own control plane) is possible because
-the [protocol](docs/protocol.md) is documented â€” but there is no open-source
+the [protocol](docs/protocol.md) is documented — but there is no open-source
 control-plane server, and it is the advanced path, not a default.
 
 ---
@@ -337,7 +337,7 @@ control-plane server, and it is the advanced path, not a default.
 - **Fail closed.** If authentication, authorization, or destination validation
   can't be established, no tunnel is created.
 - **The gateway enforces; it does not trust.** A valid tunnel credential is not
-  enough â€” identity + application + destination + policy + expiry must all
+  enough — identity + application + destination + policy + expiry must all
   produce an allow, checked in the gateway, not assumed because a control plane
   said so.
 - **Policy is separate from MASQUE.** The engine (`skimasque-policy`) does no I/O
@@ -350,8 +350,8 @@ control-plane server, and it is the advanced path, not a default.
 
 ## Policy
 
-A policy is `WHO â†’ WHAT â†’ WHERE â†’ LIMITS`. The same policy in both supported
-formats â€” deny-by-default is implicit in both:
+A policy is `WHO → WHAT → WHERE → LIMITS`. The same policy in both supported
+formats — deny-by-default is implicit in both:
 
 <table>
 <tr><th>TOML (ordered rule table)</th><th>YAML (one application, an allow-list)</th></tr>
@@ -442,17 +442,17 @@ Full DSL: [`docs/policies.md`](docs/policies.md).
 
 | Specification | Status |
 |---|---|
-| [RFC 9297](https://www.rfc-editor.org/rfc/rfc9297) â€” HTTP Datagrams and the Capsule Protocol | Complete, in both encodings |
-| [RFC 9298](https://www.rfc-editor.org/rfc/rfc9298) â€” Proxying UDP in HTTP | Complete over HTTP/3 extended `CONNECT` |
-| [`draft-ietf-httpbis-connect-tcp`](https://datatracker.ietf.org/doc/draft-ietf-httpbis-connect-tcp/) â€” Proxying TCP in HTTP | Classic `CONNECT host:port`, on by default (`--no-connect-tcp` for UDP-only); the template-driven variant waits on `h3` support |
-| [RFC 9484](https://www.rfc-editor.org/rfc/rfc9484) â€” Proxying IP in HTTP | Wire formats complete; transport behind the `connect-ip` feature, TUN forwarding not wired |
-| [RFC 1928](https://www.rfc-editor.org/rfc/rfc1928) â€” SOCKS5 | `CONNECT` (TCP) and `UDP ASSOCIATE`, as a front end for applications |
+| [RFC 9297](https://www.rfc-editor.org/rfc/rfc9297) — HTTP Datagrams and the Capsule Protocol | Complete, in both encodings |
+| [RFC 9298](https://www.rfc-editor.org/rfc/rfc9298) — Proxying UDP in HTTP | Complete over HTTP/3 extended `CONNECT` |
+| [`draft-ietf-httpbis-connect-tcp`](https://datatracker.ietf.org/doc/draft-ietf-httpbis-connect-tcp/) — Proxying TCP in HTTP | Classic `CONNECT host:port`, on by default (`--no-connect-tcp` for UDP-only); the template-driven variant waits on `h3` support |
+| [RFC 9484](https://www.rfc-editor.org/rfc/rfc9484) — Proxying IP in HTTP | Wire formats complete; transport behind the `connect-ip` feature, TUN forwarding not wired |
+| [RFC 1928](https://www.rfc-editor.org/rfc/rfc1928) — SOCKS5 | `CONNECT` (TCP) and `UDP ASSOCIATE`, as a front end for applications |
 
 ### Policy engine, identity, and gateway enforcement
 
 Deny-by-default evaluation with self-explaining denials; `[[tests]]` that run in
 CI; `[match]` linting; learning mode. CI OIDC verification (GitHub Actions incl.
-Enterprise Server, GitLab, Buildkite, generic) â†’ `WorkloadIdentity` â†’ a
+Enterprise Server, GitLab, Buildkite, generic) → `WorkloadIdentity` → a
 short-lived platform credential the gateway verifies locally with no network. An
 `AddressPolicy` SSRF floor checked against *resolved* addresses. `[limits]`
 enforcement (bandwidth / packets-per-second / connection / byte caps). Policy and
@@ -470,9 +470,9 @@ Full detail: [`docs/architecture.md`](docs/architecture.md).
 | `skimasque-core` | wire formats: QUIC varints, HTTP Datagrams, the Capsule Protocol, CONNECT-UDP / CONNECT-IP payloads. No I/O. |
 | `skimasque-policy` | the policy engine: `WorkloadIdentity`, `Policy` / `PolicySet`, TOML+YAML parsers, the evaluator, policy tests, learning mode. No I/O. |
 | `skimasque-identity` | verifies a CI OIDC token and maps its claims to a `WorkloadIdentity`; issues/verifies the platform credential. |
-| `skimasque-protocol` | the Gatewayâ†”control-plane contract: wire types, endpoint paths, `PROTOCOL_VERSION`. Pure data. |
+| `skimasque-protocol` | the Gateway↔control-plane contract: wire types, endpoint paths, `PROTOCOL_VERSION`. Pure data. |
 | `skimasque` | the transport (`quinn` + `h3`), the proxy as a `tower::Service` (`IdentityLayer` / `PolicyLayer` / `QuotaLayer` / `AuthorizeLayer`), the token-exchange endpoint. |
-| `skimasque-cli` | three binaries â€” `skimasque` (CLI), `skimasque-server` (gateway), `skimasque-client` (tunnel client). |
+| `skimasque-cli` | three binaries — `skimasque` (CLI), `skimasque-server` (gateway), `skimasque-client` (tunnel client). |
 
 ---
 

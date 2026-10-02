@@ -11,7 +11,7 @@ Use a repository you can commit to and run Actions in. This guide uses
 `YOUR_OWNER/YOUR_REPO`, the branch `main`, and the workflow file
 `hello-skimasque.yml`. Substitute your real owner and repository everywhere;
 replace `main` in both the policy and workflow if your default branch differs.
-Enable GitHub Actions in the repository's **Settings â†’ Actions â†’ General** and
+Enable GitHub Actions in the repository's **Settings → Actions → General** and
 allow `skimasque-dev/connect` if your organisation restricts third-party Actions.
 Use the GitHub-hosted `ubuntu-24.04` runner for this walkthrough.
 
@@ -158,7 +158,7 @@ Action to a reviewed commit as well for reproducible production workflows.
 
 ## 5. Run the job and check its output
 
-In GitHub, open **Actions â†’ Hello through SkiMasque â†’ Run workflow**, select
+In GitHub, open **Actions → Hello through SkiMasque → Run workflow**, select
 `main` (or the branch you placed in the policy), and click **Run workflow**.
 Every push to `main` also starts the job automatically. Open the run and expand
 the `hello` job's steps.
