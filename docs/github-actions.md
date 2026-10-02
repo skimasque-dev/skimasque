@@ -153,6 +153,7 @@ jobs:
           proxy: gateway.skimasque.com:443
           audience: https://gateway.skimasque.com/o/YOUR_ORG_SLUG
           application: curl
+          version: v0.3.3
       - run: curl --fail https://api.staging.example.com/health
 ```
 

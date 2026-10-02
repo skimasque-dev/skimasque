@@ -21,3 +21,6 @@ terraform.tfvars
 # Python bytecode (the deploy agent's tests).
 __pycache__/
 *.pyc
+
+# Local Superpowers plans and specs.
+/docs/superpowers/
