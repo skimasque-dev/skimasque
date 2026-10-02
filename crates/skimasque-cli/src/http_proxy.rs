@@ -128,6 +128,11 @@ async fn handle(mut request: Request<Incoming>, session: Arc<Session>) -> Respon
         };
         let tunnel = match timeout(OPEN_TIMEOUT, session.connect_tcp(target)).await {
             Ok(Ok(tunnel)) => tunnel,
+            Ok(Err(skimasque::Error::Rejected { status, .. }))
+                if status == StatusCode::FORBIDDEN =>
+            {
+                return small(StatusCode::FORBIDDEN, "Gateway denied the destination\n")
+            }
             _ => {
                 return small(
                     StatusCode::BAD_GATEWAY,
@@ -149,6 +154,11 @@ async fn handle(mut request: Request<Incoming>, session: Arc<Session>) -> Respon
     };
     let tunnel = match timeout(OPEN_TIMEOUT, session.connect_tcp(target)).await {
         Ok(Ok(tunnel)) => tunnel,
+        Ok(Err(skimasque::Error::Rejected { status, .. }))
+            if status == StatusCode::FORBIDDEN =>
+        {
+            return small(StatusCode::FORBIDDEN, "Gateway denied the destination\n")
+        }
         _ => {
             return small(
                 StatusCode::BAD_GATEWAY,
