@@ -2,10 +2,14 @@
 
 use askama::Template;
 
+use super::{ci_cd::WORKFLOW, DocLinks};
 use crate::diagrams::public;
 use crate::site::Page;
 use crate::site_chrome::link;
-use crate::{Component, Cta, CtaBand, FeatureGrid, Hero, PolicyExplorer, Prose, Section, SitePage};
+use crate::{
+    CodeExample, Component, Cta, CtaBand, FeatureGrid, Hero, PolicyExplorer, Prose, Section,
+    SitePage,
+};
 
 /// A self-contained network illustration with progressive enhancement.
 #[derive(Template)]
@@ -28,10 +32,29 @@ pub fn page() -> Page {
         .lead("Grant a policy-bounded session for the destinations the job needs.")
         .cta(Cta::primary("Get Started", "docs/getting-started/"))
         .cta(Cta::secondary(
+            "Use SkiMasque Connect",
+            "docs/github-actions/",
+        ))
+        .cta(Cta::secondary(
             "Watch the workflow",
             link("", "how-it-works"),
         ))
         .aside(&art);
+
+    let connect = Section::new("Connect GitHub Actions to your private infrastructure.")
+        .eyebrow("SkiMasque Connect")
+        .alt()
+        .push(&Prose::new()
+            .lead("Give your workflow the access it needs with skimasque-dev/connect@v2.")
+            .p("Authenticate with GitHub OIDC and reach the destinations your policy allows. No long-lived access token to store in repository secrets.")
+            .p("This example uses proxy mode for Terraform. Replace the gateway and audience with your own, and configure a policy for your workflow before running it."))
+        .push(&CodeExample::new(".github/workflows/deploy.yml", WORKFLOW))
+        .push(&DocLinks {
+            links: vec![
+                ("Set Up Connect".into(), "docs/github-actions/".into()),
+                ("View on GitHub".into(), "https://github.com/skimasque-dev/connect".into()),
+            ],
+        });
 
     let problem = Section::new("Your deployment shouldn't need the whole network.")
         .push(
@@ -107,6 +130,7 @@ pub fn page() -> Page {
             "SkiMasque provides identity-aware, least-privilege network access for developers, CI/CD workloads and coding agents.",
         )
         .push(&hero)
+        .push(&connect)
         .push(&problem)
         .push(&model)
         .push(&features)

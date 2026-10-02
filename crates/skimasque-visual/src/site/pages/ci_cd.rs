@@ -1,24 +1,23 @@
 //! CI/CD (`/ci-cd`): canonical spec §15.
 
-use super::doc;
+use super::{doc, DocLinks};
 use crate::diagrams::{platform, public};
 use crate::site::Page;
-use crate::site_chrome::GET_STARTED_URL;
 use crate::{
     CodeExample, Compare, Component, Cta, DecisionBadge, Hero, PolicySummary, Prose, Section,
     SitePage, Status, StatusBadge, Tone,
 };
 
 /// The real workflow step from the Action's documentation.
-const WORKFLOW: &str = "permissions:\n  id-token: write          # the job mints its own OIDC token\n  contents: read\n\nsteps:\n  - uses: skimasque-dev/connect@v2\n    with:\n      proxy: gateway.skimasque.com:443\n      audience: https://gateway.skimasque.com\n      mode: proxy\n      application: terraform\n\n  - run: terraform apply -auto-approve   # egresses through the gateway";
+pub(super) const WORKFLOW: &str = "permissions:\n  id-token: write          # the job mints its own OIDC token\n  contents: read\n\nsteps:\n  - uses: skimasque-dev/connect@v2\n    with:\n      proxy: gateway.skimasque.com:443\n      audience: https://gateway.skimasque.com\n      mode: proxy\n      application: terraform\n\n  - run: terraform apply -auto-approve   # egresses through the gateway";
 
 pub fn page() -> Page {
     let hero = Hero::new(
         "Give CI jobs access to private infrastructure without giving them the whole network.",
     )
     .lead("Authenticate the job with OIDC, apply a policy, and reach only the destinations it allows.")
-    .cta(Cta::primary("Get Started", GET_STARTED_URL))
-    .cta(Cta::secondary("Read the Docs", doc("github-actions.md")));
+    .cta(Cta::primary("Use SkiMasque Connect", doc("github-actions.md")))
+    .cta(Cta::secondary("View on GitHub", "https://github.com/skimasque-dev/connect"));
 
     let problem = Section::new("The problem")
         .push(
@@ -87,12 +86,18 @@ pub fn page() -> Page {
 
     let lifecycle = Section::new("Lifecycle of a CI session").push(&platform::ci_lifecycle());
 
-    let action = Section::new("The GitHub Action")
+    let action = Section::new("SkiMasque Connect for GitHub Actions")
         .alt()
         .push(&Prose::new().p(
             "The Action exchanges GitHub OIDC for a renewable credential. Transparent mode routes configured private TCP/UDP and split DNS on dedicated Ubuntu runners. Explicit proxy mode sets HTTP, HTTPS and SOCKS variables for tools that support them. Policy applies to traffic through the gateway; public traffic outside configured routes keeps its normal path.",
         ))
-        .push(&CodeExample::new(".github/workflows/deploy.yml", WORKFLOW));
+        .push(&CodeExample::new(".github/workflows/deploy.yml", WORKFLOW))
+        .push(&DocLinks {
+            links: vec![
+                ("Set Up Connect".into(), doc("github-actions.md")),
+                ("View on GitHub".into(), "https://github.com/skimasque-dev/connect".into()),
+            ],
+        });
 
     let integrations = Section::new("CI/CD integrations").push(
         &Prose::new()
@@ -112,12 +117,12 @@ pub fn page() -> Page {
             "Give CI jobs access to private infrastructure without giving them the whole network: identity-aware, short-lived access for GitHub Actions and other CI systems.",
         )
         .push(&hero)
+        .push(&action)
         .push(&problem)
         .push(&flow)
         .push(&example)
         .push(&branches)
         .push(&lifecycle)
-        .push(&action)
         .push(&integrations)
         .html()
         .as_str()
