@@ -1,5 +1,10 @@
 # GitHub Actions
 
+For a complete first run, follow [the hello CI walkthrough](getting-started.md):
+verify your GitHub owner, publish a policy, create a workflow reaching
+`hello.skimasque.com:8080` through `gateway.skimasque.com`, and check both an
+allowed request and a policy denial.
+
 > **Applies to:** ✓ Mode 1 · ✓ Mode 2 · ✓ Mode 3 — the workflow is identical in
 > all three; only the gateway's `proxy` / `audience` change.
 

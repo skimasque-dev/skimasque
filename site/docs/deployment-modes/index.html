@@ -1,0 +1,178 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><script>(() => {
+  const key = 'skimasque-theme';
+  const root = document.documentElement;
+  let theme = 'system';
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === 'light' || saved === 'dark') theme = saved;
+  } catch (_) { /* Storage may be disabled; switching still works. */ }
+  function apply() {
+    if (theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+  }
+  apply();
+  document.addEventListener('DOMContentLoaded', () => {
+    const control = document.querySelector('.v-theme-control');
+    const picker = document.querySelector('#site-theme');
+    if (!control || !picker) return;
+    picker.value = theme;
+    control.hidden = false;
+    picker.addEventListener('change', () => {
+      theme = picker.value;
+      apply();
+      try { localStorage.setItem(key, theme); } catch (_) { /* Keep the current-page choice. */ }
+    });
+  });
+})();
+</script><title>Deployment modes · SkiMasque</title><meta name="description" content="Deployment modes"><meta property="og:title" content="Deployment modes · SkiMasque"><meta property="og:description" content="Deployment modes"><meta property="og:type" content="website"><link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href="../../assets/visual.css?v=1bc626f0340909d7"></head><body class="v-site"><svg class="v-sprite" aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-workload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></symbol>
+<symbol id="i-developer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 8v8M17 10c0 4-4 4-8 6"/></symbol>
+<symbol id="i-ci-job" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M4 12h16M4 17h10"/><path d="M17 4.5l3 2.5-3 2.5"/></symbol>
+<symbol id="i-application" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10l3 2-3 2M12 15h5"/></symbol>
+<symbol id="i-identity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M17 12v3M20 12v2"/></symbol>
+<symbol id="i-policy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 13l2 2 4-4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+<symbol id="i-gateway" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M2 8h9M8 5l3 3-3 3M22 16h-9M16 13l-3 3 3 3"/></symbol>
+<symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M11 6.8L6 16.2M13 6.8l5 9.4M7 18h10"/></symbol>
+<symbol id="i-service" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></symbol>
+<symbol id="i-api" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4C7 4 6 5 6 7v2c0 1-1 3-2 3 1 0 2 2 2 3v2c0 2 1 3 3 3M15 4c2 0 3 1 3 3v2c0 1 1 3 2 3-1 0-2 2-2 3v2c0 2-1 3-3 3"/></symbol>
+<symbol id="i-kubernetes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M12 14.5V20M4 12h5.5M14.5 12H20"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9a4.5 4.5 0 0 0 1 9z"/></symbol>
+<symbol id="i-firewall" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 10h18M3 15h18M9 5v5M15 10v5M9 15v4"/></symbol>
+<symbol id="i-internet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.5 2.5 13.5 0 16M12 4c-2.5 2.5-2.5 13.5 0 16"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-cross" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-control-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="7" rx="2"/><path d="M12 10v5M4 15h16M4 15v3M12 15v3M20 15v3"/><circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="2"/></symbol>
+<symbol id="i-cli" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l7 6-7 6M13 18h7"/></symbol>
+<symbol id="i-credential" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+<symbol id="i-audit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+</svg><a class="v-skip" href="#main">Skip to content</a><header class="v-site-header"><div class="v-wrap v-site-bar"><a class="v-brand" href="../../">SkiMasque</a><nav class="v-site-nav" aria-label="Primary"><details class="v-nav-group" name="site-nav"><summary>Product</summary><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Compare</summary><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Technology</summary><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Resources</summary><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul></details><a class="v-nav-top" href="../../pricing/">Pricing</a></nav><div class="v-site-actions"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel"><p class="v-menu-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul><p class="v-menu-title">Compare</p><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul><p class="v-menu-title">Technology</p><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul><p class="v-menu-title">Resources</p><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul><p class="v-menu-title">Pricing</p><ul><li><a href="../../pricing/">Pricing</a></li></ul><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></p></div></details></nav><label class="v-theme-control" hidden for="site-theme"><span>Theme</span><select id="site-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header><main id="main"><section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy"><h1>Deployment modes</h1><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="../">All guides</a></p></div></div></section><section class="v-section"><div class="v-wrap"><h2>Guide</h2><article class="v-guide"><p><strong>Start managed. Own more when you need to.</strong></p>
+<p>SkiMasque is two things sharing one open protocol:</p>
+<ul>
+<li>a <strong>control plane</strong> — identity, the policy workflow, the dashboard, audit —
+which decides <em>who may open which tunnel, to where, under what conditions</em>;</li>
+<li>a <strong>gateway</strong> (<code>skimasque-server</code>) — MASQUE transport and enforcement — which
+carries an allowed tunnel and denies everything else.</li>
+</ul>
+<p>Where each runs is a deployment choice. All three modes use the <strong>same</strong> policy
+model, the <strong>same</strong> gateway binary, and the <strong>same</strong> GitHub Action — you are not
+learning three products.</p>
+<pre><code>                Mode 1                Mode 2                Mode 3
+            ┌───────────┐         ┌───────────┐         ┌───────────┐
+control     │ SkiMasque │         │ SkiMasque │         │    You    │
+plane       │   Cloud   │         │   Cloud   │         │           │
+            └─────┬─────┘         └─────┬─────┘         └─────┬─────┘
+                  │ authorization       │ authorization       │ authorization
+            ┌─────▼─────┐         ┌─────▼─────┐         ┌─────▼─────┐
+gateway     │ SkiMasque │         │    You    │         │    You    │
+            └─────┬─────┘         └─────┬─────┘         └─────┬─────┘
+                  ▼                     ▼                     ▼
+            your infrastructure   your infrastructure   your infrastructure
+</code></pre>
+<table><thead><tr><th></th><th>Mode 1 — Fully managed</th><th>Mode 2 — Customer gateway</th><th>Mode 3 — Fully self-hosted</th></tr></thead><tbody>
+<tr><td>Control plane</td><td>SkiMasque</td><td>SkiMasque</td><td><strong>You</strong></td></tr>
+<tr><td>Gateway</td><td>SkiMasque</td><td><strong>You</strong></td><td><strong>You</strong></td></tr>
+<tr><td>You control the egress IP</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>You operate a gateway</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>You operate a control plane</td><td>No</td><td>No</td><td>Yes</td></tr>
+<tr><td>GitHub Action</td><td><code>skimasque-dev/connect@v2</code></td><td><code>skimasque-dev/connect@v2</code></td><td><code>skimasque-dev/connect@v2</code></td></tr>
+<tr><td><code>--control-plane</code> endpoint</td><td><code>control.skimasque.com</code> (default)</td><td><code>control.skimasque.com</code> (default)</td><td>your URL</td></tr>
+<tr><td>Operational load</td><td>Lowest</td><td>Medium</td><td>Highest</td></tr>
+<tr><td>SkiMasque Cloud required</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+<tr><td>Best for</td><td>Fastest adoption</td><td>Traffic path in your network</td><td>Maximum control, air-gapped, regulated</td></tr>
+</tbody></table>
+<p><strong>Start with Mode 1.</strong> Move to Mode 2 when you need the network path in your own
+infrastructure. Mode 3 is the advanced path — reach for it only when a
+dependency on any external service is genuinely unacceptable, and expect real
+work. None of the three is a crippled edition; the difference is operational
+load, and it climbs steeply from left to right.</p>
+<hr />
+<h2 id="mode-1--fully-managed">Mode 1 — Fully managed</h2>
+<blockquote>
+<p><strong>Applies to:</strong> ✓ Mode 1</p>
+</blockquote>
+<p><em>"Just use it."</em></p>
+<p>SkiMasque operates the control plane and the gateway. You point CI at the
+SkiMasque endpoint and write policy. There is nothing to provision, install,
+register, patch, monitor, or keep online.</p>
+<pre><code>GitHub Actions ──OIDC──▶ SkiMasque Cloud ──authorized tunnel──▶ your database / API
+</code></pre>
+<p>The gateway must already have a network path to the resource. Cloud sign-in does
+not connect a private VPC; use Mode 2 for a private-only destination.</p>
+<p>You configure <strong>identity</strong> (which OIDC issuers and claims you trust) and
+<strong>policy</strong> (what each identity may reach). That's it.</p>
+<ul>
+<li>Fastest path to a working enforcement loop — a policy file and a workflow
+change is the whole integration.</li>
+<li>Full control-plane feature set: reviewed policy revisions, the dashboard, the
+fleet view, access requests, audit history.</li>
+<li>Per-org isolation: organisations share the endpoint but never see each other's
+traffic or policy.</li>
+<li>Traffic egresses from a shared SkiMasque IP. A <strong>dedicated egress IP</strong> — so you
+can allowlist exactly one address on your firewall — is a higher subscription
+tier in the product plan; dedicated Cloud egress is not implemented yet.
+Run a customer gateway to control egress today.</li>
+</ul>
+<p>Get started: <a href="../getting-started/"><code>getting-started.md</code></a>.</p>
+<hr />
+<h2 id="mode-2--customer-gateway">Mode 2 — Customer gateway</h2>
+<blockquote>
+<p><strong>Applies to:</strong> ✓ Mode 2</p>
+</blockquote>
+<p><em>"Keep the network path in my infrastructure."</em></p>
+<p>You run the open-source gateway (<code>skimasque-server</code>) inside your own network;
+SkiMasque Cloud provides the control plane.</p>
+<pre><code>GitHub Actions ──OIDC──▶ SkiMasque Cloud ──authorization──▶ your gateway (in your VPC) ──▶ private service
+</code></pre>
+<p>Choose this when:</p>
+<ul>
+<li>the target is on a <strong>private network</strong> the SkiMasque endpoint cannot reach
+(<code>10.20.30.15:5432</code> in a VPC) — the strongest reason;</li>
+<li>your security team <strong>won't allow</strong> SkiMasque infrastructure near their
+production network, or won't expose a private service to inbound traffic even
+from a fixed IP;</li>
+<li><strong>data residency / compliance</strong> requires the traffic path to stay in a region,
+VPC, or data centre you control;</li>
+<li>you want a predictable, single egress IP under your control.</li>
+</ul>
+<p>Responsibilities:</p>
+<table><thead><tr><th>You own</th><th>SkiMasque owns</th></tr></thead><tbody>
+<tr><td>the gateway host / container, its network placement, firewall, outbound connectivity, upgrades, and availability</td><td>identity, the policy workflow, authorization decisions, the dashboard, and audit</td></tr>
+</tbody></table>
+<p>The gateway still does full policy enforcement locally and keeps enforcing its
+cached policy if the control plane is unreachable — SkiMasque Cloud is never on
+the traffic path. Running the gateway: <a href="../gateways/"><code>gateways.md</code></a>.</p>
+<hr />
+<h2 id="mode-3--fully-self-hosted">Mode 3 — Fully self-hosted</h2>
+<blockquote>
+<p><strong>Applies to:</strong> ✓ Mode 3</p>
+</blockquote>
+<p><em>"Operate everything myself."</em> The advanced path.</p>
+<p>You run the gateway <strong>and</strong> a control plane. No dependency on SkiMasque Cloud.</p>
+<pre><code>GitHub Actions ──OIDC──▶ your control plane ──authorization──▶ your gateway ──▶ your network
+</code></pre>
+<p>Choose this only for air-gapped or heavily regulated environments where a
+dependency on any external service is genuinely unacceptable. It is real
+engineering and operational work, not a configuration choice.</p>
+<p>The <strong>enforcement edge</strong> is open source and speaks the protocol in every mode —
+the gateway, the client, the CLI, the policy engine, OIDC verification, the
+<a href="../protocol/"><code>skimasque-protocol</code></a> contract, and the GitHub Action. <strong>SkiMasque
+Cloud's control-plane implementation is not.</strong> There is no open-source reference
+control-plane server; Mode 3 means you implement a control plane against
+<a href="../protocol/"><code>protocol.md</code></a>, or licence SkiMasque's distribution for
+self-hosting.</p>
+<p>See <a href="../self-hosting/"><code>self-hosting.md</code></a> — and get in touch before committing.</p>
+<hr />
+<h2 id="moving-between-modes">Moving between modes</h2>
+<ul>
+<li><strong>Mode 1 → Mode 2:</strong> deploy a gateway, register it, and remove SkiMasque's
+gateway from the org. Policy and identity config carry over unchanged.</li>
+<li><strong>Mode 2 → Mode 3:</strong> you need a control plane that speaks the protocol first
+(see above) — then the gateway re-registers against it (<code>--control-plane &lt;your-url&gt;</code>). The gateway binary and the Action do not change; only the
+endpoint does.</li>
+<li>Nothing about the policy DSL or the Action's inputs is mode-specific.</li>
+</ul>
+</article></div></section></main><footer class="v-site-footer"><div class="v-footer-art" aria-hidden="true"><svg class="v-contour" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M0 200 C120 160 200 210 320 170 S560 120 800 160"/><path d="M0 170 C120 130 200 180 320 140 S560 90 800 130"/><path d="M0 140 C120 100 200 150 320 110 S560 60 800 100"/><path d="M0 110 C120 70 200 120 320 80 S560 30 800 70"/><path d="M0 80 C120 40 200 90 320 50 S560 0 800 40"/></g></svg><svg class="v-mountain" viewBox="0 0 800 160" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="v-mountain-far" d="M0 160 L0 90 L120 40 L200 80 L300 20 L420 90 L520 50 L640 100 L720 60 L800 90 L800 160 Z"/><path class="v-mountain-near" d="M0 160 L0 120 L90 80 L180 115 L280 70 L380 120 L480 95 L590 125 L690 85 L800 120 L800 160 Z"/></svg></div><div class="v-wrap v-footer-grid"><div class="v-footer-brand"><p class="v-footer-name">SkiMasque</p><p>Identity-aware network access<br>for developers and workloads.</p></div><nav aria-label="Footer"><div class="v-footer-col"><p class="v-footer-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Resources</p><ul><li><a href="../../docs/">Documentation</a></li><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Company</p><ul><li><a href="../../about/">About</a></li><li><a href="../../contact/">Contact</a></li><li><a href="../../trust/">Trust</a></li><li><a href="../../status/">Status</a></li><li><a href="../../security/">Security</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Legal</p><ul><li>Privacy <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li><li>Terms <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li></ul></div></nav></div><p class="v-wrap v-footer-legal">© SkiMasque</p></footer></body></html>

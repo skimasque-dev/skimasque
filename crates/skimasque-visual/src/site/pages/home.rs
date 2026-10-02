@@ -2,10 +2,9 @@
 
 use askama::Template;
 
-use super::doc;
 use crate::diagrams::public;
 use crate::site::Page;
-use crate::site_chrome::{link, GET_STARTED_URL};
+use crate::site_chrome::link;
 use crate::{Component, Cta, CtaBand, FeatureGrid, Hero, PolicyExplorer, Prose, Section, SitePage};
 
 /// A self-contained network illustration with progressive enhancement.
@@ -27,7 +26,7 @@ pub fn page() -> Page {
              CI/CD workloads and coding agents.",
         )
         .lead("Grant a policy-bounded session for the destinations the job needs.")
-        .cta(Cta::primary("Get Started", GET_STARTED_URL))
+        .cta(Cta::primary("Get Started", "docs/getting-started/"))
         .cta(Cta::secondary(
             "Watch the workflow",
             link("", "how-it-works"),
@@ -94,7 +93,10 @@ pub fn page() -> Page {
     let cta = CtaBand::new("Network access should be temporary.")
         .line("Define the access your workloads need.")
         .line("Test the policy, then run a command with the access it grants.")
-        .cta(Cta::primary("Create Your First Policy", doc("policies.md")));
+        .cta(Cta::primary(
+            "Create Your First Policy",
+            "https://control.skimasque.com/app/policy/new",
+        ));
 
     Page {
         path: "index.html",

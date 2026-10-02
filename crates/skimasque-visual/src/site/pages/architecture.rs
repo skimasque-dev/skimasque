@@ -102,7 +102,7 @@ mod tests {
             "protocol handling",
             "Should this session exist?",
             "How does the traffic move?",
-            "docs/architecture.md",
+            "docs/architecture/",
         ] {
             assert!(s.contains(want), "missing {want:?}");
         }

@@ -180,7 +180,7 @@ mod tests {
             "There is no open-source control plane.",
             "license SkiMasque's control-plane distribution",
             "not a config switch",
-            "docs/self-hosting.md",
+            "docs/self-hosting/",
             "CUSTOMER CONTROL PLANE",
             "YOUR VPC",
         ] {

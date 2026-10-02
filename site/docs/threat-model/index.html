@@ -1,0 +1,335 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><script>(() => {
+  const key = 'skimasque-theme';
+  const root = document.documentElement;
+  let theme = 'system';
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved === 'light' || saved === 'dark') theme = saved;
+  } catch (_) { /* Storage may be disabled; switching still works. */ }
+  function apply() {
+    if (theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+  }
+  apply();
+  document.addEventListener('DOMContentLoaded', () => {
+    const control = document.querySelector('.v-theme-control');
+    const picker = document.querySelector('#site-theme');
+    if (!control || !picker) return;
+    picker.value = theme;
+    control.hidden = false;
+    picker.addEventListener('change', () => {
+      theme = picker.value;
+      apply();
+      try { localStorage.setItem(key, theme); } catch (_) { /* Keep the current-page choice. */ }
+    });
+  });
+})();
+</script><title>Threat model · SkiMasque</title><meta name="description" content="Threat model"><meta property="og:title" content="Threat model · SkiMasque"><meta property="og:description" content="Threat model"><meta property="og:type" content="website"><link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href="../../assets/visual.css?v=1bc626f0340909d7"></head><body class="v-site"><svg class="v-sprite" aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
+<symbol id="i-workload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></symbol>
+<symbol id="i-developer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 8v8M17 10c0 4-4 4-8 6"/></symbol>
+<symbol id="i-ci-job" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M4 12h16M4 17h10"/><path d="M17 4.5l3 2.5-3 2.5"/></symbol>
+<symbol id="i-application" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10l3 2-3 2M12 15h5"/></symbol>
+<symbol id="i-identity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M17 12v3M20 12v2"/></symbol>
+<symbol id="i-policy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l3 3v15H6z"/><path d="M9 13l2 2 4-4"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+<symbol id="i-gateway" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M2 8h9M8 5l3 3-3 3M22 16h-9M16 13l-3 3 3 3"/></symbol>
+<symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M11 6.8L6 16.2M13 6.8l5 9.4M7 18h10"/></symbol>
+<symbol id="i-service" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/><path d="M8 7.5h.01M8 16.5h.01"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></symbol>
+<symbol id="i-api" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4C7 4 6 5 6 7v2c0 1-1 3-2 3 1 0 2 2 2 3v2c0 2 1 3 3 3M15 4c2 0 3 1 3 3v2c0 1 1 3 2 3-1 0-2 2-2 3v2c0 2-1 3-3 3"/></symbol>
+<symbol id="i-kubernetes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M12 14.5V20M4 12h5.5M14.5 12H20"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9a4.5 4.5 0 0 0 1 9z"/></symbol>
+<symbol id="i-firewall" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 10h18M3 15h18M9 5v5M15 10v5M9 15v4"/></symbol>
+<symbol id="i-internet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.5 2.5 13.5 0 16M12 4c-2.5 2.5-2.5 13.5 0 16"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-cross" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-control-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="7" rx="2"/><path d="M12 10v5M4 15h16M4 15v3M12 15v3M20 15v3"/><circle cx="4" cy="20" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="20" cy="20" r="2"/></symbol>
+<symbol id="i-cli" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l7 6-7 6M13 18h7"/></symbol>
+<symbol id="i-credential" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+<symbol id="i-audit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+</svg><a class="v-skip" href="#main">Skip to content</a><header class="v-site-header"><div class="v-wrap v-site-bar"><a class="v-brand" href="../../">SkiMasque</a><nav class="v-site-nav" aria-label="Primary"><details class="v-nav-group" name="site-nav"><summary>Product</summary><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Compare</summary><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Technology</summary><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Resources</summary><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul></details><a class="v-nav-top" href="../../pricing/">Pricing</a></nav><div class="v-site-actions"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel"><p class="v-menu-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul><p class="v-menu-title">Compare</p><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul><p class="v-menu-title">Technology</p><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul><p class="v-menu-title">Resources</p><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul><p class="v-menu-title">Pricing</p><ul><li><a href="../../pricing/">Pricing</a></li></ul><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></p></div></details></nav><label class="v-theme-control" hidden for="site-theme"><span>Theme</span><select id="site-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header><main id="main"><section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy"><h1>Threat model</h1><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="../">All guides</a></p></div></div></section><section class="v-section"><div class="v-wrap"><h2>Guide</h2><article class="v-guide"><blockquote>
+<p><strong>Applies to:</strong> ✓ Mode 1 · ✓ Mode 2 · ✓ Mode 3 (the gateway trust boundaries
+are the same; Mode 3 adds the control plane's own trust — see
+<a href="../security/"><code>security.md</code></a>)</p>
+</blockquote>
+<p>A working security model for a <strong>GitHub Actions egress gateway</strong>. It names what
+the system protects, who might attack it, where the trust boundaries are, and
+what stops each attack today. It is the scoping document for an independent
+security review, and it is written to be falsifiable: every "mitigated" claim
+points at code or config a reviewer can check.</p>
+<p>First written against the tree at the <code>feat/release-image</code> branch point
+(<code>20a7941</code>) and kept current since; code references still cite <code>20a7941</code> where
+the mechanism has not changed.</p>
+<h2 id="what-the-system-is">What the system is</h2>
+<p>One stateless process, <code>skimasque-server</code>, sits at a network egress point. A CI
+job proves its identity with a GitHub (or GitLab / Buildkite / generic) OIDC
+token, trades it once for a short-lived credential, and then opens MASQUE
+tunnels that carry its real traffic. A policy — a set of files the gateway
+re-reads in place — decides per tunnel whether it opens, to where, and under
+what rate and volume limits.</p>
+<pre><code>                    ┌─────────────────────── gateway host (trusted) ────────────────────────┐
+                    │                                                                       │
+ CI runner          │   skimasque-server                                                    │
+ (semi-trusted)     │   ┌───────────────┐   ┌──────────────────────────────────────────┐    │
+   │                │   │ token exchange│   │ data plane (QUIC / HTTP/3)                │    │
+   │ OIDC token ────┼──▶│  verify RS256 │   │  IdentityLayer  → verify HS256 credential │    │
+   │                │   │  iss/aud/exp  │   │  AuthorizeLayer                           │    │
+   │ ◀── credential ┼───│  → HS256 JWT  │   │  PolicyLayer    → evaluate policy set     │    │
+   │  (HS256, ~1h)  │   └───────────────┘   │  QuotaLayer     → rate / volume limits    │    │
+   │                │                       │  AddressPolicy  → SSRF floor (resolved IP)│    │
+   │ tunnels ───────┼──────────────────────▶│  Dispatch       → UdpProxy / TcpProxy     │    │
+   │                │                       └───────────────────────┬──────────────────┘    │
+   │                │                                               │                       │
+   │                │   policy files ─┐   TLS cert/key ─┐           │ egress                │
+   │                │   audit log ────┤   (files, hot-reloaded)     │                       │
+   │                └─────────────────┼────────────────────────────┼───────────────────────┘
+   │                                  │                            │
+ OIDC issuer JWKS                operator / CD                private resources
+ (external, trusted to           (trusted)                   (db.prod:5432, …)
+  sign only its own tokens)
+</code></pre>
+<h2 id="assets">Assets</h2>
+<table><thead><tr><th>Asset</th><th>Why it matters</th><th>Where it lives</th></tr></thead><tbody>
+<tr><td><strong>Reachability of private resources</strong></td><td>The whole point of the gateway is to be a controlled path to things a runner otherwise cannot reach.</td><td>The gateway's network position.</td></tr>
+<tr><td><strong>The credential-signing secret</strong> (<code>--credential-secret</code> / <code>SKIMASQUE_CREDENTIAL_SECRET</code>)</td><td>Anyone who holds it can mint a credential for any identity and get that identity's access.</td><td>Gateway process env / memory; operator's secret store; shared across a fleet.</td></tr>
+<tr><td><strong>The TLS private key</strong></td><td>Impersonating the gateway lets an attacker collect OIDC tokens and MITM tunnels.</td><td><code>--key</code> file on the host, hot-reloaded.</td></tr>
+<tr><td><strong>The policy set</strong></td><td>It <em>is</em> the authorization decision. A bad edit widens access silently.</td><td>Files under <code>--policy-dir</code> / <code>--policy-file</code>, or a ConfigMap.</td></tr>
+<tr><td><strong>The audit log</strong></td><td>The only record of what was allowed and denied.</td><td><code>--audit-log</code> file, or the <code>masque::audit</code> tracing target.</td></tr>
+<tr><td><strong>In-flight tunnel traffic</strong></td><td>Contains the job's own secrets (registry creds, DB passwords, source).</td><td>QUIC streams/datagrams between runner and gateway; plaintext on the egress side.</td></tr>
+<tr><td><strong>An agent-session credential</strong></td><td>A bearer token for one session's access: whoever holds it has the session's reach until it expires or the session is ended.</td><td>The launcher's owner-only token file and the network client's memory; in transit to the gateway.</td></tr>
+<tr><td><strong>A runner's OIDC token</strong></td><td>A bearer token for the exchange endpoint; valid for its short lifetime and broad <code>aud</code>.</td><td>Runner memory; in transit to the gateway.</td></tr>
+</tbody></table>
+<h2 id="actors-and-trust-levels">Actors and trust levels</h2>
+<table><thead><tr><th>Actor</th><th>Trust</th><th>What we assume they can do</th></tr></thead><tbody>
+<tr><td><strong>Operator / CD pipeline</strong></td><td>Trusted</td><td>Deploy the gateway, write policy, hold the secrets. Out of scope as an attacker.</td></tr>
+<tr><td><strong>OIDC issuer</strong> (GitHub, …)</td><td>Trusted to sign only tokens it should</td><td>Publishes a JWK Set; signs tokens with the claims the CI platform asserts. Not assumed to be malicious, but <em>is</em> assumed to sign tokens for <strong>every</strong> repo/workflow on the platform, including an attacker's.</td></tr>
+<tr><td><strong>Legitimate CI job</strong></td><td>Semi-trusted</td><td>Runs code from a repository. Holds a valid OIDC token and, after exchange, a credential scoped to its identity. <strong>May be running attacker-controlled code</strong> (a malicious PR, a compromised dependency, a supply-chain attack in the job itself).</td></tr>
+<tr><td><strong>Attacker with their own GitHub repo</strong></td><td>Untrusted</td><td>Can obtain a validly-signed OIDC token for <em>their</em> <code>repository</code> / <code>workflow_ref</code> and hit the exchange endpoint.</td></tr>
+<tr><td><strong>Network attacker</strong></td><td>Untrusted</td><td>On-path between runner and gateway, or between gateway and the OIDC issuer; can send packets to any listener.</td></tr>
+<tr><td><strong>Coding agent</strong></td><td>Untrusted</td><td>Acts for a person but is driven by a model and by whatever text it reads, so assume prompt-injected or otherwise misled. Holds only a session credential. Will try any network path the sandbox leaves open.</td></tr>
+<tr><td><strong>Compromised gateway host</strong></td><td>Out of scope</td><td>Per <a href="https://github.com/skimasque-dev/skimasque/blob/main/SECURITY.md"><code>SECURITY.md</code></a>; if the host is owned, the model does not hold.</td></tr>
+</tbody></table>
+<p>The central tension: <strong>a legitimate CI job is the primary threat agent.</strong> The
+gateway exists precisely because you cannot fully trust the code running in a
+build. Every boundary below is drawn with "the job is hostile" in mind.</p>
+<h2 id="trust-boundaries-and-the-threats-at-each">Trust boundaries and the threats at each</h2>
+<h3 id="b1--runner--token-exchange-endpoint">B1 — Runner → token-exchange endpoint</h3>
+<p>A caller presents an OIDC token; the gateway returns a credential.</p>
+<table><thead><tr><th>Threat</th><th>Mitigation</th><th>Residual</th></tr></thead><tbody>
+<tr><td>Forged or altered token</td><td>RS256 verified against the issuer's JWK Set (<code>skimasque-identity</code>); <code>kid</code> matched, one refetch on an unknown <code>kid</code>.</td><td>Trust in the issuer's key management.</td></tr>
+<tr><td>Token from a different audience (a token minted for another service, replayed here)</td><td><code>aud</code> must equal one of <code>--oidc-audience</code>; the operator picks a gateway-specific value.</td><td>An operator who reuses a common audience string weakens this.</td></tr>
+<tr><td>Expired / not-yet-valid token</td><td><code>exp</code> / <code>nbf</code> checked with 60 s leeway.</td><td>60 s replay window on a leaked token.</td></tr>
+<tr><td>Wrong issuer</td><td><code>iss</code> must equal <code>--oidc-issuer</code>.</td><td>—</td></tr>
+<tr><td><strong>Attacker's own repo requests a credential</strong></td><td>The credential carries <em>their</em> identity (<code>repository</code>, <code>workflow_ref</code>, <code>ref</code>, …). Policy then denies it — deny-by-default means an unknown repo matches nothing.</td><td>The operator must not write an over-broad <code>[match]</code> (e.g. matching only <code>repository_owner</code>). Policy tests (<code>[[tests]]</code>) are the guard.</td></tr>
+<tr><td>Token exfiltrated from a runner and replayed from elsewhere</td><td>Short OIDC lifetime; the credential it yields still carries the original job's identity, so stolen access is bounded by that job's policy.</td><td>A token stolen mid-job can be exchanged by the attacker for a credential with the same access the job legitimately has. This is inherent to bearer tokens; mitigation is short TTLs and policy scoping.</td></tr>
+<tr><td>DoS on the exchange (RSA verify + JWKS fetch per call)</td><td>A per-source-IP token bucket (<code>--max-exchange-rate</code>, default 10/s burst 30) refuses excess with <code>429</code> <em>before</em> the verify; JWKS cached for an hour; the exchange is meant to be called once per job. <code>--max-concurrent-requests</code> bounds concurrent verification.</td><td>Per-source key is the QUIC peer IP; a NAT'd fleet shares one bucket. Global (all-source) exchange volume is bounded only by <code>--max-concurrent-requests</code>.</td></tr>
+</tbody></table>
+<h3 id="b2--runner--data-plane-tunnel-open">B2 — Runner → data plane (tunnel open)</h3>
+<p>Every tunnel carries <code>Proxy-Authorization: Bearer &lt;credential&gt;</code>.</p>
+<table><thead><tr><th>Threat</th><th>Mitigation</th><th>Residual</th></tr></thead><tbody>
+<tr><td>No credential</td><td><code>407</code> — <code>IdentityLayer</code> is the authentication boundary when present, fail-closed.</td><td>If the gateway is run without <code>--oidc</code> / <code>--auth-token</code>, there is no auth. Documented; the exchange endpoint and <code>--oidc</code> are the supported path.</td></tr>
+<tr><td>Forged credential</td><td>HS256 verified locally with <code>--credential-secret</code>; no network, no external trust at tunnel time.</td><td>Strength is the secret. A weak or leaked secret is total compromise of the identity layer.</td></tr>
+<tr><td>Expired credential</td><td><code>exp</code> checked; the client proactively re-exchanges before expiry.</td><td>—</td></tr>
+<tr><td>Credential minted by a <em>different</em> gateway in the fleet</td><td>Accepted by design when <code>--credential-secret</code> is shared.</td><td>A compromise of one gateway's secret compromises the fleet. Operators who want isolation run separate secrets.</td></tr>
+<tr><td>Replaying a captured credential from another runner</td><td>The credential is a bearer token; its identity, policy and credential expiry bound the damage. <code>[session] max_duration</code> is not enforced by the gateway.</td><td>Same bearer-token caveat as B1. No proof-of-possession binding to the QUIC connection.</td></tr>
+<tr><td>Lying about the application (<code>--app terraform</code>)</td><td><strong>Not trusted.</strong> The README is explicit: application name is session context, matched but not authenticated. Policy authors treat it as a convenience, not a control.</td><td>A hostile job picks whatever <code>--app</code> string opens the most doors. Mitigation is writing policy where the <em>destination</em> set is the real constraint. Strong process identity is roadmap (Phase 5).</td></tr>
+</tbody></table>
+<h3 id="b3--policylayer--egress-destination-authorization">B3 — PolicyLayer → egress (destination authorization)</h3>
+<table><thead><tr><th>Threat</th><th>Mitigation</th><th>Residual</th></tr></thead><tbody>
+<tr><td>Reaching a destination no rule allows</td><td>Deny-by-default; no implicit allow. Every <code>DENY</code> is logged with a reason.</td><td>Only as good as the policy.</td></tr>
+<tr><td>SSRF to internal / metadata addresses (<code>169.254.169.254</code>, RFC 1918, loopback, CGNAT, link-local, multicast)</td><td><code>AddressPolicy</code> — the SSRF floor — checked against the <strong>resolved</strong> IP, not the requested name, so DNS rebinding does not bypass it. Refused unless the deployment opts in. The opt-in is per-range: <code>--allow-cidr 10.0.5.0/24</code> names exactly what is reachable and leaves the rest of private space, and the metadata address, refused. <code>--allow-private</code> still exists but is the blunt instrument.</td><td>An operator can still use <code>--allow-private</code> and re-expose everything; the docs steer to <code>--allow-cidr</code>. A CIDR that is itself too wide is the operator's mistake to make.</td></tr>
+<tr><td>DNS rebinding / TOCTOU between resolve and connect</td><td>Policy and <code>AddressPolicy</code> run on resolved addresses; the proxy forwards only to an <code>AuthorizedDestination</code>, never a bare target.</td><td>A name that resolves to different IPs on two lookups: the one that is connected is the one that was checked, because the checked address is what is dialed.</td></tr>
+<tr><td>Forwarding path constructed without authorization</td><td>Structural: the inner proxy takes an <code>AuthorizedDestination</code> only. The single bypass, <code>AuthorizedDestination::trusting</code>, is named to be greppable and is not on the request path.</td><td>Code review item — verify no new call site.</td></tr>
+<tr><td>Policy file tampered on disk</td><td>Out of scope (host compromise) — but a malformed revision is logged and <strong>skipped</strong>, so a broken edit fails closed to the last good set rather than open.</td><td>A <em>valid</em> but wrong edit applies silently after <code>--policy-reload-interval</code>. Mitigation: policy in version control, <code>skimasque policy check</code> / <code>diff</code> / <code>[[tests]]</code> in the CD pipeline.</td></tr>
+</tbody></table>
+<h3 id="b4--gateway--oidc-issuer-jwks-fetch">B4 — Gateway → OIDC issuer (JWKS fetch)</h3>
+<table><thead><tr><th>Threat</th><th>Mitigation</th><th>Residual</th></tr></thead><tbody>
+<tr><td>MITM of the JWKS fetch serving attacker keys</td><td>HTTPS with the system trust store; rustls, no OpenSSL.</td><td>Trust in the host CA bundle.</td></tr>
+<tr><td>Issuer unreachable → fail open?</td><td>No — verification fails closed; no cached key for the <code>kid</code> means the token is rejected.</td><td>A JWKS outage stops <em>new</em> exchanges (existing credentials keep working for their TTL). Availability, not integrity.</td></tr>
+<tr><td>Malicious <code>kid</code> forcing unbounded refetches</td><td>One refetch per unknown <code>kid</code>, then cached.</td><td>Light amplification only.</td></tr>
+</tbody></table>
+<h3 id="b5--network-attacker-on-the-runnergateway-path">B5 — Network attacker on the runner↔gateway path</h3>
+<table><thead><tr><th>Threat</th><th>Mitigation</th><th>Residual</th></tr></thead><tbody>
+<tr><td>Eavesdrop tunnel traffic</td><td>QUIC / TLS 1.3, always on.</td><td>Egress side is plaintext by nature (that is the point of a proxy) — the private resource sees the gateway's IP.</td></tr>
+<tr><td>Impersonate the gateway to harvest OIDC tokens</td><td>The client verifies the gateway cert against its configured CA; <code>--insecure</code> disables this and is explicitly out of scope.</td><td>An operator who ships <code>--insecure</code> to production. Documented as dev-only.</td></tr>
+<tr><td>Spoofed / flooded QUIC packets</td><td>QUIC address validation (Retry); <code>ResourceLimits</code> — concurrent-connection cap, a <strong>per-source-IP</strong> new-connection rate limit checked before the global one (a bounded LRU map of token buckets), per-connection tunnel cap, per-tunnel idle timeout — refuse before a handshake task is spawned.</td><td>The per-source key comes from the not-yet-validated peer address, so a spoofed-source flood can still churn the bucket map — but only within its fixed bound. A fleet behind one NAT egress IP counts as a single source, so the per-source rate must be raised or disabled there. The token-exchange endpoint is still only globally rate-limited (see gaps).</td></tr>
+</tbody></table>
+<h3 id="b6--cross-tenant-isolation-on-one-gateway">B6 — Cross-tenant isolation on one gateway</h3>
+<p>Multiple repos/workflows share one process.</p>
+<table><thead><tr><th>Threat</th><th>Mitigation</th><th>Residual</th></tr></thead><tbody>
+<tr><td>One job's traffic leaking into another's tunnel</td><td>Each tunnel is a distinct QUIC stream/flow with its own <code>AuthorizedDestination</code>; no shared relay buffer between tunnels (64 KB per relay task).</td><td>Code review item.</td></tr>
+<tr><td>One job exhausting shared resources to deny others</td><td>Per-policy <code>[limits]</code> (bandwidth, packets/s, concurrent connections) and per-tunnel <code>bytes</code>; global <code>ResourceLimits</code> as the backstop.</td><td>Limits are <strong>aggregate per policy</strong>, not per session/job — two jobs under the same policy share one bandwidth bucket. Per-session limits need the credential to carry a session id (roadmap).</td></tr>
+<tr><td>Learning-mode output leaking one tenant's destinations into another's draft</td><td>Learning groups by <code>(application, transport, destination)</code> and emits a draft for review; it is never auto-applied.</td><td>Operator process — review the draft.</td></tr>
+</tbody></table>
+<h3 id="b7--shared-platform-gateway---platform">B7 — Shared platform gateway (<code>--platform</code>)</h3>
+<p>One process serves many organisations. The tenant is named by the credential
+(its <code>org_id</code>) or, at exchange, by the audience <code>https://&lt;hostname&gt;/o/&lt;slug&gt;</code>;
+nothing else selects it, and there is no default tenant.</p>
+<table><thead><tr><th>Threat</th><th>Mitigation</th><th>Residual</th></tr></thead><tbody>
+<tr><td>A credential signed with org A's key accepted as org B</td><td>A credential is verified with the key of the org it <em>names</em>, and only that key; a credential naming an unknown org, or none, is refused.</td><td>A leaked org key is a leak for that org only.</td></tr>
+<tr><td>A request resolved to A evaluated against B's policy, quota or meter</td><td>The tenant is resolved once per tunnel from the verified credential; every tenant lookup takes a <code>TenantId</code> that only the tenant table can mint; quota limiter keys include the tenant, so equal policy names do not share limits.</td><td>The aggregate-per-policy limits of B6 now apply per tenant.</td></tr>
+<tr><td>Audit events filed under the wrong org</td><td>Each event carries the org of its credential; one hash chain per gateway, events filed per org; an event naming no org is dropped, not shipped.</td><td>The chain is gateway-wide, so orgs' events interleave in the local <code>--audit-log</code>.</td></tr>
+<tr><td>A job obtains a credential for an org whose owner it is not</td><td>The job's <code>repository_owner</code> (and numeric owner id, when recorded) must be verified for the audience's org before the control plane is asked to mint; the control plane re-checks. Refusal: <code>owner_not_verified</code>.</td><td>Owner verification is the trust root. Owners are verified on github.com, which is why <code>--oidc-issuer</code> and non-GitHub providers are refused with <code>--platform</code>.</td></tr>
+<tr><td>A gateway compromise minting credentials</td><td>No local minting and no HS256 secret: private keys stay on the control plane.</td><td>A compromised gateway can still relay tunnels for credentials it sees until they expire.</td></tr>
+<tr><td>Control-plane outage</td><td>New exchanges fail closed (<code>502</code>); enforcement continues from the in-memory table, restored from <code>&lt;state&gt;/tenants.json</code> after a restart.</td><td>A removal is honoured only at the next successful refresh. A removed tenant is then cut off at once (the tenant is resolved from the current list on every tunnel); a removed owner can mint nothing new, but credentials already issued stay valid until they expire. Only agent sessions can be revoked individually (B8); CI and developer credentials cannot.</td></tr>
+<tr><td>Audience confusion across tenants</td><td>The slug is matched exactly (case not folded) and the token is verified for the audience that named the tenant.</td><td></td></tr>
+</tbody></table>
+<h3 id="b8--agent-session-and-its-sandbox">B8 — Agent session and its sandbox</h3>
+<p>A coding agent runs with a session credential (see <a href="../agents/"><code>agents.md</code></a>),
+issued by the control plane for a signed-in member and enforced by the gateway.</p>
+<table><thead><tr><th>Threat</th><th>Mitigation</th><th>Residual</th></tr></thead><tbody>
+<tr><td>An agent reaches more than its owner could</td><td>The credential's identity is the owner's (<code>actor</code>) plus <code>kind = agent</code>, derived server-side from the owner's login; nothing in the request chooses it. It matches no policy the owner could not, and policies naming <code>kind = agent</code> can narrow it.</td><td>A policy that names <code>kind = agent</code> can also <em>widen</em> it. That is the policy author's choice.</td></tr>
+<tr><td>A workload mints itself an <code>agent</code> or <code>developer</code> credential, or names its own kind</td><td><code>kind</code> is set only by the agent-session endpoint (<code>agent</code>), the developer endpoint (<code>developer</code>) and the provider mapping (<code>ci</code>). Both gateway-mediated mints refuse <code>agent</code>/<code>developer</code> and drop a gateway-supplied <code>sid</code>; a token claim cannot map onto <code>kind</code>.</td><td>—</td></tr>
+<tr><td>An agent claims a privileged name (<code>runtime</code>, <code>run_id</code>)</td><td>They are audit labels and are never matched by policy.</td><td>A misleading label can mislead a human reading the console.</td></tr>
+<tr><td>A session outlives its purpose</td><td>Default 30 minutes, capped at 4 hours; tunnels close at credential expiry, not only new ones refused. The owner or an org owner can end it at any time; ending cascades to delegated sessions.</td><td>See the gaps below.</td></tr>
+<tr><td>An ended session keeps working</td><td>Gateways long-poll the control plane for the ended list and refuse new tunnels, close open ones, and persist the list across restarts.</td><td>If a gateway cannot reach the control plane it keeps the last list; a session ended meanwhile is bounded by the credential's expiry (≤ 4 h). Propagation time on a healthy control plane is about one round trip; it has not been measured under load.</td></tr>
+<tr><td>The agent steals the credential and uses it elsewhere</td><td>Bearer token; bounded by lifetime and revocable. Org-scoped, so it works for one org only.</td><td>No proof-of-possession. If the agent can read the token file, <code>skimasque login</code>'s stored session, or the client's memory, it can use or extend it. A client started with no token falls back to the login session and mints a developer credential. Keep all of these outside the sandbox.</td></tr>
+<tr><td>The agent bypasses the gateway entirely</td><td>Out of SkiMasque's hands: it governs the gateway path, not the host. The sandbox must block direct outbound networking (TCP, UDP, IPv6, DNS) including from child processes and with proxy variables cleared.</td><td>A sandbox that only sets <code>HTTPS_PROXY</code> enforces nothing.</td></tr>
+<tr><td>A delegated session outlives or exceeds its parent</td><td>A child's expiry is capped at its parent's; its identity is the same; ending the parent ends it.</td><td>—</td></tr>
+<tr><td>An agent abuses what it may legitimately reach</td><td>Out of scope: SkiMasque grants connectivity, not application authorization.</td><td>Keep database permissions and API scopes at the destination.</td></tr>
+</tbody></table>
+<h2 id="the-two-authorization-escape-hatches">The two authorization escape hatches</h2>
+<p>Both are named to be greppable, and an audit against <code>20a7941</code>'s successors
+found neither reachable on an enforced request path by accident.</p>
+<h3 id="authorizeddestinationtrusting"><code>AuthorizedDestination::trusting</code></h3>
+<p>The inner <code>UdpProxy</code> / <code>TcpProxy</code> forwards only to an <code>AuthorizedDestination</code>.
+<code>trusting</code> is the one constructor that makes one with no policy decision behind
+it. It is reached in exactly three places:</p>
+<ul>
+<li><strong>No <code>PolicyLayer</code> in the stack</strong> (<code>open_tunnel</code> / <code>open_tcp_tunnel</code> fall
+back to it). This is the deliberate "network floor only" mode for a
+single-tenant gateway. <code>skimasque-server</code> now warns at startup when an
+identity source is configured but no policy is — the case where an operator
+might wrongly believe destinations are constrained.</li>
+<li><strong>Observe mode</strong> (<code>--policy-observe</code>), which by definition enforces nothing;
+it evaluates, logs <code>masque::observe</code>, and forwards. Opt-in, and the audit log
+is deliberately not written in this mode.</li>
+<li>Tests.</li>
+</ul>
+<p><code>Enforce::call</code> itself is fail-closed: an <code>Allow</code> attaches a real
+<code>AuthorizedDestination::from_decision</code>, a <code>Deny</code> returns <code>403</code>, and a request it
+cannot turn into a policy question (a non-UDP/TCP target) is denied, not passed
+through. There is no path from <code>Enforce</code> to the inner service that skips
+<code>authorize</code>.</p>
+<h3 id="--insecure"><code>--insecure</code></h3>
+<p>A <code>skimasque-client</code> flag that swaps certificate verification for
+<code>AcceptAnyCertificate</code>. It is CLI-only (no env var), <code>conflicts_with</code> <code>--ca</code>,
+prints a warning, and is not exposed by the composite GitHub Action (which only
+takes an optional <code>--ca</code>). The default client path uses the webpki roots. The
+library function is <code>pub</code> but named <code>dangerous_client_config_without_verification</code>
+and documented as dev-only.</p>
+<p>A gateway started with <code>--acme</code> serves a publicly-trusted Let's Encrypt
+certificate for <code>--hostname</code>, so its clients need neither <code>--ca</code> nor
+<code>--insecure</code> — the default webpki path just works (and <code>skimasque-client --proxy</code> defaults to <code>gateway.skimasque.com</code>). This removes the operational
+pressure that
+leads to <code>--insecure</code> (a self-signed gateway whose certificate was not
+distributed). The ACME account key and issued certificate sit in
+<code>--acme-cache</code>; they are ordinary key material, protected as assumption 2
+requires, and a leaked <em>account</em> key lets an attacker who also controls the
+domain's DNS or port 443 issue certificates — i.e. it grants nothing they did
+not already have.</p>
+<h2 id="security-assumptions">Security assumptions</h2>
+<ol>
+<li>The gateway host and its operator are trusted. Host compromise is out of scope.</li>
+<li><code>--credential-secret</code> and the TLS key are stored and distributed by the
+operator with at least the care of any other production secret.</li>
+<li>The OIDC issuer signs tokens honestly and manages its keys. It <em>will</em> sign a
+token for an attacker's own repository — policy, not token validity, is what
+keeps that attacker out.</li>
+<li>Policy is treated as code: version-controlled, reviewed, tested with
+<code>[[tests]]</code>, and checked in CI before it reaches <code>--policy-dir</code>.</li>
+<li>Clients verify the gateway certificate — the default webpki path, which an
+<code>--acme</code> gateway makes zero-config. <code>--insecure</code> is for local development
+only.</li>
+<li>TLS is terminated at the gateway; the egress hop runs on a network the
+operator already controls with a firewall (skimasque decides <em>who</em>, the
+firewall decides <em>what is reachable at all</em>).</li>
+</ol>
+<h2 id="non-goals-today">Non-goals (today)</h2>
+<ul>
+<li><strong>Authenticating the application name.</strong> Session context, not proof, until
+Phase 5 (cgroups / eBPF process identity).</li>
+<li><strong>Proof-of-possession credentials.</strong> Credentials and OIDC tokens are bearer
+tokens; a token stolen from a running job grants that job's access for the
+token's lifetime.</li>
+<li><strong>Protecting against a malicious operator or a compromised host.</strong></li>
+<li><strong>Confidentiality of traffic past the gateway.</strong> The proxy exists to make that
+hop; the private resource sees gateway-sourced plaintext (or its own TLS).</li>
+<li><strong>A hosted multi-org control plane.</strong> One gateway, one operator, files on disk.</li>
+</ul>
+<h2 id="known-gaps-feeding-the-review">Known gaps feeding the review</h2>
+<p>These are the questions the independent review should press on:</p>
+<ol>
+<li><strong>The per-source rate limiters.</strong> The QUIC new-connection path and the
+token-exchange path both now have per-source-IP token buckets
+(<code>PerSourceRate</code> / <code>ExchangeRateLimiter</code> in <code>crates/skimasque/src/server.rs</code>),
+bounded by a <code>MAX_SOURCES</code> LRU map. Is that map the right structure, is
+keying on an unvalidated QUIC peer address acceptable, and is the residual —
+a NAT'd fleet sharing one bucket, and no <em>global</em> cap on exchange volume
+beyond <code>--max-concurrent-requests</code> — the right trade?</li>
+<li><strong>Per-session resource limits.</strong> <code>[limits]</code> are aggregate per policy. Agent
+sessions now carry a session id (<code>sid</code>), so per-session limits are possible
+for them; they are not implemented, and CI and developer credentials still
+have no session id.</li>
+<li><strong>Bearer-token theft.</strong> Is there a practical binding of the credential to the
+QUIC connection or the runner that would not break mid-session refresh?</li>
+<li><strong>Policy misconfiguration is the likeliest real-world failure.</strong>
+<code>skimasque policy validate</code> now lints for the broad-<code>[match]</code> cases
+(<code>match-governs-every-workload</code>, <code>match-lacks-repository</code>,
+<code>match-lacks-ref</code>), <code>--strict</code> fails CI on them, and the gateway logs them
+on load (<code>Policy::lints</code> in <code>crates/skimasque-policy/src/lint.rs</code>). Are those
+three heuristics the right set, is warn-not-fail the right default, and
+should <code>match-lacks-ref</code> be louder given it is the pull-request-from-a-fork
+vector?</li>
+<li><strong><code>AddressPolicy</code> opt-in granularity.</strong> Addressed: <code>--allow-cidr</code> /
+<code>AddressPolicy::allowed_cidrs</code> is a per-range allow-list that overrides the
+category floor for exactly the networks listed (<code>allowed_cidrs</code> in
+<code>crates/skimasque/src/policy.rs</code>). The review should decide whether
+<code>--allow-private</code> should be deprecated outright, and whether a CIDR that
+spans a category (e.g. <code>10.0.0.0/8</code>) deserves a warning.</li>
+<li><strong>The <code>trusting</code> / <code>--insecure</code> escape hatches.</strong> Audited — see
+<a href="#the-two-authorization-escape-hatches">The two authorization escape hatches</a>.
+The internal review should re-confirm the three <code>trusting</code> call sites and
+that <code>--insecure</code> stays out of the Action, and decide whether the
+identity-without-policy mode should be a hard error rather than a warning.</li>
+<li><strong>Fleet secret sharing.</strong> The <code>--credential-secret</code> model trades isolation
+for fleet mobility. <code>SECURITY.md</code> now spells out the blast radius and
+rotation; the review should still sanity-check the wording. The control
+plane's D1 scheme narrows this: with <code>--control-plane --oidc</code>, the private
+signing key stays on the control plane, gateways hold only the org public
+key and verify credentials against it offline, and issuance goes through
+<code>POST /v1/gateways/{id}/credentials</code>. A gateway compromise no longer leaks a
+fleet-wide minting secret. The org key rotates via
+<code>POST /v1/orgs/{id}/signing-key/rotate</code> — gracefully (previous key kept for
+the credential TTL) or <code>revoke_previous</code> for an immediate revocation of every
+outstanding credential. Residual exposure: <code>--credential-secret</code> still signs
+the 5-minute fallback credentials during a control-plane outage (and
+<code>--control-plane-no-credential-fallback</code> removes even that); rotation is
+operator-triggered with no automatic cadence yet, and there is no
+per-credential revocation. The review should check the outage/fallback
+window and the still-shared HS256 path.</li>
+<li><strong>Dependency surface.</strong> <code>quinn</code>, <code>h3</code>, <code>rustls</code>, <code>jsonwebtoken</code>. The <code>h3</code>
+git pin was reviewed (see the notes in the workspace <code>Cargo.toml</code>): the rev
+is <code>hyperium/h3</code> <code>master</code> HEAD, <code>master</code> is developed actively but the
+<code>h3-v*</code> tags have not moved in over a year, so there is no imminent release
+to move to; the pin also carries correctness fixes we want. <code>deny.toml</code>
+restricts git sources to that one URL. Open items for the review: <code>cargo audit</code> does not see the git dependency (an <code>h3</code> advisory needs a manual
+watch), and <code>h3-quinn</code> runs from its registry release against patched <code>h3</code>
+with no lockstep guarantee. The clean exit is <code>h3</code> 0.0.9, or dropping
+<code>connect-ip</code> as a goal and reverting to <code>h3</code> 0.0.8.</li>
+<li><strong>Agent sessions</strong> (<a href="#b8--agent-session-and-its-sandbox">B8</a>). Open items for
+the review: (a) revocation propagation is about one round trip by design but
+has not been measured, and a gateway cut off from the control plane relies on
+credential expiry (≤ 4 h) for sessions ended meanwhile; (b) <code>[session] max_duration</code> is documented but the gateway does not enforce it, and CI and
+developer credentials are not cut at expiry (a job longer than the credential
+lifetime would break), so only agent sessions are cut mid-tunnel; (c) a client
+with no token falls back to the stored <code>skimasque login</code> session and mints a
+developer credential, so an agent that can run that client inside its sandbox
+inherits the owner's login; (d) the expiry deadline is read from the bearer
+token's <code>exp</code> below an identity layer that has already verified the token,
+which is sound but is an ordering the stack must preserve; (e) a coding
+agent's sandbox is not provided, only specified.</li>
+</ol>
+</article></div></section></main><footer class="v-site-footer"><div class="v-footer-art" aria-hidden="true"><svg class="v-contour" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M0 200 C120 160 200 210 320 170 S560 120 800 160"/><path d="M0 170 C120 130 200 180 320 140 S560 90 800 130"/><path d="M0 140 C120 100 200 150 320 110 S560 60 800 100"/><path d="M0 110 C120 70 200 120 320 80 S560 30 800 70"/><path d="M0 80 C120 40 200 90 320 50 S560 0 800 40"/></g></svg><svg class="v-mountain" viewBox="0 0 800 160" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="v-mountain-far" d="M0 160 L0 90 L120 40 L200 80 L300 20 L420 90 L520 50 L640 100 L720 60 L800 90 L800 160 Z"/><path class="v-mountain-near" d="M0 160 L0 120 L90 80 L180 115 L280 70 L380 120 L480 95 L590 125 L690 85 L800 120 L800 160 Z"/></svg></div><div class="v-wrap v-footer-grid"><div class="v-footer-brand"><p class="v-footer-name">SkiMasque</p><p>Identity-aware network access<br>for developers and workloads.</p></div><nav aria-label="Footer"><div class="v-footer-col"><p class="v-footer-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Resources</p><ul><li><a href="../../docs/">Documentation</a></li><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Company</p><ul><li><a href="../../about/">About</a></li><li><a href="../../contact/">Contact</a></li><li><a href="../../trust/">Trust</a></li><li><a href="../../status/">Status</a></li><li><a href="../../security/">Security</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Legal</p><ul><li>Privacy <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li><li>Terms <span class="v-planned"><span aria-hidden="true">◇</span> PLANNED</span></li></ul></div></nav></div><p class="v-wrap v-footer-legal">© SkiMasque</p></footer></body></html>

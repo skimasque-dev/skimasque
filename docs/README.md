@@ -6,7 +6,7 @@ Start with the [project README](../README.md) for what SkiMasque is, then:
 
 | Doc | Read it when… |
 |---|---|
-| [`getting-started.md`](getting-started.md) | you want a GitHub Actions job reaching one protected destination, with matching policy and networking |
+| [`getting-started.md`](getting-started.md) | step-by-step hello CI walkthrough: console setup, policy, complete workflow, successful request, denial test, audit and cleanup |
 | [`deployment-modes.md`](deployment-modes.md) | you're choosing between fully managed, your own gateway, or fully self-hosted |
 | [`github-actions.md`](github-actions.md) | you want the OIDC details, other CI systems, or transparent/proxy modes and supervised cleanup |
 | [`policies.md`](policies.md) | you're writing a policy — WHO → WHAT → WHERE → LIMITS, the DSL in full |

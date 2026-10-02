@@ -570,3 +570,14 @@ html { scroll-padding-top: 72px; }
 .v-network-demo[data-step="3"] .v-network-ack-head,
 .v-network-demo[data-step="5"] .v-network-return-head { opacity: 1; }
 .v-network-demo[data-step="5"] .v-network-head { opacity: 0; }
+
+/* Long-form public guides. */
+.v-guide { min-width: 0; width: 100%; max-width: 88ch; overflow-wrap: anywhere; font: 15px/1.7 var(--font); }
+.v-guide > * + * { margin-top: 20px; }
+.v-guide h2, .v-guide h3, .v-guide h4 { margin-top: 32px; scroll-margin-top: 96px; }
+.v-guide a { color: var(--v-active); text-decoration: underline; }
+.v-guide pre { box-sizing: border-box; max-width: 100%; padding: 16px; overflow-x: auto; background: var(--surface-raised); border: 1px solid var(--line-default); border-radius: 6px; }
+.v-guide code { font-family: var(--font); }
+.v-guide table { display: block; overflow-x: auto; border-collapse: collapse; }
+.v-guide th, .v-guide td { padding: 8px 12px; border: 1px solid var(--line-default); text-align: left; }
+.v-guide blockquote { margin-left: 0; padding-left: 16px; border-left: 3px solid var(--v-active); }

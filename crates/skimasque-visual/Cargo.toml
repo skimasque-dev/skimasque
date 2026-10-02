@@ -10,11 +10,12 @@ publish = false
 
 [dependencies]
 askama.workspace = true
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"], optional = true }
 
 [features]
 # The website generator (gallery pages). Off by default: the dashboard only
 # needs the components and the stylesheet.
-site = []
+site = ["dep:pulldown-cmark"]
 
 [[bin]]
 name = "sitegen"
