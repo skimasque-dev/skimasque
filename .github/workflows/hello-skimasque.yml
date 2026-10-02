@@ -2,6 +2,8 @@
 name: Hello through SkiMasque
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -20,6 +22,7 @@ jobs:
           proxy: gateway.skimasque.com:443
           audience: https://gateway.skimasque.com
           application: skimasque-test
+          version: v0.3.2
 
       - name: Reach the allowed hello service
         shell: bash
