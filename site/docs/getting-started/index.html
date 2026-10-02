@@ -24,7 +24,7 @@
     });
   });
 })();
-</script><title>Getting started · SkiMasque</title><meta name="description" content="Getting started"><meta property="og:title" content="Getting started · SkiMasque"><meta property="og:description" content="Getting started"><meta property="og:type" content="website"><link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href="../../assets/visual.css?v=1bc626f0340909d7"></head><body class="v-site"><svg class="v-sprite" aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
+</script><title>Getting started: test your first CI connection · SkiMasque</title><meta name="description" content="Getting started: test your first CI connection"><meta property="og:title" content="Getting started: test your first CI connection · SkiMasque"><meta property="og:description" content="Getting started: test your first CI connection"><meta property="og:type" content="website"><link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href="../../assets/visual.css?v=1bc626f0340909d7"></head><body class="v-site"><svg class="v-sprite" aria-hidden="true" focusable="false" style="display:none" xmlns="http://www.w3.org/2000/svg">
 <symbol id="i-workload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></symbol>
 <symbol id="i-developer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></symbol>
 <symbol id="i-github" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 8v8M17 10c0 4-4 4-8 6"/></symbol>
@@ -49,82 +49,181 @@
 <symbol id="i-cli" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l7 6-7 6M13 18h7"/></symbol>
 <symbol id="i-credential" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
 <symbol id="i-audit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
-</svg><a class="v-skip" href="#main">Skip to content</a><header class="v-site-header"><div class="v-wrap v-site-bar"><a class="v-brand" href="../../">SkiMasque</a><nav class="v-site-nav" aria-label="Primary"><details class="v-nav-group" name="site-nav"><summary>Product</summary><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Compare</summary><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Technology</summary><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Resources</summary><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul></details><a class="v-nav-top" href="../../pricing/">Pricing</a></nav><div class="v-site-actions"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel"><p class="v-menu-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul><p class="v-menu-title">Compare</p><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul><p class="v-menu-title">Technology</p><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul><p class="v-menu-title">Resources</p><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul><p class="v-menu-title">Pricing</p><ul><li><a href="../../pricing/">Pricing</a></li></ul><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></p></div></details></nav><label class="v-theme-control" hidden for="site-theme"><span>Theme</span><select id="site-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header><main id="main"><section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy"><h1>Getting started</h1><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="../">All guides</a></p></div></div></section><section class="v-section"><div class="v-wrap"><h2>Guide</h2><article class="v-guide"><p>SkiMasque gives CI jobs, developers and coding agents policy-controlled TCP/UDP
-access through a MASQUE gateway. Choose a gateway that can reach your resource:
-the shared Cloud gateway for reachable destinations, or a customer gateway inside
-your network for private services. A Cloud account does not create a route into
-your VPC. See <a href="../deployment-modes/">deployment modes</a>.</p>
-<h2 id="sign-in-and-publish-a-policy">Sign in and publish a policy</h2>
-<pre><code class="language-console">skimasque login
-skimasque org create "Acme"
-skimasque init
-</code></pre>
-<p>In the console, verify the GitHub owner associated with your organisation before
-using its repositories for CI access. Write a policy for your actual identity and
-destination, test it locally, then save and publish it under <strong>Policies</strong>.</p>
-<pre><code class="language-toml">name = "staging-api"
+</svg><a class="v-skip" href="#main">Skip to content</a><header class="v-site-header"><div class="v-wrap v-site-bar"><a class="v-brand" href="../../">SkiMasque</a><nav class="v-site-nav" aria-label="Primary"><details class="v-nav-group" name="site-nav"><summary>Product</summary><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Compare</summary><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Technology</summary><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul></details><details class="v-nav-group" name="site-nav"><summary>Resources</summary><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul></details><a class="v-nav-top" href="../../pricing/">Pricing</a></nav><div class="v-site-actions"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel"><p class="v-menu-title">Product</p><ul><li><a href="../../how-it-works/">How It Works</a></li><li><a href="../../identities/">Identities</a></li><li><a href="../../policies/">Policies</a></li><li><a href="../../ci-cd/">CI/CD</a></li><li><a href="../../developers/">Developers</a></li><li><a href="../../security/">Security</a></li><li><a href="../../deployment/">Deployment</a></li><li><a href="../../gateways/">Gateways</a></li></ul><p class="v-menu-title">Compare</p><ul><li><a href="../../compare/">How SkiMasque Compares</a></li></ul><p class="v-menu-title">Technology</p><ul><li><a href="../../architecture/">Architecture</a></li><li><a href="../../technology/masque/">MASQUE</a></li></ul><p class="v-menu-title">Resources</p><ul><li><a href="../../docs/" aria-current="page">Documentation</a></li><li><a href="../../use-cases/">Use Cases</a></li><li><a href="../../open-source/">Open Source</a></li><li><a href="../../faq/">FAQ</a></li><li><a href="../../trust/">Trust</a></li></ul><p class="v-menu-title">Pricing</p><ul><li><a href="../../pricing/">Pricing</a></li></ul><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="https://control.skimasque.com">Sign In</a><a class="v-btn" href="../../docs/getting-started/">Get Started</a></p></div></details></nav><label class="v-theme-control" hidden for="site-theme"><span>Theme</span><select id="site-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header><main id="main"><section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy"><h1>Getting started: test your first CI connection</h1><p class="v-cta-row"><a class="v-btn v-btn-quiet" href="../">All guides</a></p></div></div></section><section class="v-section"><div class="v-wrap"><h2>Guide</h2><article class="v-guide"><p>Create a GitHub Actions job that reaches <code>http://hello.skimasque.com:8080/</code>
+through <code>gateway.skimasque.com:443</code>, then prove that an unlisted destination is
+denied. The hello service uses private DNS and is reachable from the managed
+gateway; your runner does not need to resolve or reach it directly.</p>
+<h2 id="1-prepare-your-github-repository">1. Prepare your GitHub repository</h2>
+<p>Use a repository you can commit to and run Actions in. This guide uses
+<code>YOUR_OWNER/YOUR_REPO</code>, the branch <code>main</code>, and the workflow file
+<code>hello-skimasque.yml</code>. Substitute your real owner and repository everywhere;
+replace <code>main</code> in both the policy and workflow if your default branch differs.
+Enable GitHub Actions in the repository's <strong>Settings → Actions → General</strong> and
+allow <code>skimasque-dev/connect</code> if your organisation restricts third-party Actions.
+Use the GitHub-hosted <code>ubuntu-24.04</code> runner for this walkthrough.</p>
+<p>No SkiMasque token or GitHub personal access token goes in repository secrets.
+The job's <code>id-token: write</code> permission lets the Action request GitHub OIDC.</p>
+<h2 id="2-create-an-organisation-and-verify-the-github-owner">2. Create an organisation and verify the GitHub owner</h2>
+<p>Open the <a href="https://control.skimasque.com/">SkiMasque console</a>, sign in with GitHub,
+and create or select your SkiMasque organisation. Under
+<a href="https://control.skimasque.com/app/settings/identity">identity settings</a>, verify
+the GitHub user or organisation that owns <code>YOUR_OWNER/YOUR_REPO</code>, following the
+verification flow or installing the GitHub App. Confirm the owner is verified
+in the selected SkiMasque organisation. Signing in alone does not associate all
+your repositories with an organisation.</p>
+<p>Use the shared managed gateway for this test; no gateway VM, private DNS setup
+on the runner, or local CLI installation is required. The managed deployment
+must have its hello test endpoint enabled.</p>
+<h2 id="3-publish-the-test-policy">3. Publish the test policy</h2>
+<p>Open <a href="https://control.skimasque.com/app/policies">Policies</a> in that organisation
+and open the policy editor. Under <strong>Add a document</strong>, enter <code>hello-ci.toml</code>,
+leave the target field empty for the shared gateway, and paste:</p>
+<pre><code class="language-toml">name = "hello-ci"
+
 [match]
-repository = "acme/widget"
-workflow = "deploy.yml"
+repository = "YOUR_OWNER/YOUR_REPO"
+workflow = "hello-skimasque.yml"
 branch = "main"
 kind = "ci"
 
 [[rules]]
-application = "curl"
+application = "skimasque-test"
+transport = "tcp"
 action = "allow"
-destinations = ["api.staging.example.com:443"]
+destinations = ["hello.skimasque.com:8080"]
 
 [[tests]]
-application = "curl"
-destination = "api.staging.example.com:443"
+application = "skimasque-test"
+destination = "hello.skimasque.com:8080"
 expect = "allow"
 
 [[tests]]
-application = "curl"
-destination = "api.production.example.com:443"
+application = "skimasque-test"
+destination = "hello.skimasque.com:8081"
 expect = "deny"
 </code></pre>
-<pre><code class="language-console">skimasque policy validate --strict
-skimasque policy test
-</code></pre>
-<p>Replace the repository, workflow and destination. No matching allow rule means
-deny when policy enforcement is enabled. Application names are declared context;
-verified identity and destination rules provide the authorization boundary.</p>
-<h2 id="connect-a-github-actions-job">Connect a GitHub Actions job</h2>
-<p>Start with explicit proxy mode for a proxy-aware tool:</p>
-<pre><code class="language-yaml">jobs:
-  check-api:
+<p>Replace <code>YOUR_OWNER/YOUR_REPO</code>, click <strong>Save draft</strong>, and check that validation
+and both policy tests pass. Click <strong>Publish revision</strong>. Saving a draft alone
+does not change gateway authorization. Under <strong>Gateways</strong>, confirm the shared
+gateway is healthy and has acknowledged the published policy revision before
+running the job.</p>
+<p>New organisations may already have a <code>skimasque-test-OWNER.toml</code> starter policy
+allowing <code>skimasque-test</code> to reach the hello service from that verified owner's
+repositories. The policy above gives this walkthrough an explicit repository,
+workflow and branch scope. If you want only that scope, remove the broader
+starter document from the draft before publishing. Preserve unrelated policies;
+ensure none allows <code>hello.skimasque.com:8081</code>, which is the denial test below.</p>
+<h2 id="4-create-the-complete-workflow">4. Create the complete workflow</h2>
+<p>Create <code>.github/workflows/hello-skimasque.yml</code> in your repository and paste:</p>
+<pre><code class="language-yaml">name: Hello through SkiMasque
+
+on:
+  workflow_dispatch:
+
+jobs:
+  hello:
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
-      id-token: write
       contents: read
+      id-token: write
     steps:
-      - uses: skimasque-dev/connect@v2
+      - name: Connect to the managed gateway
+        id: network
+        uses: skimasque-dev/connect@v2
         with:
           mode: proxy
           proxy: gateway.skimasque.com:443
           audience: https://gateway.skimasque.com
-          application: curl
-      - run: curl --fail https://api.staging.example.com/health
+          application: skimasque-test
+
+      - name: Reach the allowed hello service
+        shell: bash
+        env:
+          SKIMASQUE_HTTP_PROXY: ${{ steps.network.outputs.http-proxy }}
+        run: |
+          curl --fail-with-body --show-error --silent \
+            --connect-timeout 10 --max-time 30 \
+            --proxy "$SKIMASQUE_HTTP_PROXY" --noproxy '' \
+            http://hello.skimasque.com:8080/ | tee hello-response.txt
+          grep -Fx 'private endpoint ok' hello-response.txt
+
+      - name: Verify an unlisted port is denied
+        shell: bash
+        env:
+          SKIMASQUE_HTTP_PROXY: ${{ steps.network.outputs.http-proxy }}
+        run: |
+          status=$(curl --show-error --silent \
+            --connect-timeout 10 --max-time 30 \
+            --proxy "$SKIMASQUE_HTTP_PROXY" --noproxy '' \
+            --output denied-response.txt --write-out '%{http_code}' \
+            http://hello.skimasque.com:8081/)
+          test "$status" = 403 || {
+            echo "Expected gateway policy denial (403), got $status"
+            cat denied-response.txt
+            exit 1
+          }
+          echo 'Gateway refused the unlisted port (403).'
 </code></pre>
-<p>Use compatible Action/client releases. Pin exact releases for reproducible workflows.
-For a customer gateway, replace <code>proxy</code> and <code>audience</code> with its configured values.
-Proxy mode exports HTTP, HTTPS and SOCKS proxy variables. It requires tools that
-honour them; <code>psql</code> does not use <code>ALL_PROXY</code>.</p>
-<p>For a private database on a dedicated Ubuntu runner, use <strong>transparent mode</strong> with
-explicit private CIDRs, DNS servers and DNS routing domains. Ordinary TCP/UDP
-sockets then use the tunnel for those routes. DNS and service IPs need matching
-policy rules, and the gateway must permit those ranges through its address floor.
-See <a href="../github-actions/">GitHub Actions</a> and the
-<a href="https://github.com/skimasque-dev/skimasque/blob/main/examples/github-actions/managed-postgres-migration.yml">Postgres example</a>.</p>
-<p>The Action supervises the client and registers a post-job cleanup hook. Public
-traffic outside configured routes remains on the runner's normal network;
-transparent mode does not confine the job.</p>
-<h2 id="verify-the-decision">Verify the decision</h2>
-<p>Check <strong>Audit</strong> in the console for the identity, application, destination and
-allow/deny reason. Test a denied destination through the same proxy or a configured
-private route. A direct request outside the tunnel does not test gateway policy.
-Publish policy revisions to change authorization for new tunnels.</p>
+<p>Commit the file to your default branch (<code>main</code> here). A checkout step is not
+needed because the job only uses the Action and curl. <code>mode: proxy</code> is explicit:
+the Action defaults to transparent mode, which needs routes and DNS inputs.
+The application name must match the policy; it is declared context, not proof
+of the executable. The explicit proxy output and <code>--noproxy ''</code> ensure both
+requests use the gateway even if the runner has inherited proxy exclusions.
+The gateway resolves the hello hostname.</p>
+<p><code>@v2</code> selects the moving Action major release and, without <code>version</code>, the latest
+client release. For reproducible production jobs, pin the Action to a reviewed
+commit and set <code>with.version</code> to a compatible client release providing
+<code>proxy-ready-v1</code>. Action and client versions are independent.</p>
+<h2 id="5-run-the-job-and-check-its-output">5. Run the job and check its output</h2>
+<p>In GitHub, open <strong>Actions → Hello through SkiMasque → Run workflow</strong>, select
+<code>main</code> (or the branch you placed in the policy), and click <strong>Run workflow</strong>.
+Open the run and expand the <code>hello</code> job's steps.</p>
+<ul>
+<li><strong>Connect to the managed gateway</strong> must finish successfully: the Action
+exchanges GitHub OIDC and starts authenticated local proxy listeners.</li>
+<li><strong>Reach the allowed hello service</strong> must print <code>private endpoint ok</code>, followed
+by <code>host:</code>, <code>seen client:</code> and <code>path: /</code>. The client address is the gateway's
+internal address. The body assertion and curl's HTTP error check must pass.</li>
+<li><strong>Verify an unlisted port is denied</strong> must print
+<code>Gateway refused the unlisted port (403).</code> A timeout, DNS failure, connection
+refusal or 502 is a failed test, not evidence of policy denial.</li>
+</ul>
+<p>The job should be green, including the Action's post-job cleanup. HTTP port
+8080 is intentional; changing the hello URL to HTTPS or omitting the port tests
+a different destination. The runner-to-gateway connection uses encrypted QUIC;
+the demo service speaks HTTP on the gateway's internal network.</p>
+<h2 id="6-verify-the-gateways-audit-decisions">6. Verify the gateway's audit decisions</h2>
+<p>Open <a href="https://control.skimasque.com/app/audit">Audit</a> in the same organisation.
+Find the entries around the workflow run time and inspect the repository,
+workflow <code>hello-skimasque.yml</code>, branch/ref <code>main</code> / <code>refs/heads/main</code>, workload
+kind <code>ci</code>, and application <code>skimasque-test</code>. Confirm an <strong>allow</strong> for
+<code>hello.skimasque.com:8080</code> and a <strong>deny</strong> for <code>hello.skimasque.com:8081</code>, with
+the policy reason. Audit ingestion can take a short time; refresh if necessary.</p>
+<p>Together, the expected response, explicit proxy path, 403 assertion and audit
+decisions verify connectivity and enforcement. Curling the service directly
+does not test gateway policy.</p>
+<h2 id="7-troubleshoot-a-failed-run">7. Troubleshoot a failed run</h2>
+<table><thead><tr><th>Symptom</th><th>What to check</th></tr></thead><tbody>
+<tr><td>Workflow missing or no Run workflow button</td><td>Commit to the default branch, keep <code>workflow_dispatch</code>, and enable Actions.</td></tr>
+<tr><td>OIDC or credential exchange fails</td><td>Keep job-level <code>id-token: write</code>, the exact audience <code>https://gateway.skimasque.com</code>, and a verified repository owner in the selected organisation.</td></tr>
+<tr><td>Action cannot connect or times out</td><td>Check managed gateway health and UDP 443 reachability; QUIC requires UDP. Inspect the Action's startup diagnostics.</td></tr>
+<tr><td>Hello request returns 403</td><td>Check the published revision and gateway acknowledgement, actual repository/branch/workflow filename, <code>kind = "ci"</code>, application and port. Read the audit denial reason.</td></tr>
+<tr><td>Hello request returns 502</td><td>Check gateway-side DNS/reachability and that the managed hello endpoint is enabled. Do not add public runner DNS overrides for this private service.</td></tr>
+<tr><td>Denial test returns something other than 403</td><td>Check audit and other matching policies for a broader allow. A network failure does not prove authorization was denied.</td></tr>
+<tr><td>Policy changes have no effect</td><td>Publish the saved draft, check the selected organisation and gateway revision, then rerun the job to create new tunnels.</td></tr>
+</tbody></table>
+<h2 id="8-clean-up-and-adapt-the-job">8. Clean up and adapt the job</h2>
+<p>The Action's post hook stops its client and restores previous proxy variables
+on normal job success or failure. Remove <code>hello-ci.toml</code> (and any unused starter
+test document) from the console draft and <strong>publish</strong> the removal when done.
+Delete the workflow file if you no longer need the test.</p>
+<p>To reach your own service, replace the destination and port in both policy and
+workflow, set the application context consistently, and use a gateway that can
+reach that service. The shared gateway does not automatically reach your VPC.
+See <a href="../github-actions/">GitHub Actions</a> for proxy and transparent modes and
+<a href="../deployment-modes/">deployment modes</a> for customer gateways.</p>
 <h2 id="run-a-local-command">Run a local command</h2>
 <p>After publishing a policy for your developer identity:</p>
 <pre><code class="language-console">skimasque exec --app curl -- curl --fail https://api.staging.example.com/health

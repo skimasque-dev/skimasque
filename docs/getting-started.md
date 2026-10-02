@@ -1,99 +1,208 @@
-# Getting started
+# Getting started: test your first CI connection
 
-SkiMasque gives CI jobs, developers and coding agents policy-controlled TCP/UDP
-access through a MASQUE gateway. Choose a gateway that can reach your resource:
-the shared Cloud gateway for reachable destinations, or a customer gateway inside
-your network for private services. A Cloud account does not create a route into
-your VPC. See [deployment modes](deployment-modes.md).
+Create a GitHub Actions job that reaches `http://hello.skimasque.com:8080/`
+through `gateway.skimasque.com:443`, then prove that an unlisted destination is
+denied. The hello service uses private DNS and is reachable from the managed
+gateway; your runner does not need to resolve or reach it directly.
 
-## Sign in and publish a policy
+## 1. Prepare your GitHub repository
 
-```console
-skimasque login
-skimasque org create "Acme"
-skimasque init
-```
+Use a repository you can commit to and run Actions in. This guide uses
+`YOUR_OWNER/YOUR_REPO`, the branch `main`, and the workflow file
+`hello-skimasque.yml`. Substitute your real owner and repository everywhere;
+replace `main` in both the policy and workflow if your default branch differs.
+Enable GitHub Actions in the repository's **Settings → Actions → General** and
+allow `skimasque-dev/connect` if your organisation restricts third-party Actions.
+Use the GitHub-hosted `ubuntu-24.04` runner for this walkthrough.
 
-In the console, verify the GitHub owner associated with your organisation before
-using its repositories for CI access. Write a policy for your actual identity and
-destination, test it locally, then save and publish it under **Policies**.
+No SkiMasque token or GitHub personal access token goes in repository secrets.
+The job's `id-token: write` permission lets the Action request GitHub OIDC.
+
+## 2. Create an organisation and verify the GitHub owner
+
+Open the [SkiMasque console](https://control.skimasque.com/), sign in with GitHub,
+and create or select your SkiMasque organisation. Under
+[identity settings](https://control.skimasque.com/app/settings/identity), verify
+the GitHub user or organisation that owns `YOUR_OWNER/YOUR_REPO`, following the
+verification flow or installing the GitHub App. Confirm the owner is verified
+in the selected SkiMasque organisation. Signing in alone does not associate all
+your repositories with an organisation.
+
+Use the shared managed gateway for this test; no gateway VM, private DNS setup
+on the runner, or local CLI installation is required. The managed deployment
+must have its hello test endpoint enabled.
+
+## 3. Publish the test policy
+
+Open [Policies](https://control.skimasque.com/app/policies) in that organisation
+and open the policy editor. Under **Add a document**, enter `hello-ci.toml`,
+leave the target field empty for the shared gateway, and paste:
 
 ```toml
-name = "staging-api"
+name = "hello-ci"
+
 [match]
-repository = "acme/widget"
-workflow = "deploy.yml"
+repository = "YOUR_OWNER/YOUR_REPO"
+workflow = "hello-skimasque.yml"
 branch = "main"
 kind = "ci"
 
 [[rules]]
-application = "curl"
+application = "skimasque-test"
+transport = "tcp"
 action = "allow"
-destinations = ["api.staging.example.com:443"]
+destinations = ["hello.skimasque.com:8080"]
 
 [[tests]]
-application = "curl"
-destination = "api.staging.example.com:443"
+application = "skimasque-test"
+destination = "hello.skimasque.com:8080"
 expect = "allow"
 
 [[tests]]
-application = "curl"
-destination = "api.production.example.com:443"
+application = "skimasque-test"
+destination = "hello.skimasque.com:8081"
 expect = "deny"
 ```
 
-```console
-skimasque policy validate --strict
-skimasque policy test
-```
+Replace `YOUR_OWNER/YOUR_REPO`, click **Save draft**, and check that validation
+and both policy tests pass. Click **Publish revision**. Saving a draft alone
+does not change gateway authorization. Under **Gateways**, confirm the shared
+gateway is healthy and has acknowledged the published policy revision before
+running the job.
 
-Replace the repository, workflow and destination. No matching allow rule means
-deny when policy enforcement is enabled. Application names are declared context;
-verified identity and destination rules provide the authorization boundary.
+New organisations may already have a `skimasque-test-OWNER.toml` starter policy
+allowing `skimasque-test` to reach the hello service from that verified owner's
+repositories. The policy above gives this walkthrough an explicit repository,
+workflow and branch scope. If you want only that scope, remove the broader
+starter document from the draft before publishing. Preserve unrelated policies;
+ensure none allows `hello.skimasque.com:8081`, which is the denial test below.
 
-## Connect a GitHub Actions job
+## 4. Create the complete workflow
 
-Start with explicit proxy mode for a proxy-aware tool:
+Create `.github/workflows/hello-skimasque.yml` in your repository and paste:
 
 ```yaml
+name: Hello through SkiMasque
+
+on:
+  workflow_dispatch:
+
 jobs:
-  check-api:
+  hello:
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
-      id-token: write
       contents: read
+      id-token: write
     steps:
-      - uses: skimasque-dev/connect@v2
+      - name: Connect to the managed gateway
+        id: network
+        uses: skimasque-dev/connect@v2
         with:
           mode: proxy
           proxy: gateway.skimasque.com:443
           audience: https://gateway.skimasque.com
-          application: curl
-      - run: curl --fail https://api.staging.example.com/health
+          application: skimasque-test
+
+      - name: Reach the allowed hello service
+        shell: bash
+        env:
+          SKIMASQUE_HTTP_PROXY: ${{ steps.network.outputs.http-proxy }}
+        run: |
+          curl --fail-with-body --show-error --silent \
+            --connect-timeout 10 --max-time 30 \
+            --proxy "$SKIMASQUE_HTTP_PROXY" --noproxy '' \
+            http://hello.skimasque.com:8080/ | tee hello-response.txt
+          grep -Fx 'private endpoint ok' hello-response.txt
+
+      - name: Verify an unlisted port is denied
+        shell: bash
+        env:
+          SKIMASQUE_HTTP_PROXY: ${{ steps.network.outputs.http-proxy }}
+        run: |
+          status=$(curl --show-error --silent \
+            --connect-timeout 10 --max-time 30 \
+            --proxy "$SKIMASQUE_HTTP_PROXY" --noproxy '' \
+            --output denied-response.txt --write-out '%{http_code}' \
+            http://hello.skimasque.com:8081/)
+          test "$status" = 403 || {
+            echo "Expected gateway policy denial (403), got $status"
+            cat denied-response.txt
+            exit 1
+          }
+          echo 'Gateway refused the unlisted port (403).'
 ```
 
-Use compatible Action/client releases. Pin exact releases for reproducible workflows.
-For a customer gateway, replace `proxy` and `audience` with its configured values.
-Proxy mode exports HTTP, HTTPS and SOCKS proxy variables. It requires tools that
-honour them; `psql` does not use `ALL_PROXY`.
+Commit the file to your default branch (`main` here). A checkout step is not
+needed because the job only uses the Action and curl. `mode: proxy` is explicit:
+the Action defaults to transparent mode, which needs routes and DNS inputs.
+The application name must match the policy; it is declared context, not proof
+of the executable. The explicit proxy output and `--noproxy ''` ensure both
+requests use the gateway even if the runner has inherited proxy exclusions.
+The gateway resolves the hello hostname.
 
-For a private database on a dedicated Ubuntu runner, use **transparent mode** with
-explicit private CIDRs, DNS servers and DNS routing domains. Ordinary TCP/UDP
-sockets then use the tunnel for those routes. DNS and service IPs need matching
-policy rules, and the gateway must permit those ranges through its address floor.
-See [GitHub Actions](github-actions.md) and the
-[Postgres example](../examples/github-actions/managed-postgres-migration.yml).
+`@v2` selects the moving Action major release and, without `version`, the latest
+client release. For reproducible production jobs, pin the Action to a reviewed
+commit and set `with.version` to a compatible client release providing
+`proxy-ready-v1`. Action and client versions are independent.
 
-The Action supervises the client and registers a post-job cleanup hook. Public
-traffic outside configured routes remains on the runner's normal network;
-transparent mode does not confine the job.
+## 5. Run the job and check its output
 
-## Verify the decision
+In GitHub, open **Actions → Hello through SkiMasque → Run workflow**, select
+`main` (or the branch you placed in the policy), and click **Run workflow**.
+Open the run and expand the `hello` job's steps.
 
-Check **Audit** in the console for the identity, application, destination and
-allow/deny reason. Test a denied destination through the same proxy or a configured
-private route. A direct request outside the tunnel does not test gateway policy.
-Publish policy revisions to change authorization for new tunnels.
+- **Connect to the managed gateway** must finish successfully: the Action
+  exchanges GitHub OIDC and starts authenticated local proxy listeners.
+- **Reach the allowed hello service** must print `private endpoint ok`, followed
+  by `host:`, `seen client:` and `path: /`. The client address is the gateway's
+  internal address. The body assertion and curl's HTTP error check must pass.
+- **Verify an unlisted port is denied** must print
+  `Gateway refused the unlisted port (403).` A timeout, DNS failure, connection
+  refusal or 502 is a failed test, not evidence of policy denial.
+
+The job should be green, including the Action's post-job cleanup. HTTP port
+8080 is intentional; changing the hello URL to HTTPS or omitting the port tests
+a different destination. The runner-to-gateway connection uses encrypted QUIC;
+the demo service speaks HTTP on the gateway's internal network.
+
+## 6. Verify the gateway's audit decisions
+
+Open [Audit](https://control.skimasque.com/app/audit) in the same organisation.
+Find the entries around the workflow run time and inspect the repository,
+workflow `hello-skimasque.yml`, branch/ref `main` / `refs/heads/main`, workload
+kind `ci`, and application `skimasque-test`. Confirm an **allow** for
+`hello.skimasque.com:8080` and a **deny** for `hello.skimasque.com:8081`, with
+the policy reason. Audit ingestion can take a short time; refresh if necessary.
+
+Together, the expected response, explicit proxy path, 403 assertion and audit
+decisions verify connectivity and enforcement. Curling the service directly
+does not test gateway policy.
+
+## 7. Troubleshoot a failed run
+
+| Symptom | What to check |
+|---|---|
+| Workflow missing or no Run workflow button | Commit to the default branch, keep `workflow_dispatch`, and enable Actions. |
+| OIDC or credential exchange fails | Keep job-level `id-token: write`, the exact audience `https://gateway.skimasque.com`, and a verified repository owner in the selected organisation. |
+| Action cannot connect or times out | Check managed gateway health and UDP 443 reachability; QUIC requires UDP. Inspect the Action's startup diagnostics. |
+| Hello request returns 403 | Check the published revision and gateway acknowledgement, actual repository/branch/workflow filename, `kind = "ci"`, application and port. Read the audit denial reason. |
+| Hello request returns 502 | Check gateway-side DNS/reachability and that the managed hello endpoint is enabled. Do not add public runner DNS overrides for this private service. |
+| Denial test returns something other than 403 | Check audit and other matching policies for a broader allow. A network failure does not prove authorization was denied. |
+| Policy changes have no effect | Publish the saved draft, check the selected organisation and gateway revision, then rerun the job to create new tunnels. |
+
+## 8. Clean up and adapt the job
+
+The Action's post hook stops its client and restores previous proxy variables
+on normal job success or failure. Remove `hello-ci.toml` (and any unused starter
+test document) from the console draft and **publish** the removal when done.
+Delete the workflow file if you no longer need the test.
+
+To reach your own service, replace the destination and port in both policy and
+workflow, set the application context consistently, and use a gateway that can
+reach that service. The shared gateway does not automatically reach your VPC.
+See [GitHub Actions](github-actions.md) for proxy and transparent modes and
+[deployment modes](deployment-modes.md) for customer gateways.
 
 ## Run a local command
 
