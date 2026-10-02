@@ -174,10 +174,13 @@ mode also requires <code>proxy-tun-v1</code>.</p>
         with:
           mode: proxy
           proxy: gateway.skimasque.com:443
-          audience: https://gateway.skimasque.com
+          audience: https://gateway.skimasque.com/o/YOUR_ORG_SLUG
           application: curl
       - run: curl --fail https://api.staging.example.com/health
 </code></pre>
+<p>For the managed gateway, replace <code>YOUR_ORG_SLUG</code> with your SkiMasque
+organisation slug using the audience shown under <strong>Gateways</strong> in the console.
+The bare gateway origin does not identify a tenant.</p>
 <p>Proxy mode exports uppercase/lowercase HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and
 NO_PROXY. HTTP/HTTPS use the HTTP proxy (<code>http://127.0.0.1:8080</code>); SOCKS uses
 <code>socks5h://127.0.0.1:1080</code> with gateway-side hostname resolution. Raw sockets are

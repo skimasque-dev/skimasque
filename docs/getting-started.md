@@ -30,7 +30,11 @@ your repositories with an organisation.
 
 Use the shared managed gateway for this test; no gateway VM, private DNS setup
 on the runner, or local CLI installation is required. The managed deployment
-must have its hello test endpoint enabled.
+must have its hello test endpoint enabled. In **Gateways**, copy the shared
+gateway's audience for the selected organisation. It has the form
+`https://gateway.skimasque.com/o/YOUR_ORG_SLUG`; replace `YOUR_ORG_SLUG` in the
+workflow with your SkiMasque organisation slug. This slug can differ from the
+GitHub owner. The bare gateway URL is not a tenant audience.
 
 ## 3. Publish the test policy
 
@@ -81,11 +85,13 @@ ensure none allows `hello.skimasque.com:8081`, which is the denial test below.
 
 This repository includes the [hello workflow](../.github/workflows/hello-skimasque.yml)
 and its [hello CI policy](../.github/policies/hello-ci.toml), scoped to
-`skimasque-dev/skimasque` on `main`. Repository CI validates the policy; publish
+`skimasque-dev/skimasque` on `main`, with audience
+`https://gateway.skimasque.com/o/skimasque-dev`. Repository CI validates the policy; publish
 it in the console before running the workflow on `main`. The repository job runs
 automatically on every push to `main` and also supports manual dispatch.
 
-Create `.github/workflows/hello-skimasque.yml` in your repository and paste:
+Create `.github/workflows/hello-skimasque.yml` in your repository and paste.
+Replace `YOUR_ORG_SLUG` with the audience slug copied in step 2:
 
 ```yaml
 name: Hello through SkiMasque
@@ -109,7 +115,7 @@ jobs:
         with:
           mode: proxy
           proxy: gateway.skimasque.com:443
-          audience: https://gateway.skimasque.com
+          audience: https://gateway.skimasque.com/o/YOUR_ORG_SLUG
           application: skimasque-test
           version: v0.3.2
 
@@ -195,8 +201,9 @@ does not test gateway policy.
 | Symptom | What to check |
 |---|---|
 | Workflow missing or no Run workflow button | Commit to the default branch, keep `workflow_dispatch`, and enable Actions. |
-| OIDC or credential exchange fails | Keep job-level `id-token: write`, the exact audience `https://gateway.skimasque.com`, and a verified repository owner in the selected organisation. |
+| OIDC or credential exchange fails | Keep job-level `id-token: write`, the organisation-specific audience copied from **Gateways**, and a verified repository owner in the selected organisation. |
 | Action reports unrecognized subcommand capabilities | The downloaded client is too old for the Action. Set `version: v0.3.2` or a newer compatible release. |
+| Credential exchange returns unknown_org | Copy the selected organisation's audience from **Gateways**: `https://gateway.skimasque.com/o/YOUR_ORG_SLUG`. The bare gateway URL cannot identify your organisation. |
 | Action cannot connect or times out | Check managed gateway health and UDP 443 reachability; QUIC requires UDP. Inspect the Action's startup diagnostics. |
 | Hello request returns 403 | Check the published revision and gateway acknowledgement, actual repository/branch/workflow filename, `kind = "ci"`, application and port. Read the audit denial reason. |
 | Hello request returns 502 | Check gateway-side DNS/reachability and that the managed hello endpoint is enabled. Do not add public runner DNS overrides for this private service. |

@@ -20,7 +20,7 @@ jobs:
         with:
           mode: proxy
           proxy: gateway.skimasque.com:443
-          audience: https://gateway.skimasque.com
+          audience: https://gateway.skimasque.com/o/skimasque-dev
           application: skimasque-test
           version: v0.3.2
 

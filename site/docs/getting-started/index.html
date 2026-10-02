@@ -73,7 +73,11 @@ in the selected SkiMasque organisation. Signing in alone does not associate all
 your repositories with an organisation.</p>
 <p>Use the shared managed gateway for this test; no gateway VM, private DNS setup
 on the runner, or local CLI installation is required. The managed deployment
-must have its hello test endpoint enabled.</p>
+must have its hello test endpoint enabled. In <strong>Gateways</strong>, copy the shared
+gateway's audience for the selected organisation. It has the form
+<code>https://gateway.skimasque.com/o/YOUR_ORG_SLUG</code>; replace <code>YOUR_ORG_SLUG</code> in the
+workflow with your SkiMasque organisation slug. This slug can differ from the
+GitHub owner. The bare gateway URL is not a tenant audience.</p>
 <h2 id="3-publish-the-test-policy">3. Publish the test policy</h2>
 <p>Open <a href="https://control.skimasque.com/app/policies">Policies</a> in that organisation
 and open the policy editor. Under <strong>Add a document</strong>, enter <code>hello-ci.toml</code>,
@@ -116,10 +120,12 @@ ensure none allows <code>hello.skimasque.com:8081</code>, which is the denial te
 <h2 id="4-create-the-complete-workflow">4. Create the complete workflow</h2>
 <p>This repository includes the <a href="https://github.com/skimasque-dev/skimasque/blob/main/.github/workflows/hello-skimasque.yml">hello workflow</a>
 and its <a href="https://github.com/skimasque-dev/skimasque/blob/main/.github/policies/hello-ci.toml">hello CI policy</a>, scoped to
-<code>skimasque-dev/skimasque</code> on <code>main</code>. Repository CI validates the policy; publish
+<code>skimasque-dev/skimasque</code> on <code>main</code>, with audience
+<code>https://gateway.skimasque.com/o/skimasque-dev</code>. Repository CI validates the policy; publish
 it in the console before running the workflow on <code>main</code>. The repository job runs
 automatically on every push to <code>main</code> and also supports manual dispatch.</p>
-<p>Create <code>.github/workflows/hello-skimasque.yml</code> in your repository and paste:</p>
+<p>Create <code>.github/workflows/hello-skimasque.yml</code> in your repository and paste.
+Replace <code>YOUR_ORG_SLUG</code> with the audience slug copied in step 2:</p>
 <pre><code class="language-yaml">name: Hello through SkiMasque
 
 on:
@@ -141,7 +147,7 @@ jobs:
         with:
           mode: proxy
           proxy: gateway.skimasque.com:443
-          audience: https://gateway.skimasque.com
+          audience: https://gateway.skimasque.com/o/YOUR_ORG_SLUG
           application: skimasque-test
           version: v0.3.2
 
@@ -217,8 +223,9 @@ does not test gateway policy.</p>
 <h2 id="7-troubleshoot-a-failed-run">7. Troubleshoot a failed run</h2>
 <table><thead><tr><th>Symptom</th><th>What to check</th></tr></thead><tbody>
 <tr><td>Workflow missing or no Run workflow button</td><td>Commit to the default branch, keep <code>workflow_dispatch</code>, and enable Actions.</td></tr>
-<tr><td>OIDC or credential exchange fails</td><td>Keep job-level <code>id-token: write</code>, the exact audience <code>https://gateway.skimasque.com</code>, and a verified repository owner in the selected organisation.</td></tr>
+<tr><td>OIDC or credential exchange fails</td><td>Keep job-level <code>id-token: write</code>, the organisation-specific audience copied from <strong>Gateways</strong>, and a verified repository owner in the selected organisation.</td></tr>
 <tr><td>Action reports unrecognized subcommand capabilities</td><td>The downloaded client is too old for the Action. Set <code>version: v0.3.2</code> or a newer compatible release.</td></tr>
+<tr><td>Credential exchange returns unknown_org</td><td>Copy the selected organisation's audience from <strong>Gateways</strong>: <code>https://gateway.skimasque.com/o/YOUR_ORG_SLUG</code>. The bare gateway URL cannot identify your organisation.</td></tr>
 <tr><td>Action cannot connect or times out</td><td>Check managed gateway health and UDP 443 reachability; QUIC requires UDP. Inspect the Action's startup diagnostics.</td></tr>
 <tr><td>Hello request returns 403</td><td>Check the published revision and gateway acknowledgement, actual repository/branch/workflow filename, <code>kind = "ci"</code>, application and port. Read the audit denial reason.</td></tr>
 <tr><td>Hello request returns 502</td><td>Check gateway-side DNS/reachability and that the managed hello endpoint is enabled. Do not add public runner DNS overrides for this private service.</td></tr>

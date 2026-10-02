@@ -151,10 +151,14 @@ jobs:
         with:
           mode: proxy
           proxy: gateway.skimasque.com:443
-          audience: https://gateway.skimasque.com
+          audience: https://gateway.skimasque.com/o/YOUR_ORG_SLUG
           application: curl
       - run: curl --fail https://api.staging.example.com/health
 ```
+
+For the managed gateway, replace `YOUR_ORG_SLUG` with your SkiMasque
+organisation slug using the audience shown under **Gateways** in the console.
+The bare gateway origin does not identify a tenant.
 
 Proxy mode exports uppercase/lowercase HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and
 NO_PROXY. HTTP/HTTPS use the HTTP proxy (`http://127.0.0.1:8080`); SOCKS uses
