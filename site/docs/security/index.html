@@ -78,7 +78,7 @@ the session's credential expires (30 minutes by default, 4 hours at most). See
 <li><strong>A workload cannot choose its kind.</strong> <code>developer</code>, <code>ci</code> and <code>agent</code> are set by
 the identity provider mapping or the control plane, never read from a claim the
 workload controls, and only the agent-session endpoint can mint <code>agent</code>.</li>
-<li><strong>The gateway enforces locally.</strong> <code>identity + application + destination +  policy + expiry</code> must all resolve to an allow, checked in the gateway — not
+<li><strong>The gateway enforces locally.</strong> <code>identity + application + destination + policy + expiry</code> must all resolve to an allow, checked in the gateway — not
 assumed because a control plane said so. A control-plane outage never becomes
 a data-plane outage and never fails open.</li>
 <li><strong>An SSRF floor below policy.</strong> Loopback / RFC 1918 / CGNAT / link-local

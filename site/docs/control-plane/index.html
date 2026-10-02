@@ -94,7 +94,7 @@ re-implemented.</p>
 <h2 id="the-gateway--control-plane-lifecycle">The gateway ↔ control-plane lifecycle</h2>
 <ol>
 <li><strong>Register.</strong> Mint a one-time registration token (<code>skmreg_…</code>, single-use,
-~1h) — dashboard → <strong>Gateways → Mint a registration token</strong>, or <code>skimasque  gateway register</code>. The gateway presents it once
+~1h) — dashboard → <strong>Gateways → Mint a registration token</strong>, or <code>skimasque gateway register</code>. The gateway presents it once
 (<code>--control-plane-token</code> / <code>SKIMASQUE_CONTROL_TOKEN</code>) and receives a
 persistent identity stored under <code>--control-plane-state</code>.</li>
 <li><strong>Pull policy.</strong> The gateway fetches the documents its labels match (plus

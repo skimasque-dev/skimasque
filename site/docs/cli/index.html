@@ -76,7 +76,7 @@ matters); secrets are marked so <code>--help</code> hides their values.</p>
 <tr><td><code>skimasque why &lt;DEST&gt;</code></td><td>pick the policy whose <code>[match]</code> accepts the identity, evaluate, and print the decision</td></tr>
 <tr><td><code>skimasque status</code></td><td>summarise the local policy set — what loads, whether its tests pass</td></tr>
 </tbody></table>
-<p><code>check</code> / <code>explain</code> / <code>why</code> / <code>learn</code> take identity flags — <code>--repository  owner/name</code>, <code>--branch &lt;b&gt;</code> (or <code>--ref refs/heads/&lt;b&gt;</code>), <code>--workflow</code>,
+<p><code>check</code> / <code>explain</code> / <code>why</code> / <code>learn</code> take identity flags — <code>--repository owner/name</code>, <code>--branch &lt;b&gt;</code> (or <code>--ref refs/heads/&lt;b&gt;</code>), <code>--workflow</code>,
 <code>--environment</code>, <code>--actor</code>, <code>--organization</code> — plus <code>--app &lt;name&gt;</code> and
 <code>--transport tcp|udp</code> (default <code>tcp</code>). Policy source is <code>--policy-dir</code> (default
 <code>.masque/policies</code>) or repeatable <code>--policy-file</code>.</p>
@@ -115,7 +115,7 @@ matters); secrets are marked so <code>--help</code> hides their values.</p>
 <h3 id="run-a-gateway-or-open-a-tunnel">Run a gateway or open a tunnel</h3>
 <ul>
 <li><code>skimasque gateway &lt;args…&gt;</code> execs <code>skimasque-server</code> with the args — see below.</li>
-<li><code>skimasque connect &lt;DEST&gt; [client args…]</code> execs <code>skimasque-client … connect  --target &lt;DEST&gt;</code>, bridging the tunnel to stdin/stdout (an SSH <code>ProxyCommand</code>,
+<li><code>skimasque connect &lt;DEST&gt; [client args…]</code> execs <code>skimasque-client … connect --target &lt;DEST&gt;</code>, bridging the tunnel to stdin/stdout (an SSH <code>ProxyCommand</code>,
 a pipeline). Uses the client
 default gateway or an explicit <code>--proxy</code>; without an explicit credential, the
 client can mint one from your signed-in session. Automatic customer-gateway

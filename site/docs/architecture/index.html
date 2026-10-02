@@ -97,13 +97,13 @@ authoritative for <em>enforcement</em>.</strong></p>
 </blockquote>
 <ul>
 <li><strong>No control-plane operation changes gateway enforcement directly.</strong> Every
-change flows one way: <code>draft → validate + test → revision → publish →  distribution (ETag + long-poll) → gateway</code>.</li>
+change flows one way: <code>draft → validate + test → revision → publish → distribution (ETag + long-poll) → gateway</code>.</li>
 <li><strong>A control-plane outage degrades management, never enforcement.</strong> A gateway
 that loses its control plane keeps enforcing its cached policy, keeps opening
 tunnels, and keeps writing audit locally, for as long as its cache lease
 allows (soft lease / hard TTL, default 15m / 30m — <a href="../control-plane/"><code>control-plane.md</code></a>).</li>
 <li><strong>One decision engine.</strong> <code>skimasque-policy</code>'s evaluator is the only thing that
-decides allow/deny — reused by the gateway hot path, <code>POST  /v1/orgs/{org}/policy/simulate</code>, the dashboard "Test access" and "Why", and
+decides allow/deny — reused by the gateway hot path, <code>POST /v1/orgs/{org}/policy/simulate</code>, the dashboard "Test access" and "Why", and
 <code>skimasque why</code>. Never re-implemented.</li>
 <li><strong>The gateway enforces; it does not trust.</strong> A valid tunnel credential is not
 an allow. Identity + application + destination + policy + expiry must all

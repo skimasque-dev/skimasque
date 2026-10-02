@@ -138,7 +138,7 @@ RS256 signature and <code>iss</code> / <code>aud</code> / <code>exp</code> check
 <ul>
 <li><strong>Self-managed GitLab / GitHub Enterprise Server:</strong> the provider stays the
 same, pass <code>--oidc-issuer https://&lt;your-host&gt;</code>.</li>
-<li><strong>Generic:</strong> <code>--oidc-provider generic --oidc-issuer &lt;URL&gt; --oidc-claim  repository=&lt;claim&gt; --oidc-claim ref=&lt;claim&gt; ...</code> for any OIDC issuer. Fields:
+<li><strong>Generic:</strong> <code>--oidc-provider generic --oidc-issuer &lt;URL&gt; --oidc-claim repository=&lt;claim&gt; --oidc-claim ref=&lt;claim&gt; ...</code> for any OIDC issuer. Fields:
 <code>organization</code>, <code>repository</code>, <code>workflow</code>, <code>ref</code>, <code>environment</code>, <code>actor</code>.</li>
 </ul>
 <p>The client side: <code>--github-oidc</code> auto-fetches the runner's token. For anything

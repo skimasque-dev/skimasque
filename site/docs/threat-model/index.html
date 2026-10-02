@@ -222,7 +222,7 @@ library function is <code>pub</code> but named <code>dangerous_client_config_wit
 and documented as dev-only.</p>
 <p>A gateway started with <code>--acme</code> serves a publicly-trusted Let's Encrypt
 certificate for <code>--hostname</code>, so its clients need neither <code>--ca</code> nor
-<code>--insecure</code> — the default webpki path just works (and <code>skimasque-client  --proxy</code> defaults to <code>gateway.skimasque.com</code>). This removes the operational
+<code>--insecure</code> — the default webpki path just works (and <code>skimasque-client --proxy</code> defaults to <code>gateway.skimasque.com</code>). This removes the operational
 pressure that
 leads to <code>--insecure</code> (a self-signed gateway whose certificate was not
 distributed). The ACME account key and issued certificate sit in
@@ -315,14 +315,14 @@ git pin was reviewed (see the notes in the workspace <code>Cargo.toml</code>): t
 is <code>hyperium/h3</code> <code>master</code> HEAD, <code>master</code> is developed actively but the
 <code>h3-v*</code> tags have not moved in over a year, so there is no imminent release
 to move to; the pin also carries correctness fixes we want. <code>deny.toml</code>
-restricts git sources to that one URL. Open items for the review: <code>cargo  audit</code> does not see the git dependency (an <code>h3</code> advisory needs a manual
+restricts git sources to that one URL. Open items for the review: <code>cargo audit</code> does not see the git dependency (an <code>h3</code> advisory needs a manual
 watch), and <code>h3-quinn</code> runs from its registry release against patched <code>h3</code>
 with no lockstep guarantee. The clean exit is <code>h3</code> 0.0.9, or dropping
 <code>connect-ip</code> as a goal and reverting to <code>h3</code> 0.0.8.</li>
 <li><strong>Agent sessions</strong> (<a href="#b8--agent-session-and-its-sandbox">B8</a>). Open items for
 the review: (a) revocation propagation is about one round trip by design but
 has not been measured, and a gateway cut off from the control plane relies on
-credential expiry (≤ 4 h) for sessions ended meanwhile; (b) <code>[session]  max_duration</code> is documented but the gateway does not enforce it, and CI and
+credential expiry (≤ 4 h) for sessions ended meanwhile; (b) <code>[session] max_duration</code> is documented but the gateway does not enforce it, and CI and
 developer credentials are not cut at expiry (a job longer than the credential
 lifetime would break), so only agent sessions are cut mid-tunnel; (c) a client
 with no token falls back to the stored <code>skimasque login</code> session and mints a

@@ -1,6 +1,6 @@
-# Store text with LF in the repository regardless of a contributor's
-# core.autocrlf setting.
-* text=auto
+# Normalize text to LF both on commit and checkout, overriding core.autocrlf.
+# Automatic detection preserves binary files unchanged.
+* text=auto eol=lf
 
 # Files consumed by Linux tooling must be LF even in a Windows working tree,
 # so a `docker build` or a copied systemd unit is not broken by CR bytes.

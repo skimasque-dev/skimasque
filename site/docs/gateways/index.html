@@ -122,7 +122,7 @@ $ docker run -d --name skimasque-gateway --restart unless-stopped \
       --policy-dir /etc/skimasque/policies --policy-reload \
       --audit-log /dev/stdout
 </code></pre>
-<p><code>docker logs -f skimasque-gateway</code> shows <code>ACME certificate issued/renewed and  now being served</code> within a minute (issuance needs inbound TCP 443 to the box — a
+<p><code>docker logs -f skimasque-gateway</code> shows <code>ACME certificate issued/renewed and now being served</code> within a minute (issuance needs inbound TCP 443 to the box — a
 cloud firewall has to allow it, not just <code>-p</code>).</p>
 <h3 id="with-a-control-plane-mode-23">With a control plane (Mode 2/3)</h3>
 <p><a href="https://github.com/skimasque-dev/skimasque/blob/main/deploy/docker/run-gateway.sh"><code>deploy/docker/run-gateway.sh</code></a> wraps the ACME

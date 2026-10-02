@@ -161,9 +161,9 @@ mod tests {
     }
 }
 
-struct Guide {
+struct Guide<'a> {
     path: &'static str,
-    source: &'static str,
+    source: &'a str,
 }
 const GUIDES: &[Guide] = &[
     Guide {
@@ -265,93 +265,117 @@ fn guide_link(url: &str) -> String {
 }
 
 pub fn guides() -> Vec<Page> {
-    GUIDES
-        .iter()
-        .map(|guide| {
-            let (title, body) = guide.source.split_once('\n').expect("guide has a title");
-            let title = title.trim().trim_start_matches("# ");
-            let mut events: Vec<_> =
-                Parser::new_ext(body, Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH)
-                    .collect();
-            let mut ids = std::collections::HashMap::new();
-            for i in 0..events.len() {
-                if matches!(events[i], Event::Start(Tag::Heading { .. })) {
-                    let mut text = String::new();
-                    for event in &events[i + 1..] {
-                        match event {
-                            Event::End(pulldown_cmark::TagEnd::Heading(_)) => break,
-                            Event::Text(t) | Event::Code(t) => text.push_str(t),
-                            _ => {}
-                        }
-                    }
-                    let slug: String = text
-                        .to_lowercase()
-                        .chars()
-                        .filter_map(|c| {
-                            if c.is_alphanumeric() || c == '-' || c == '_' {
-                                Some(c)
-                            } else if c.is_whitespace() {
-                                Some('-')
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    let count = ids.entry(slug.clone()).or_insert(0);
-                    let id = if *count == 0 {
-                        slug
-                    } else {
-                        format!("{slug}-{count}")
-                    };
-                    *count += 1;
-                    if let Event::Start(Tag::Heading { id: heading_id, .. }) = &mut events[i] {
-                        *heading_id = Some(id.into());
-                    }
-                }
-            }
-            for event in &mut events {
+    GUIDES.iter().map(render_guide).collect()
+}
+
+fn render_guide(guide: &Guide) -> Page {
+    // Markdown is embedded from the checkout, whose line endings vary by OS.
+    // Normalize before parsing so multiline text emits deterministic HTML.
+    let source = guide.source.replace("\r\n", "\n");
+    let (title, body) = source.split_once('\n').expect("guide has a title");
+    let title = title.trim().trim_start_matches("# ");
+    let mut events: Vec<_> =
+        Parser::new_ext(body, Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH).collect();
+    let mut ids = std::collections::HashMap::new();
+    for i in 0..events.len() {
+        if matches!(events[i], Event::Start(Tag::Heading { .. })) {
+            let mut text = String::new();
+            for event in &events[i + 1..] {
                 match event {
-                    Event::Start(Tag::Link { dest_url, .. } | Tag::Image { dest_url, .. }) => {
-                        *dest_url = guide_link(dest_url).into();
-                    }
-                    // Guide source is text content; do not admit raw HTML into the site.
-                    Event::Html(text) | Event::InlineHtml(text) => {
-                        *event = Event::Text(text.clone())
-                    }
+                    Event::End(pulldown_cmark::TagEnd::Heading(_)) => break,
+                    Event::Text(t) | Event::Code(t) => text.push_str(t),
                     _ => {}
                 }
             }
-            let mut body = String::new();
-            html::push_html(&mut body, events.into_iter());
-            let content = GuideBody { body };
-            let console = match guide.path {
-                "docs/policies/index.html" => Some(("Manage policies", "policies")),
-                "docs/gateways/index.html" => Some(("Register a gateway", "gateways")),
-                "docs/agents/index.html" => Some(("Review agent sessions", "sessions")),
-                "docs/cli/index.html" => Some(("Open your developer account", "developer")),
-                "docs/github-actions/index.html" => {
-                    Some(("Verify GitHub owners", "settings/identity"))
-                }
-                "docs/troubleshooting/index.html" => Some(("Inspect audit decisions", "audit")),
-                "docs/control-plane/index.html" => Some(("Open the console", "")),
-                _ => None,
+            let slug: String = text
+                .to_lowercase()
+                .chars()
+                .filter_map(|c| {
+                    if c.is_alphanumeric() || c == '-' || c == '_' {
+                        Some(c)
+                    } else if c.is_whitespace() {
+                        Some('-')
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            let count = ids.entry(slug.clone()).or_insert(0);
+            let id = if *count == 0 {
+                slug
+            } else {
+                format!("{slug}-{count}")
             };
-            let mut hero = Hero::new(title).cta(crate::Cta::secondary("All guides", "../"));
-            if let Some((label, path)) = console {
-                hero = hero.cta(crate::Cta::primary(
-                    label,
-                    format!("https://control.skimasque.com/app/{path}"),
-                ));
+            *count += 1;
+            if let Event::Start(Tag::Heading { id: heading_id, .. }) = &mut events[i] {
+                *heading_id = Some(id.into());
             }
-            Page {
+        }
+    }
+    for event in &mut events {
+        match event {
+            Event::Start(Tag::Link { dest_url, .. } | Tag::Image { dest_url, .. }) => {
+                *dest_url = guide_link(dest_url).into();
+            }
+            // Guide source is text content; do not admit raw HTML into the site.
+            Event::Html(text) | Event::InlineHtml(text) => *event = Event::Text(text.clone()),
+            _ => {}
+        }
+    }
+    let mut body = String::new();
+    html::push_html(&mut body, events.into_iter());
+    let content = GuideBody { body };
+    let console = match guide.path {
+        "docs/policies/index.html" => Some(("Manage policies", "policies")),
+        "docs/gateways/index.html" => Some(("Register a gateway", "gateways")),
+        "docs/agents/index.html" => Some(("Review agent sessions", "sessions")),
+        "docs/cli/index.html" => Some(("Open your developer account", "developer")),
+        "docs/github-actions/index.html" => Some(("Verify GitHub owners", "settings/identity")),
+        "docs/troubleshooting/index.html" => Some(("Inspect audit decisions", "audit")),
+        "docs/control-plane/index.html" => Some(("Open the console", "")),
+        _ => None,
+    };
+    let mut hero = Hero::new(title).cta(crate::Cta::secondary("All guides", "../"));
+    if let Some((label, path)) = console {
+        hero = hero.cta(crate::Cta::primary(
+            label,
+            format!("https://control.skimasque.com/app/{path}"),
+        ));
+    }
+    Page {
+        path: guide.path,
+        contents: SitePage::new("../../", "docs", &format!("{title} · SkiMasque"), title)
+            .push(&hero)
+            .push(&Section::new("Guide").push(&content))
+            .html()
+            .as_str()
+            .to_owned(),
+    }
+}
+
+#[cfg(test)]
+mod line_ending_tests {
+    use super::*;
+
+    #[test]
+    fn guide_html_is_identical_for_lf_and_crlf() {
+        for guide in GUIDES {
+            let lf = guide.source.replace("\r\n", "\n");
+            let crlf = lf.replace('\n', "\r\n");
+            let lf_guide = Guide {
                 path: guide.path,
-                contents: SitePage::new("../../", "docs", &format!("{title} · SkiMasque"), title)
-                    .push(&hero)
-                    .push(&Section::new("Guide").push(&content))
-                    .html()
-                    .as_str()
-                    .to_owned(),
-            }
-        })
-        .collect()
+                source: &lf,
+            };
+            let crlf_guide = Guide {
+                path: guide.path,
+                source: &crlf,
+            };
+            assert_eq!(
+                render_guide(&lf_guide).contents,
+                render_guide(&crlf_guide).contents,
+                "{}",
+                guide.path
+            );
+        }
+    }
 }

@@ -142,7 +142,7 @@ plane marks a gateway <code>offline</code> in the fleet view if heartbeats lapse
 </code></pre>
 <h3 id="post-v1gatewaysidcredentials"><code>POST /v1/gateways/{id}/credentials</code></h3>
 <p>Ask the control plane to sign a platform credential for a workload identity the
-gateway <strong>has already verified</strong> from the runner's OIDC token. <code>Authorization:  Bearer &lt;secret&gt;</code>.</p>
+gateway <strong>has already verified</strong> from the runner's OIDC token. <code>Authorization: Bearer &lt;secret&gt;</code>.</p>
 <pre><code class="language-json">{
   "identity": { "organization": "acme", "repository": "acme/widget", "workflow": "deploy.yml", "git_ref": "refs/heads/main" },
   "subject": "repo:acme/widget:ref:refs/heads/main",
