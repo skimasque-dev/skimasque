@@ -1,15 +1,22 @@
 //! Motion that communicates state, never decoration. Each wrapper only sets
 //! a class; the animation lives in CSS and is off under reduced motion.
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::{Component, Html};
 
 /// The steps of a decision appear in order (the "authorization reveal").
-#[derive(Template, Debug, Clone)]
-#[template(path = "reveal.html")]
+#[derive(Debug, Clone)]
 pub struct Reveal {
     pub inner: Html,
+}
+
+impl Render for Reveal {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<div class="v-reveal">"#);
+        self.inner.render(cx);
+        crate::render::markup(cx, r#"</div>"#);
+    }
 }
 impl Reveal {
     pub fn new(c: &impl Component) -> Self {
@@ -19,10 +26,17 @@ impl Reveal {
 impl Component for Reveal {}
 
 /// An expired session settles to a faded state (static under reduced motion).
-#[derive(Template, Debug, Clone)]
-#[template(path = "expire.html")]
+#[derive(Debug, Clone)]
 pub struct Expire {
     pub inner: Html,
+}
+
+impl Render for Expire {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<div class="v-expire">"#);
+        self.inner.render(cx);
+        crate::render::markup(cx, r#"</div>"#);
+    }
 }
 impl Expire {
     pub fn new(c: &impl Component) -> Self {
@@ -39,10 +53,66 @@ struct WorkflowStage {
     diagram: Html,
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "workflow.html")]
+#[derive(Debug, Clone)]
 pub struct WorkflowDemo {
     stages: Vec<WorkflowStage>,
+}
+
+impl Render for WorkflowDemo {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            r#"<div class="v-workflow">
+  <p class="v-workflow-note"><strong>Simulated example</strong> · Playback compresses a 20-minute session into a few seconds. It does not open a connection or show live activity.</p>
+  <div class="v-workflow-controls" hidden>
+    <button type="button" data-action="play">Play</button>
+    <button type="button" data-action="pause" disabled>Pause</button>
+    <button type="button" data-action="replay">Replay</button>
+  </div>
+  <p class="v-workflow-progress" role="status" aria-live="polite" aria-atomic="true">Read the six steps below to follow the session from request to expiry.</p>
+  <ol class="v-workflow-stages">
+    "#,
+        );
+        for (index_0, stage) in self.stages.iter().enumerate() {
+            crate::render::markup(
+                cx,
+                r#"<li class="v-workflow-stage">
+      <p class="v-workflow-title"><span class="v-workflow-number" aria-hidden="true">"#,
+            );
+            crate::render::text(cx, &(index_0 + 1));
+            crate::render::markup(cx, r#"</span><strong>"#);
+            crate::render::text(cx, &stage.title);
+            crate::render::markup(
+                cx,
+                "</strong></p>\n      <div class=\"v-workflow-diagram\">",
+            );
+            stage.diagram.render(cx);
+            crate::render::markup(
+                cx,
+                r#"</div>
+      <p class="v-workflow-description">"#,
+            );
+            crate::render::text(cx, &stage.description);
+            crate::render::markup(
+                cx,
+                r#"</p>
+    </li>"#,
+            );
+        }
+        crate::render::markup(
+            cx,
+            r#"
+  </ol>
+</div>
+<script>"#,
+        );
+        stucco_core::Raw::trusted(self.script()).render(cx);
+        crate::render::markup(
+            cx,
+            r#"</script>
+"#,
+        );
+    }
 }
 impl WorkflowDemo {
     pub fn new() -> Self {

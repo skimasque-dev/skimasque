@@ -1,7 +1,7 @@
 //! Network boundaries: a labelled region ("YOUR VPC") or a firewall rule
 //! with the protected side below it. Children are other components.
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::{Component, Html};
 
@@ -11,12 +11,49 @@ pub enum BoundaryKind {
     Firewall,
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "boundary.html")]
+#[derive(Debug, Clone)]
 pub struct Boundary {
     pub label: String,
     pub kind: BoundaryKind,
     pub children: Vec<Html>,
+}
+
+impl Render for Boundary {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        if self.is_firewall() {
+            crate::render::markup(
+                cx,
+                "<div class=\"v-boundary v-boundary-firewall\" role=\"group\" aria-label=\"",
+            );
+            crate::render::text(cx, &self.label);
+            crate::render::markup(
+                cx,
+                r#""><div class="v-firewall-rule"><span class="v-boundary-label" aria-hidden="true">"#,
+            );
+            crate::render::text(cx, &self.label);
+            crate::render::markup(cx, r#"</span></div><div class="v-boundary-body">"#);
+            for c in &self.children {
+                c.render(cx);
+            }
+            crate::render::markup(cx, r#"</div></div>"#);
+        } else {
+            crate::render::markup(
+                cx,
+                "<div class=\"v-boundary v-boundary-region\" role=\"group\" aria-label=\"",
+            );
+            crate::render::text(cx, &self.label);
+            crate::render::markup(
+                cx,
+                "\"><span class=\"v-boundary-label\" aria-hidden=\"true\">",
+            );
+            crate::render::text(cx, &self.label);
+            crate::render::markup(cx, r#"</span><div class="v-boundary-body">"#);
+            for c in &self.children {
+                c.render(cx);
+            }
+            crate::render::markup(cx, r#"</div></div>"#);
+        }
+    }
 }
 
 impl Boundary {

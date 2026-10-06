@@ -1,6 +1,6 @@
 //! The homepage (`/`): canonical spec Â§11.
 
-use askama::Template;
+use stucco_core::Render;
 
 use super::{ci_cd::WORKFLOW, DocLinks};
 use crate::diagrams::public;
@@ -12,9 +12,19 @@ use crate::{
 };
 
 /// A self-contained network illustration with progressive enhancement.
-#[derive(Template)]
-#[template(path = "network_demo.html")]
 struct HeroArt;
+
+impl Render for HeroArt {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, include_str!("../../../static/network_demo.html"));
+        stucco_core::Raw::trusted(self.script()).render(cx);
+        crate::render::markup(
+            cx,
+            r#"</script>
+"#,
+        );
+    }
+}
 impl HeroArt {
     fn script(&self) -> &'static str {
         include_str!("../../../static/network_demo.js")

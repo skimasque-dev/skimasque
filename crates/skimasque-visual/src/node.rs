@@ -1,6 +1,6 @@
 //! Node kinds and the visual grammar that colours them (spec: Components → Node).
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::{Component, Html, Status, StatusBadge};
 
@@ -188,13 +188,46 @@ impl NodeKind {
 ///
 /// A node draws its icon from the sprite, so the page must emit [`crate::Icons`]
 /// once (anywhere in the body) for icons to show.
-#[derive(Template, Debug, Clone)]
-#[template(path = "node.html")]
+#[derive(Debug, Clone)]
 pub struct Node {
     pub kind: NodeKind,
     pub label: String,
     pub sub: Option<String>,
     pub status: Option<Status>,
+}
+
+impl Render for Node {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<div class="v-node v-tone-"#);
+        crate::render::text(cx, &(self.kind.tone().class()));
+        crate::render::markup(cx, r#"" data-kind=""#);
+        crate::render::text(cx, &self.kind.slug());
+        crate::render::markup(
+            cx,
+            "\"><svg class=\"v-icon\" aria-hidden=\"true\" focusable=\"false\"><use href=\"#",
+        );
+        crate::render::text(cx, &self.kind.icon());
+        crate::render::markup(
+            cx,
+            "\"></use></svg><span class=\"v-node-text\"><span class=\"v-node-label\">",
+        );
+        crate::render::text(cx, &self.label);
+        crate::render::markup(cx, r#"</span>"#);
+        if let Some(s) = &self.sub {
+            crate::render::markup(cx, r#"<span class="v-node-sub">"#);
+            crate::render::text(cx, &s);
+            crate::render::markup(cx, r#"</span>"#);
+        }
+        crate::render::markup(cx, r#"</span>"#);
+        if let Some(h) = &self.status_html() {
+            h.render(cx);
+        }
+        crate::render::markup(
+            cx,
+            r#"</div>
+"#,
+        );
+    }
 }
 
 impl Node {

@@ -1,16 +1,29 @@
 //! Policy components: the WHO → WHAT → WHERE → LIMITS pattern in four shapes.
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::{Component, DecisionBadge, Html, Status, StatusBadge};
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "policy_summary.html")]
+#[derive(Debug, Clone)]
 pub struct PolicySummary {
     pub who: String,
     pub what: String,
     pub target: String,
     pub limits: String,
+}
+
+impl Render for PolicySummary {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<dl class="v-summary"><div><dt>WHO</dt><dd>"#);
+        crate::render::text(cx, &self.who);
+        crate::render::markup(cx, r#"</dd></div><div><dt>WHAT</dt><dd>"#);
+        crate::render::text(cx, &self.what);
+        crate::render::markup(cx, r#"</dd></div><div><dt>WHERE</dt><dd>"#);
+        crate::render::text(cx, &self.target);
+        crate::render::markup(cx, r#"</dd></div><div><dt>LIMITS</dt><dd>"#);
+        crate::render::text(cx, &self.limits);
+        crate::render::markup(cx, r#"</dd></div></dl>"#);
+    }
 }
 impl PolicySummary {
     pub fn new(
@@ -29,8 +42,7 @@ impl PolicySummary {
 }
 impl Component for PolicySummary {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "policy_card.html")]
+#[derive(Debug, Clone)]
 pub struct PolicyCard {
     pub name: String,
     pub status: Status,
@@ -40,6 +52,38 @@ pub struct PolicyCard {
     /// never pass user input.
     pub href: Option<String>,
     pub level: u8,
+}
+
+impl Render for PolicyCard {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<article class=\"v-card v-policy-card\"><header class=\"v-card-head\"><h",
+        );
+        crate::render::text(cx, &self.level);
+        crate::render::markup(cx, r#" class="v-card-title">"#);
+        if let Some(h) = &self.href {
+            crate::render::markup(cx, r#"<a href=""#);
+            crate::render::text(cx, &h);
+            crate::render::markup(cx, r#"">"#);
+            crate::render::text(cx, &self.name);
+            crate::render::markup(cx, r#"</a>"#);
+        } else {
+            crate::render::text(cx, &self.name);
+        }
+        crate::render::markup(cx, r#"</h"#);
+        crate::render::text(cx, &self.level);
+        crate::render::markup(cx, r#">"#);
+        self.status_html().render(cx);
+        crate::render::markup(cx, r#"</header>"#);
+        self.summary_html().render(cx);
+        if let Some(m) = &self.meta {
+            crate::render::markup(cx, r#"<footer class="v-card-meta">"#);
+            crate::render::text(cx, &m);
+            crate::render::markup(cx, r#"</footer>"#);
+        }
+        crate::render::markup(cx, r#"</article>"#);
+    }
 }
 impl PolicyCard {
     pub fn new(name: impl Into<String>, status: Status, summary: PolicySummary) -> Self {
@@ -85,8 +129,7 @@ struct Layer {
     lines: Vec<String>,
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "policy_explorer.html")]
+#[derive(Debug, Clone)]
 pub struct PolicyExplorer {
     pub who: Vec<String>,
     pub what: Vec<String>,
@@ -95,6 +138,47 @@ pub struct PolicyExplorer {
     pub allow: bool,
     pub reason: String,
     pub technical: bool,
+}
+
+impl Render for PolicyExplorer {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<div class=\"v-explorer\" role=\"group\" aria-label=\"Policy explorer\">",
+        );
+        for l in (self.layers()).iter() {
+            crate::render::markup(cx, r#"<div class="v-layer" role="group" aria-label=""#);
+            crate::render::text(cx, &l.title);
+            crate::render::markup(cx, r#"" data-layer=""#);
+            crate::render::text(cx, &l.key);
+            crate::render::markup(cx, r#""><p class="v-layer-title" aria-hidden="true">"#);
+            crate::render::text(cx, &l.title);
+            crate::render::markup(cx, r#"</p>"#);
+            if l.lines.is_empty() {
+                crate::render::markup(cx, r#"<p class="v-layer-line v-layer-any">any</p>"#);
+            } else {
+                crate::render::markup(cx, r#"<ul class="v-layer-lines">"#);
+                for line in l.lines.iter() {
+                    crate::render::markup(cx, r#"<li>"#);
+                    crate::render::text(cx, &line);
+                    crate::render::markup(cx, r#"</li>"#);
+                }
+                crate::render::markup(cx, r#"</ul>"#);
+            }
+            crate::render::markup(
+                cx,
+                "</div><span class=\"v-layer-link\" aria-hidden=\"true\">↓</span>",
+            );
+        }
+        crate::render::markup(
+            cx,
+            "<div class=\"v-layer v-explorer-result\" role=\"group\" aria-label=\"Decision\">",
+        );
+        self.decision_html().render(cx);
+        crate::render::markup(cx, r#"<p class="v-layer-line">"#);
+        crate::render::text(cx, &self.reason);
+        crate::render::markup(cx, r#"</p></div></div>"#);
+    }
 }
 impl PolicyExplorer {
     pub fn new(
@@ -211,10 +295,45 @@ impl Change {
     }
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "policy_diff.html")]
+#[derive(Debug, Clone)]
 pub struct PolicyDiff {
     pub changes: Vec<Change>,
+}
+
+impl Render for PolicyDiff {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        if self.changes.is_empty() {
+            crate::render::markup(cx, r#"<p class="v-diff-empty">No changes</p>"#);
+        } else {
+            crate::render::markup(cx, r#"<ul class="v-diff">"#);
+            for c in &self.changes {
+                crate::render::markup(cx, r#"<li class="v-diff-"#);
+                crate::render::text(cx, &c.class());
+                crate::render::markup(cx, r#""><span class="v-diff-glyph" aria-hidden="true">"#);
+                crate::render::text(cx, &c.glyph());
+                crate::render::markup(cx, r#"</span><span class="v-sr">"#);
+                crate::render::text(cx, &c.class());
+                crate::render::markup(cx, r#" </span><span class="v-diff-field">"#);
+                crate::render::text(cx, &c.field);
+                crate::render::markup(cx, r#"</span>"#);
+                if let Some(b) = &c.before {
+                    crate::render::markup(cx, r#"<span class="v-diff-before">"#);
+                    crate::render::text(cx, &b);
+                    crate::render::markup(cx, r#"</span>"#);
+                }
+                if c.before.is_some() && c.after.is_some() {
+                    crate::render::markup(cx, r#"<span aria-hidden="true">→</span>"#);
+                }
+                if let Some(a) = &c.after {
+                    crate::render::markup(cx, r#"<span class="v-diff-after">"#);
+                    crate::render::text(cx, &a);
+                    crate::render::markup(cx, r#"</span>"#);
+                }
+                crate::render::markup(cx, r#"</li>"#);
+            }
+            crate::render::markup(cx, r#"</ul>"#);
+        }
+    }
 }
 impl PolicyDiff {
     pub fn new(changes: Vec<Change>) -> Self {

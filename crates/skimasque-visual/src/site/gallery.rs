@@ -2,7 +2,7 @@
 //! one page: the component gallery, every primitive in every state, shown in
 //! a dark and a light section so both themes can be checked without JS.
 
-use askama::Template;
+use stucco_core::Render;
 
 use super::Page;
 use crate::{
@@ -26,14 +26,184 @@ struct Group {
     items: Vec<Item>,
 }
 
-#[derive(Template)]
-#[template(path = "gallery.html")]
 struct Gallery {
     sprite: Html,
     groups: Vec<Group>,
     themes: [&'static str; 2],
     previews: Vec<Item>,
     widths: [usize; 3],
+}
+
+impl Render for Gallery {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, include_str!("../../static/gallery_head.html"));
+        self.sprite.render(cx);
+        crate::render::markup(
+            cx,
+            r#"
+<main>
+<header class="g-page"><h1>SkiMasque components</h1><div class="g-controls" hidden><label for="g-theme-picker">Theme</label><select id="g-theme-picker"><option value="both">Both themes</option><option value="light">Light</option><option value="dark">Dark</option></select></div></header>
+"#,
+        );
+        for theme in &self.themes {
+            crate::render::markup(
+                cx,
+                r#"
+<section class="g-theme" data-theme=""#,
+            );
+            crate::render::text(cx, &theme);
+            crate::render::markup(cx, r#"" aria-label=""#);
+            crate::render::text(cx, &theme);
+            crate::render::markup(
+                cx,
+                r#" theme">
+  <h2>"#,
+            );
+            crate::render::text(cx, &theme);
+            crate::render::markup(
+                cx,
+                r#" theme</h2>
+  <p>every primitive in every state</p>
+  <nav class="g-nav" aria-label=""#,
+            );
+            crate::render::text(cx, &theme);
+            crate::render::markup(
+                cx,
+                r##" component sections">
+    <a href="#"##,
+            );
+            crate::render::text(cx, &theme);
+            crate::render::markup(
+                cx,
+                r#"-previews">Width previews</a>
+  "#,
+            );
+            for (index_1, g) in self.groups.iter().enumerate() {
+                crate::render::markup(cx, r##"<a href="#"##);
+                crate::render::text(cx, &theme);
+                crate::render::markup(cx, r#"-group-"#);
+                crate::render::text(cx, &index_1);
+                crate::render::markup(cx, r#"">"#);
+                crate::render::text(cx, &g.title);
+                crate::render::markup(cx, r#"</a>"#);
+            }
+            crate::render::markup(
+                cx,
+                r#"
+  </nav>
+  <section class="g-group" id=""#,
+            );
+            crate::render::text(cx, &theme);
+            crate::render::markup(
+                cx,
+                r#"-previews">
+    <h3>Responsive width previews</h3>
+    <p>Each frame is capped at the labeled width and shrinks to fit your screen. Flow breakpoints measure the space inside the frame.</p>
+    <div class="g-previews">
+      "#,
+            );
+            for width in &self.widths {
+                crate::render::markup(cx, r#"<div class="g-preview" style="--preview-width: "#);
+                crate::render::text(cx, &width);
+                crate::render::markup(cx, r#"px"><h4 class="g-preview-title">"#);
+                crate::render::text(cx, &width);
+                crate::render::markup(
+                    cx,
+                    r#"px frame</h4>
+        "#,
+                );
+                for i in &self.previews {
+                    crate::render::markup(cx, r#"<div class="g-item"><span class="g-cap">"#);
+                    crate::render::text(cx, &i.caption);
+                    crate::render::markup(cx, r#"</span>"#);
+                    i.html.render(cx);
+                    crate::render::markup(cx, r#"</div>"#);
+                }
+                crate::render::markup(
+                    cx,
+                    r#"
+      </div>"#,
+                );
+            }
+            crate::render::markup(
+                cx,
+                r#"
+    </div>
+  </section>
+"#,
+            );
+            for (index_1, g) in self.groups.iter().enumerate() {
+                crate::render::markup(
+                    cx,
+                    r#"
+  <section class="g-group" id=""#,
+                );
+                crate::render::text(cx, &theme);
+                crate::render::markup(cx, r#"-group-"#);
+                crate::render::text(cx, &index_1);
+                crate::render::markup(
+                    cx,
+                    r#"">
+    <h3>"#,
+                );
+                crate::render::text(cx, &g.title);
+                crate::render::markup(
+                    cx,
+                    r#"</h3>
+    <div class="g-items"#,
+                );
+                if g.wide {
+                    crate::render::markup(cx, r#" g-items-wide"#);
+                }
+                crate::render::markup(
+                    cx,
+                    r#"">
+      "#,
+                );
+                for i in g.items.iter() {
+                    crate::render::markup(cx, r#"<div class="g-item"><span class="g-cap">"#);
+                    crate::render::text(cx, &i.caption);
+                    crate::render::markup(cx, r#"</span>"#);
+                    i.html.render(cx);
+                    crate::render::markup(cx, r#"</div>"#);
+                }
+                crate::render::markup(
+                    cx,
+                    r#"
+    </div>
+  </section>
+"#,
+                );
+            }
+            crate::render::markup(
+                cx,
+                r#"
+</section>
+"#,
+            );
+        }
+        crate::render::markup(
+            cx,
+            r#"
+</main>
+<script>
+(() => {
+  const picker = document.getElementById('g-theme-picker');
+  const sections = document.querySelectorAll('.g-theme');
+  document.querySelector('.g-controls').hidden = false;
+  picker.addEventListener('change', () => {
+    const theme = picker.value;
+    sections.forEach(section => { section.hidden = theme !== 'both' && section.dataset.theme !== theme; });
+    if (theme === 'both') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.dataset.theme = theme;
+  });
+})();
+</script>
+</body>
+</html>
+"#,
+        );
+    }
 }
 
 fn item(caption: impl Into<String>, c: &impl Component) -> Item {
@@ -606,7 +776,7 @@ pub(super) fn pages() -> Vec<Page> {
     vec![
         Page {
             path: "components/index.html",
-            contents: gallery.render().expect("gallery renders"),
+            contents: stucco_core::to_html(&gallery),
         },
         Page {
             path: "components/visual.css",

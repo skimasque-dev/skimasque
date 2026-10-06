@@ -1,6 +1,6 @@
 //! Structured network diagrams assembled from existing visual primitives.
 use crate::{Boundary, Branch, Component, Connection, Html, Node};
-use askama::Template;
+use stucco_core::Render;
 
 /// A gateway and the services it can reach inside a named private network.
 #[derive(Debug, Clone)]
@@ -54,13 +54,49 @@ struct TopologyArm {
 /// let html = topology.html();
 /// assert!(html.as_str().contains("Production VPC"));
 /// ```
-#[derive(Template, Debug, Clone)]
-#[template(path = "topology.html")]
+#[derive(Debug, Clone)]
 pub struct NetworkTopology {
     caption: String,
     control_plane: Html,
     workloads: Vec<TopologyArm>,
     networks: Vec<TopologyArm>,
+}
+
+impl Render for NetworkTopology {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<figure class="v-topology">"#);
+        if !self.workloads.is_empty() {
+            crate::render::markup(cx, r#"<ul class="v-topology-workloads">"#);
+            for arm in &self.workloads {
+                crate::render::markup(cx, r#"<li>"#);
+                arm.body.render(cx);
+                arm.connection.render(cx);
+                crate::render::markup(cx, r#"</li>"#);
+            }
+            crate::render::markup(cx, r#"</ul>"#);
+        }
+        crate::render::markup(cx, r#"<div class="v-topology-control">"#);
+        self.control_plane.render(cx);
+        crate::render::markup(cx, r#"</div>"#);
+        if !self.networks.is_empty() {
+            crate::render::markup(cx, r#"<ul class="v-topology-networks">"#);
+            for arm in &self.networks {
+                crate::render::markup(cx, r#"<li>"#);
+                arm.connection.render(cx);
+                arm.body.render(cx);
+                crate::render::markup(cx, r#"</li>"#);
+            }
+            crate::render::markup(cx, r#"</ul>"#);
+        } else {
+            crate::render::markup(
+                cx,
+                "<p class=\"v-topology-empty\">No private networks configured.</p>",
+            );
+        }
+        crate::render::markup(cx, r#"<figcaption class="v-sr">"#);
+        crate::render::text(cx, &self.caption);
+        crate::render::markup(cx, r#"</figcaption></figure>"#);
+    }
 }
 impl NetworkTopology {
     pub fn new(caption: impl Into<String>, control_plane: Node) -> Self {

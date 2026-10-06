@@ -1,6 +1,6 @@
 //! One module per public page. Each exposes `page() -> Page`.
 
-use askama::Template;
+use stucco_core::Render;
 
 use super::{Page, DOCS_BASE};
 use crate::Component;
@@ -61,13 +61,22 @@ pub(super) fn doc(file: &str) -> String {
 }
 
 /// A row of documentation buttons: `(label, href)`.
-#[derive(Template)]
-#[template(
-    source = r#"<p class="v-cta-row">{% for (label, href) in links %}<a class="v-btn v-btn-quiet" href="{{ href }}">{{ label }}</a>{% endfor %}</p>"#,
-    ext = "html"
-)]
 pub(super) struct DocLinks {
     links: Vec<(String, String)>,
+}
+
+impl Render for DocLinks {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<p class="v-cta-row">"#);
+        for (label, href) in self.links.iter() {
+            crate::render::markup(cx, r#"<a class="v-btn v-btn-quiet" href=""#);
+            crate::render::text(cx, &href);
+            crate::render::markup(cx, r#"">"#);
+            crate::render::text(cx, &label);
+            crate::render::markup(cx, r#"</a>"#);
+        }
+        crate::render::markup(cx, r#"</p>"#);
+    }
 }
 impl DocLinks {
     pub(super) fn new(links: &[(&str, String)]) -> Self {

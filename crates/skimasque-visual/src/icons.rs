@@ -1,12 +1,16 @@
 //! The icon sprite: emit once per page, then reference icons with
 //! `<svg><use href="#i-…"/></svg>`. Stroke icons drawn in `currentColor`.
 
-use askama::Template;
+use stucco_core::Render;
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "icons.html")]
+#[derive(Debug, Clone)]
 pub struct Icons;
 
+impl Render for Icons {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, include_str!("../static/icons.svg"));
+    }
+}
 impl crate::Component for Icons {}
 
 #[cfg(test)]

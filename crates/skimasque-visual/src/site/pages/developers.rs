@@ -1,6 +1,6 @@
 //! Developers (`/developers`): canonical spec §16.
 
-use askama::Template;
+use stucco_core::Render;
 
 use super::doc;
 use crate::diagrams::public;
@@ -12,13 +12,16 @@ use crate::{
 };
 
 /// Several components rendered one after another (used inside a planned block).
-#[derive(Template)]
-#[template(
-    source = r#"{% for p in parts %}{{ p|safe }}{% endfor %}"#,
-    ext = "html"
-)]
 struct Stack {
     parts: Vec<Html>,
+}
+
+impl Render for Stack {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        for p in &self.parts {
+            p.render(cx);
+        }
+    }
 }
 impl Component for Stack {}
 

@@ -1,6 +1,6 @@
 //! Status words and decision badges. A dot is never shown without its word.
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::Tone;
 
@@ -46,19 +46,48 @@ impl Status {
     }
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "status.html")]
+#[derive(Debug, Clone)]
 pub struct StatusBadge {
     pub status: Status,
 }
+
+impl Render for StatusBadge {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<span class="v-status v-tone-"#);
+        crate::render::text(cx, &(self.status.tone().class()));
+        crate::render::markup(cx, r#""><span aria-hidden="true">●</span> "#);
+        crate::render::text(cx, &self.status.word());
+        crate::render::markup(cx, r#"</span>"#);
+    }
+}
 impl crate::Component for StatusBadge {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "decision_badge.html")]
+#[derive(Debug, Clone)]
 pub struct DecisionBadge {
     pub allow: bool,
     /// Policy-editor wording (ALLOW / DENY) instead of customer wording.
     pub technical: bool,
+}
+
+impl Render for DecisionBadge {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        if self.allow {
+            crate::render::markup(
+                cx,
+                "<span class=\"v-decision v-tone-active\"><span aria-hidden=\"true\">✓</span> ",
+            );
+            crate::render::text(cx, &self.word());
+            crate::render::markup(cx, r#"</span>"#);
+        } else {
+            crate::render::markup(
+                cx,
+                r#"<span class="v-decision v-tone-deny"><span aria-hidden="true"><svg class="v-denial-mark" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 3 L9 9 M9 3 L3 9"/></svg>
+</span> "#,
+            );
+            crate::render::text(cx, &self.word());
+            crate::render::markup(cx, r#"</span>"#);
+        }
+    }
 }
 
 impl DecisionBadge {

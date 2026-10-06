@@ -2,7 +2,7 @@
 //! mint = an active session, dotted = a potential route, broken with × =
 //! denied. The meaning is also spoken for screen readers.
 
-use askama::Template;
+use stucco_core::Render;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnKind {
@@ -37,12 +37,128 @@ impl ConnKind {
     }
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "connection.html")]
+#[derive(Debug, Clone)]
 pub struct Connection {
     pub kind: ConnKind,
     pub label: Option<String>,
     arrow: ArrowGeometry,
+}
+
+impl Render for Connection {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        let g = self.arrow_geometry();
+        let stroke = self.stroke_width();
+        crate::render::markup(cx, r#"<span class="v-conn v-conn-"#);
+        crate::render::text(cx, &self.kind.slug());
+        crate::render::markup(cx, r#"" style="--v-conn-length: "#);
+        crate::render::text(cx, &g.length);
+        crate::render::markup(cx, r#"px; --v-conn-cross: "#);
+        crate::render::text(cx, &g.cross());
+        crate::render::markup(cx, r#"px; --v-conn-travel: "#);
+        crate::render::text(cx, &g.packet_travel());
+        crate::render::markup(
+            cx,
+            r#"px"><span class="v-conn-line" aria-hidden="true">
+  <svg class="v-conn-svg v-conn-horizontal" width="100%" height="100%" focusable="false">
+    <g transform="translate(-"#,
+        );
+        crate::render::text(cx, &self.shaft_inset());
+        crate::render::markup(cx, r#" 0)"><line x1=""#);
+        crate::render::text(cx, &self.shaft_start());
+        crate::render::markup(cx, r#"" y1=""#);
+        crate::render::text(cx, &g.center());
+        crate::render::markup(cx, r#"" x2="100%" y2=""#);
+        crate::render::text(cx, &g.center());
+        crate::render::markup(cx, r#"" stroke="currentColor" stroke-width=""#);
+        crate::render::text(cx, &stroke);
+        crate::render::markup(cx, r#"" stroke-linecap="round" stroke-dasharray=""#);
+        crate::render::text(cx, &self.dash_pattern());
+        crate::render::markup(
+            cx,
+            r#""/></g>
+    <svg x="100%" width=""#,
+        );
+        crate::render::text(cx, &g.cross());
+        crate::render::markup(cx, r#"" height=""#);
+        crate::render::text(cx, &g.cross());
+        crate::render::markup(
+            cx,
+            "\" overflow=\"visible\" focusable=\"false\"><polygon points=\"-",
+        );
+        crate::render::text(cx, &g.head_inset());
+        crate::render::markup(cx, r#",2 -2,"#);
+        crate::render::text(cx, &g.center());
+        crate::render::markup(cx, r#" -"#);
+        crate::render::text(cx, &g.head_inset());
+        crate::render::markup(cx, r#","#);
+        crate::render::text(cx, &g.head_far());
+        crate::render::markup(
+            cx,
+            r#"" fill="currentColor"/></svg>
+  </svg>
+  <svg class="v-conn-svg v-conn-vertical" width="100%" height="100%" focusable="false">
+    <g transform="translate(0 -"#,
+        );
+        crate::render::text(cx, &self.shaft_inset());
+        crate::render::markup(cx, r#")"><line x1=""#);
+        crate::render::text(cx, &g.center());
+        crate::render::markup(cx, r#"" y1=""#);
+        crate::render::text(cx, &self.shaft_start());
+        crate::render::markup(cx, r#"" x2=""#);
+        crate::render::text(cx, &g.center());
+        crate::render::markup(cx, r#"" y2="100%" stroke="currentColor" stroke-width=""#);
+        crate::render::text(cx, &stroke);
+        crate::render::markup(cx, r#"" stroke-linecap="round" stroke-dasharray=""#);
+        crate::render::text(cx, &self.dash_pattern());
+        crate::render::markup(
+            cx,
+            r#""/></g>
+    <svg y="100%" width=""#,
+        );
+        crate::render::text(cx, &g.cross());
+        crate::render::markup(cx, r#"" height=""#);
+        crate::render::text(cx, &g.cross());
+        crate::render::markup(
+            cx,
+            "\" overflow=\"visible\" focusable=\"false\"><polygon points=\"2,-",
+        );
+        crate::render::text(cx, &g.head_inset());
+        crate::render::markup(cx, r#" "#);
+        crate::render::text(cx, &g.center());
+        crate::render::markup(cx, r#",-2 "#);
+        crate::render::text(cx, &g.head_far());
+        crate::render::markup(cx, r#",-"#);
+        crate::render::text(cx, &g.head_inset());
+        crate::render::markup(
+            cx,
+            r#"" fill="currentColor"/></svg>
+  </svg>
+"#,
+        );
+        if self.kind.is_denied() {
+            crate::render::markup(
+                cx,
+                r#"<span class="v-conn-x" aria-hidden="true"><svg class="v-denial-mark" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 3 L9 9 M9 3 L3 9"/></svg>
+</span>"#,
+            );
+        }
+        crate::render::markup(cx, r#"</span>"#);
+        if let Some(l) = &self.label {
+            crate::render::markup(cx, r#"<span class="v-conn-label">"#);
+            crate::render::text(cx, &l);
+            crate::render::markup(cx, r#"</span>"#);
+        }
+        if !self.kind.spoken().is_empty() {
+            crate::render::markup(cx, r#"<span class="v-sr">"#);
+            crate::render::text(cx, &self.kind.spoken());
+            crate::render::markup(cx, r#"</span>"#);
+        }
+        crate::render::markup(
+            cx,
+            r#"</span>
+"#,
+        );
+    }
 }
 
 /// Dimensions in SVG pixels. Clamped to keep the shaft, gap, and head inside

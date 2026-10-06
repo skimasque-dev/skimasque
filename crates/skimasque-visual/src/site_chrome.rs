@@ -2,7 +2,7 @@
 //! Links are relative (the site is served from a project path), so every
 //! component takes the page's `root` prefix ("", "../", "../../").
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::{Component, Contour, Html, Icons, Mountain, Planned};
 
@@ -66,11 +66,105 @@ pub struct NavGroup {
     pub links: Vec<NavLink>,
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "site_nav.html")]
+#[derive(Debug, Clone)]
 pub struct SiteNav {
     pub root: String,
     pub current: String,
+}
+
+impl Render for SiteNav {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<header class=\"v-site-header\"><div class=\"v-wrap v-site-bar\"><a class=\"v-brand\"",
+        );
+        if self.home_current() {
+            crate::render::markup(cx, r#" aria-current="page""#);
+        }
+        crate::render::markup(cx, r#" href=""#);
+        crate::render::text(cx, &self.home());
+        crate::render::markup(
+            cx,
+            "\">SkiMasque</a><nav class=\"v-site-nav\" aria-label=\"Primary\">",
+        );
+        for g in (self.groups()).iter() {
+            crate::render::markup(
+                cx,
+                "<details class=\"v-nav-group\" name=\"site-nav\"><summary>",
+            );
+            crate::render::text(cx, &g.title);
+            crate::render::markup(cx, r#"</summary><ul>"#);
+            for l in g.links.iter() {
+                crate::render::markup(cx, r#"<li><a href=""#);
+                crate::render::text(cx, &l.href);
+                crate::render::markup(cx, r#"""#);
+                if l.current {
+                    crate::render::markup(cx, r#" aria-current="page""#);
+                }
+                crate::render::markup(cx, r#">"#);
+                crate::render::text(cx, &l.label);
+                crate::render::markup(cx, r#"</a></li>"#);
+            }
+            crate::render::markup(cx, r#"</ul></details>"#);
+        }
+        let p = self.pricing();
+        crate::render::markup(cx, r#"<a class="v-nav-top" href=""#);
+        crate::render::text(cx, &p.href);
+        crate::render::markup(cx, r#"""#);
+        if p.current {
+            crate::render::markup(cx, r#" aria-current="page""#);
+        }
+        crate::render::markup(cx, r#">"#);
+        crate::render::text(cx, &p.label);
+        crate::render::markup(
+            cx,
+            "</a></nav><div class=\"v-site-actions\"><a class=\"v-btn v-btn-quiet\" href=\"",
+        );
+        crate::render::text(cx, &self.sign_in());
+        crate::render::markup(cx, r#"">Sign In</a><a class="v-btn" href=""#);
+        crate::render::text(cx, &self.get_started());
+        crate::render::markup(
+            cx,
+            r#"">Get Started</a></div><nav class="v-menu-nav" aria-label="Primary"><details class="v-menu"><summary>Menu</summary><div class="v-menu-panel">"#,
+        );
+        for g in (self.groups()).iter() {
+            crate::render::markup(cx, r#"<p class="v-menu-title">"#);
+            crate::render::text(cx, &g.title);
+            crate::render::markup(cx, r#"</p><ul>"#);
+            for l in g.links.iter() {
+                crate::render::markup(cx, r#"<li><a href=""#);
+                crate::render::text(cx, &l.href);
+                crate::render::markup(cx, r#"""#);
+                if l.current {
+                    crate::render::markup(cx, r#" aria-current="page""#);
+                }
+                crate::render::markup(cx, r#">"#);
+                crate::render::text(cx, &l.label);
+                crate::render::markup(cx, r#"</a></li>"#);
+            }
+            crate::render::markup(cx, r#"</ul>"#);
+        }
+        crate::render::markup(
+            cx,
+            "<p class=\"v-menu-title\">Pricing</p><ul><li><a href=\"",
+        );
+        crate::render::text(cx, &p.href);
+        crate::render::markup(cx, r#"""#);
+        if p.current {
+            crate::render::markup(cx, r#" aria-current="page""#);
+        }
+        crate::render::markup(
+            cx,
+            ">Pricing</a></li></ul><p class=\"v-cta-row\"><a class=\"v-btn v-btn-quiet\" href=\"",
+        );
+        crate::render::text(cx, &self.sign_in());
+        crate::render::markup(cx, r#"">Sign In</a><a class="v-btn" href=""#);
+        crate::render::text(cx, &self.get_started());
+        crate::render::markup(
+            cx,
+            r#"">Get Started</a></p></div></details></nav><label class="v-theme-control" hidden for="site-theme"><span>Theme</span><select id="site-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header>"#,
+        );
+    }
 }
 impl SiteNav {
     pub fn new(root: &str, current: &str) -> Self {
@@ -119,10 +213,76 @@ impl Component for SiteNav {}
 
 pub const GET_STARTED_URL: &str = "../docs/getting-started/";
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "site_footer.html")]
+#[derive(Debug, Clone)]
 pub struct SiteFooter {
     pub root: String,
+}
+
+impl Render for SiteFooter {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<footer class=\"v-site-footer\"><div class=\"v-footer-art\" aria-hidden=\"true\">",
+        );
+        self.contour().render(cx);
+        self.mountain().render(cx);
+        crate::render::markup(
+            cx,
+            r#"</div><div class="v-wrap v-footer-grid"><div class="v-footer-brand"><p class="v-footer-name">SkiMasque</p><p>Identity-aware network access<br>for developers and workloads.</p></div><nav aria-label="Footer"><div class="v-footer-col"><p class="v-footer-title">Product</p><ul><li><a href=""#,
+        );
+        crate::render::text(cx, &self.href("how-it-works"));
+        crate::render::markup(cx, r#"">How It Works</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("identities"));
+        crate::render::markup(cx, r#"">Identities</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("policies"));
+        crate::render::markup(cx, r#"">Policies</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("ci-cd"));
+        crate::render::markup(cx, r#"">CI/CD</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("developers"));
+        crate::render::markup(cx, r#"">Developers</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("security"));
+        crate::render::markup(cx, r#"">Security</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("deployment"));
+        crate::render::markup(cx, r#"">Deployment</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("gateways"));
+        crate::render::markup(
+            cx,
+            r#"">Gateways</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Resources</p><ul><li><a href=""#,
+        );
+        crate::render::text(cx, &self.href("docs"));
+        crate::render::markup(cx, r#"">Documentation</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("architecture"));
+        crate::render::markup(cx, r#"">Architecture</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("technology/masque"));
+        crate::render::markup(cx, r#"">MASQUE</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("open-source"));
+        crate::render::markup(cx, r#"">Open Source</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("faq"));
+        crate::render::markup(
+            cx,
+            r#"">FAQ</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Company</p><ul><li><a href=""#,
+        );
+        crate::render::text(cx, &self.href("about"));
+        crate::render::markup(cx, r#"">About</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("contact"));
+        crate::render::markup(cx, r#"">Contact</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("trust"));
+        crate::render::markup(cx, r#"">Trust</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("status"));
+        crate::render::markup(cx, r#"">Status</a></li><li><a href=""#);
+        crate::render::text(cx, &self.href("security"));
+        crate::render::markup(
+            cx,
+            r#"">Security</a></li></ul></div><div class="v-footer-col"><p class="v-footer-title">Legal</p><ul><li>Privacy "#,
+        );
+        self.planned().render(cx);
+        crate::render::markup(cx, r#"</li><li>Terms "#);
+        self.planned().render(cx);
+        crate::render::markup(
+            cx,
+            r#"</li></ul></div></nav></div><p class="v-wrap v-footer-legal">© SkiMasque</p></footer>"#,
+        );
+    }
 }
 impl SiteFooter {
     pub fn new(root: &str) -> Self {
@@ -145,14 +305,57 @@ impl SiteFooter {
 }
 impl Component for SiteFooter {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "site_page.html")]
+#[derive(Debug, Clone)]
 pub struct SitePage {
     pub root: String,
     pub current: String,
     pub title: String,
     pub description: String,
     pub parts: Vec<Html>,
+}
+
+impl Render for SitePage {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><script>"#,
+        );
+        stucco_core::Raw::trusted(self.theme_script()).render(cx);
+        crate::render::markup(cx, r#"</script><title>"#);
+        crate::render::text(cx, &self.title);
+        crate::render::markup(cx, r#"</title><meta name="description" content=""#);
+        crate::render::text(cx, &self.description);
+        crate::render::markup(cx, r#""><meta property="og:title" content=""#);
+        crate::render::text(cx, &self.title);
+        crate::render::markup(cx, r#""><meta property="og:description" content=""#);
+        crate::render::text(cx, &self.description);
+        crate::render::markup(
+            cx,
+            "\"><meta property=\"og:type\" content=\"website\"><link rel=\"icon\" href=\"",
+        );
+        crate::render::text(cx, &self.root);
+        crate::render::markup(
+            cx,
+            r#"favicon.svg" type="image/svg+xml"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"><link rel="stylesheet" href=""#,
+        );
+        crate::render::text(cx, &self.root);
+        crate::render::markup(cx, r#"assets/visual.css?v="#);
+        crate::render::text(cx, &self.css_version());
+        crate::render::markup(cx, r#""></head><body class="v-site">"#);
+        self.sprite().render(cx);
+        crate::render::markup(
+            cx,
+            r##"<a class="v-skip" href="#main">Skip to content</a>"##,
+        );
+        self.nav().render(cx);
+        crate::render::markup(cx, r#"<main id="main">"#);
+        for p in &self.parts {
+            p.render(cx);
+        }
+        crate::render::markup(cx, r#"</main>"#);
+        self.footer().render(cx);
+        crate::render::markup(cx, r#"</body></html>"#);
+    }
 }
 impl SitePage {
     fn theme_script(&self) -> &'static str {

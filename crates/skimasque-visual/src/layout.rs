@@ -2,7 +2,7 @@
 //! layers, side-by-side comparisons, branches and message sequences.
 //! Every container carries a visually-hidden caption as its text equivalent.
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::{Component, Connection, Html, Tone};
 
@@ -12,13 +12,48 @@ pub struct LayerRow {
     pub sub: Option<String>,
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "layers.html")]
+#[derive(Debug, Clone)]
 pub struct Layers {
     pub caption: String,
     pub rows: Vec<LayerRow>,
     /// Arrows point up: each layer rests on the one below it.
     pub upward: bool,
+}
+
+impl Render for Layers {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<figure class="v-layers-wrap"><ol class="v-layers"#);
+        if self.upward {
+            crate::render::markup(cx, r#" v-layers-up"#);
+        }
+        crate::render::markup(cx, r#"">"#);
+        for (index_0, r) in self.rows.iter().enumerate() {
+            crate::render::markup(
+                cx,
+                "<li class=\"v-layer-row\"><span class=\"v-layer-name\">",
+            );
+            crate::render::text(cx, &r.title);
+            crate::render::markup(cx, r#"</span>"#);
+            if let Some(s) = &r.sub {
+                crate::render::markup(cx, r#"<span class="v-layer-sub">"#);
+                crate::render::text(cx, &s);
+                crate::render::markup(cx, r#"</span>"#);
+            }
+            crate::render::markup(cx, r#"</li>"#);
+            if index_0 + 1 != self.rows.len() {
+                crate::render::markup(cx, r#"<li class="v-layer-gap" aria-hidden="true">"#);
+                if self.upward {
+                    crate::render::markup(cx, r#"↑"#);
+                } else {
+                    crate::render::markup(cx, r#"↓"#);
+                }
+                crate::render::markup(cx, r#"</li>"#);
+            }
+        }
+        crate::render::markup(cx, r#"</ol><figcaption class="v-sr">"#);
+        crate::render::text(cx, &self.caption);
+        crate::render::markup(cx, r#"</figcaption></figure>"#);
+    }
 }
 impl Layers {
     pub fn new(caption: impl Into<String>) -> Self {
@@ -56,11 +91,34 @@ pub struct Side {
     pub body: Html,
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "compare.html")]
+#[derive(Debug, Clone)]
 pub struct Compare {
     pub caption: String,
     pub sides: Vec<Side>,
+}
+
+impl Render for Compare {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<figure class=\"v-compare-wrap\"><div class=\"v-compare\">",
+        );
+        for s in &self.sides {
+            crate::render::markup(cx, r#"<section class="v-compare-side v-tone-"#);
+            crate::render::text(cx, &s.tone.class());
+            crate::render::markup(cx, r#"">"#);
+            if !s.title.is_empty() {
+                crate::render::markup(cx, r#"<p class="v-compare-title">"#);
+                crate::render::text(cx, &s.title);
+                crate::render::markup(cx, r#"</p>"#);
+            }
+            s.body.render(cx);
+            crate::render::markup(cx, r#"</section>"#);
+        }
+        crate::render::markup(cx, r#"</div><figcaption class="v-sr">"#);
+        crate::render::text(cx, &self.caption);
+        crate::render::markup(cx, r#"</figcaption></figure>"#);
+    }
 }
 impl Compare {
     pub fn new(caption: impl Into<String>) -> Self {
@@ -87,12 +145,31 @@ pub struct Arm {
     pub body: Html,
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "branch.html")]
+#[derive(Debug, Clone)]
 pub struct Branch {
     pub caption: String,
     pub root: Html,
     pub arms: Vec<Arm>,
+}
+
+impl Render for Branch {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<figure class=\"v-branch-wrap\"><div class=\"v-branch\"><div class=\"v-branch-root\">",
+        );
+        self.root.render(cx);
+        crate::render::markup(cx, r#"</div><ul class="v-branch-arms">"#);
+        for a in &self.arms {
+            crate::render::markup(cx, r#"<li class="v-branch-arm">"#);
+            a.conn.render(cx);
+            a.body.render(cx);
+            crate::render::markup(cx, r#"</li>"#);
+        }
+        crate::render::markup(cx, r#"</ul></div><figcaption class="v-sr">"#);
+        crate::render::text(cx, &self.caption);
+        crate::render::markup(cx, r#"</figcaption></figure>"#);
+    }
 }
 impl Branch {
     /// Nest containers only inside `Compare` sides and `Branch` arms, which have a definite width: a `Flow`, `Branch` or `Compare` placed in a content-sized slot (a `Flow` step body, a `Branch` root) may collapse.
@@ -121,13 +198,50 @@ pub struct Message {
     pub spoken: String,
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "sequence.html")]
+#[derive(Debug, Clone)]
 pub struct Sequence {
     pub caption: String,
     pub left: String,
     pub right: String,
     pub messages: Vec<Message>,
+}
+
+impl Render for Sequence {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<figure class=\"v-seq-wrap\"><div class=\"v-seq\"><div class=\"v-seq-actor\">",
+        );
+        crate::render::text(cx, &self.left);
+        crate::render::markup(cx, r#"</div><div class="v-seq-actor">"#);
+        crate::render::text(cx, &self.right);
+        crate::render::markup(cx, r#"</div>"#);
+        for m in &self.messages {
+            crate::render::markup(cx, r#"<div class="v-seq-msg "#);
+            if m.rightward {
+                crate::render::markup(cx, r#"v-seq-right"#);
+            } else {
+                crate::render::markup(cx, r#"v-seq-left"#);
+            }
+            crate::render::markup(cx, r#""><span class="v-seq-label">"#);
+            crate::render::text(cx, &m.label);
+            crate::render::markup(
+                cx,
+                "</span><span class=\"v-seq-track\" aria-hidden=\"true\">",
+            );
+            self.arrow().render(cx);
+            crate::render::markup(cx, r#"</span><span class="v-sr">"#);
+            crate::render::text(cx, &m.spoken);
+            crate::render::markup(cx, r#"</span></div>"#);
+        }
+        crate::render::markup(cx, r#"</div><figcaption class="v-sr">"#);
+        crate::render::text(cx, &self.caption);
+        crate::render::markup(
+            cx,
+            r#"</figcaption></figure>
+"#,
+        );
+    }
 }
 impl Sequence {
     fn arrow(&self) -> Html {
