@@ -2,24 +2,52 @@
 //! route) and the trail markers that label deployment runs. Colour comes
 //! from `currentColor` and role classes, so the motifs follow the theme.
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::{Component, Html, Planned, Tone};
 
-#[derive(Template, Debug, Clone, Copy, Default)]
-#[template(path = "contour.html")]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Contour;
+
+impl Render for Contour {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            r#"<svg class="v-contour" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M0 200 C120 160 200 210 320 170 S560 120 800 160"/><path d="M0 170 C120 130 200 180 320 140 S560 90 800 130"/><path d="M0 140 C120 100 200 150 320 110 S560 60 800 100"/><path d="M0 110 C120 70 200 120 320 80 S560 30 800 70"/><path d="M0 80 C120 40 200 90 320 50 S560 0 800 40"/></g></svg>"#,
+        );
+    }
+}
 impl Component for Contour {}
 
-#[derive(Template, Debug, Clone, Copy, Default)]
-#[template(path = "mountain.html")]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Mountain;
+
+impl Render for Mountain {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            r#"<svg class="v-mountain" viewBox="0 0 800 160" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path class="v-mountain-far" d="M0 160 L0 90 L120 40 L200 80 L300 20 L420 90 L520 50 L640 100 L720 60 L800 90 L800 160 Z"/><path class="v-mountain-near" d="M0 160 L0 120 L90 80 L180 115 L280 70 L380 120 L480 95 L590 125 L690 85 L800 120 L800 160 Z"/></svg>"#,
+        );
+    }
+}
 impl Component for Mountain {}
 
-#[derive(Template, Debug, Clone, Default)]
-#[template(path = "route.html")]
+#[derive(Debug, Clone, Default)]
 pub struct Route {
     pub flowing: bool,
+}
+
+impl Render for Route {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<svg class="v-route"#);
+        if self.flowing {
+            crate::render::markup(cx, r#" v-route-flowing"#);
+        }
+        crate::render::markup(
+            cx,
+            r#"" viewBox="0 0 400 80" aria-hidden="true" focusable="false"><path class="v-route-line" fill="none" d="M8 64 C90 64 100 16 200 16 S310 64 392 24"/><circle class="v-route-start" cx="8" cy="64" r="5"/><circle class="v-route-end" cx="392" cy="24" r="5"/></svg>"#,
+        );
+    }
 }
 impl Route {
     pub fn new() -> Self {
@@ -40,12 +68,32 @@ pub enum Shape {
     Diamond,
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "trail_marker.html")]
+#[derive(Debug, Clone)]
 pub struct TrailMarker {
     pub shape: Shape,
     pub tone: Tone,
     pub label: String,
+}
+
+impl Render for TrailMarker {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<span class="v-trail v-tone-"#);
+        crate::render::text(cx, &self.tone.class());
+        crate::render::markup(
+            cx,
+            r#""><svg class="v-trail-shape" viewBox="0 0 12 12" aria-hidden="true" focusable="false">"#,
+        );
+        if self.is_circle() {
+            crate::render::markup(cx, r#"<circle cx="6" cy="6" r="4.5"/>"#);
+        } else if self.is_square() {
+            crate::render::markup(cx, r#"<rect x="1.5" y="1.5" width="9" height="9"/>"#);
+        } else {
+            crate::render::markup(cx, r#"<polygon points="6,0.8 11.2,6 6,11.2 0.8,6"/>"#);
+        }
+        crate::render::markup(cx, r#"</svg><span class="v-trail-label">"#);
+        crate::render::text(cx, &self.label);
+        crate::render::markup(cx, r#"</span></span>"#);
+    }
 }
 impl TrailMarker {
     pub fn new(shape: Shape, tone: Tone, label: impl Into<String>) -> Self {
@@ -96,13 +144,42 @@ impl Run {
     }
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "run_card.html")]
+#[derive(Debug, Clone)]
 pub struct RunCard {
     pub run: Run,
     pub technical: String,
     pub lines: Vec<String>,
     pub planned: Option<String>,
+}
+
+impl Render for RunCard {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            r#"<article class="v-card v-run-card"><header class="v-card-head"><h3 class="v-card-title">"#,
+        );
+        self.marker_html().render(cx);
+        crate::render::markup(cx, r#"</h3></header><p class="v-run-tech">"#);
+        crate::render::text(cx, &self.technical);
+        crate::render::markup(cx, r#"</p>"#);
+        if !self.lines.is_empty() {
+            crate::render::markup(cx, r#"<ul class="v-run-lines">"#);
+            for l in &self.lines {
+                crate::render::markup(cx, r#"<li>"#);
+                crate::render::text(cx, &l);
+                crate::render::markup(cx, r#"</li>"#);
+            }
+            crate::render::markup(cx, r#"</ul>"#);
+        }
+        if let Some(n) = &self.planned {
+            crate::render::markup(cx, r#"<p class="v-run-planned">"#);
+            crate::render::text(cx, &n);
+            crate::render::markup(cx, r#" "#);
+            self.planned_marker().render(cx);
+            crate::render::markup(cx, r#"</p>"#);
+        }
+        crate::render::markup(cx, r#"</article>"#);
+    }
 }
 impl RunCard {
     pub fn new(run: Run, technical: impl Into<String>, lines: &[&str]) -> Self {

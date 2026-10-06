@@ -236,9 +236,15 @@ fn files(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
 }
 
 #[test]
-fn templates_hard_code_no_colours() {
-    let dir = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates"));
-    for path in files(dir) {
+fn renderers_and_markup_hard_code_no_colours() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut paths = files(&root.join("src"));
+    paths.extend(
+        files(&root.join("static"))
+            .into_iter()
+            .filter(|p| matches!(p.extension().and_then(|e| e.to_str()), Some("html" | "svg"))),
+    );
+    for path in paths {
         let text = std::fs::read_to_string(&path).unwrap();
         for (n, line) in text.lines().enumerate() {
             assert!(

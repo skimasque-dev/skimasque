@@ -1,11 +1,10 @@
 //! Access components: sessions, gateways, health, identities.
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::{Component, Html, Planned, Status, StatusBadge, Tone};
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "session_card.html")]
+#[derive(Debug, Clone)]
 pub struct SessionCard {
     pub identity: String,
     pub target: String,
@@ -15,6 +14,44 @@ pub struct SessionCard {
     pub remaining_label: String,
     pub level: u8,
     pub href: Option<String>,
+}
+
+impl Render for SessionCard {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<article class=\"v-card v-session-card\"><header class=\"v-card-head\"><h",
+        );
+        crate::render::text(cx, &self.level);
+        crate::render::markup(cx, r#" class="v-card-title">"#);
+        if let Some(h) = &self.href {
+            crate::render::markup(cx, r#"<a href=""#);
+            crate::render::text(cx, &h);
+            crate::render::markup(cx, r#"">"#);
+            crate::render::text(cx, &self.identity);
+            crate::render::markup(cx, r#"</a>"#);
+        } else {
+            crate::render::text(cx, &self.identity);
+        }
+        crate::render::markup(cx, r#"</h"#);
+        crate::render::text(cx, &self.level);
+        crate::render::markup(cx, r#">"#);
+        self.status_html().render(cx);
+        crate::render::markup(cx, r#"</header><p class="v-session-route"><span>"#);
+        crate::render::text(cx, &self.target);
+        crate::render::markup(cx, r#"</span> <span class="v-card-meta">via "#);
+        crate::render::text(cx, &self.gateway);
+        crate::render::markup(
+            cx,
+            r#"</span></p><div class="v-session-time"><div class="v-bar" role="progressbar" aria-label="Session time remaining" aria-valuemin="0" aria-valuemax="100" aria-valuenow=""#,
+        );
+        crate::render::text(cx, &self.pct());
+        crate::render::markup(cx, r#""><span class="v-bar-fill" style="width: "#);
+        crate::render::text(cx, &self.pct());
+        crate::render::markup(cx, r#"%"></span></div><span class="v-card-meta">"#);
+        crate::render::text(cx, &self.remaining_label);
+        crate::render::markup(cx, r#"</span></div></article>"#);
+    }
 }
 impl SessionCard {
     pub fn new(
@@ -77,10 +114,32 @@ impl TimelineEvent {
     }
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "session_timeline.html")]
+#[derive(Debug, Clone)]
 pub struct SessionTimeline {
     pub events: Vec<TimelineEvent>,
+}
+
+impl Render for SessionTimeline {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        if self.events.is_empty() {
+            crate::render::markup(cx, r#"<p class="v-timeline-empty">No events</p>"#);
+        } else {
+            crate::render::markup(cx, r#"<ol class="v-timeline">"#);
+            for e in &self.events {
+                crate::render::markup(cx, r#"<li class="v-timeline-event v-tone-"#);
+                crate::render::text(cx, &e.tone.class());
+                crate::render::markup(
+                    cx,
+                    r#""><span class="v-timeline-dot" aria-hidden="true"></span><time class="v-timeline-time">"#,
+                );
+                crate::render::text(cx, &e.time);
+                crate::render::markup(cx, r#"</time><span class="v-timeline-label">"#);
+                crate::render::text(cx, &e.label);
+                crate::render::markup(cx, r#"</span></li>"#);
+            }
+            crate::render::markup(cx, r#"</ol>"#);
+        }
+    }
 }
 impl SessionTimeline {
     pub fn new(events: Vec<TimelineEvent>) -> Self {
@@ -89,8 +148,7 @@ impl SessionTimeline {
 }
 impl Component for SessionTimeline {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "gateway_card.html")]
+#[derive(Debug, Clone)]
 pub struct GatewayCard {
     pub name: String,
     pub region: String,
@@ -100,6 +158,46 @@ pub struct GatewayCard {
     pub egress_ip: Option<String>,
     pub level: u8,
     pub href: Option<String>,
+}
+
+impl Render for GatewayCard {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<article class=\"v-card v-gateway-card v-tone-edge\"><header class=\"v-card-head\"><h",
+        );
+        crate::render::text(cx, &self.level);
+        crate::render::markup(cx, r#" class="v-card-title">"#);
+        if let Some(h) = &self.href {
+            crate::render::markup(cx, r#"<a href=""#);
+            crate::render::text(cx, &h);
+            crate::render::markup(cx, r#"">"#);
+            crate::render::text(cx, &self.name);
+            crate::render::markup(cx, r#"</a>"#);
+        } else {
+            crate::render::text(cx, &self.name);
+        }
+        crate::render::markup(cx, r#"</h"#);
+        crate::render::text(cx, &self.level);
+        crate::render::markup(cx, r#">"#);
+        self.status_html().render(cx);
+        crate::render::markup(
+            cx,
+            "</header><dl class=\"v-facts\"><div><dt>Region</dt><dd>",
+        );
+        crate::render::text(cx, &self.region);
+        crate::render::markup(cx, r#"</dd></div><div><dt>Last heartbeat</dt><dd>"#);
+        crate::render::text(cx, &self.last_heartbeat);
+        crate::render::markup(cx, r#"</dd></div><div><dt>Active sessions</dt><dd>"#);
+        crate::render::text(cx, &self.sessions);
+        crate::render::markup(cx, r#"</dd></div><div><dt>Egress IP</dt><dd>"#);
+        if let Some(ip) = &self.egress_ip {
+            crate::render::text(cx, &ip);
+        } else {
+            self.planned_html().render(cx);
+        }
+        crate::render::markup(cx, r#"</dd></div></dl></article>"#);
+    }
 }
 impl GatewayCard {
     pub fn new(
@@ -151,13 +249,31 @@ impl GatewayCard {
 }
 impl Component for GatewayCard {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "health_card.html")]
+#[derive(Debug, Clone)]
 pub struct HealthCard {
     pub title: String,
     pub status: Status,
     pub detail: String,
     pub level: u8,
+}
+
+impl Render for HealthCard {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<article class=\"v-card v-health-card\"><header class=\"v-card-head\"><h",
+        );
+        crate::render::text(cx, &self.level);
+        crate::render::markup(cx, r#" class="v-card-title">"#);
+        crate::render::text(cx, &self.title);
+        crate::render::markup(cx, r#"</h"#);
+        crate::render::text(cx, &self.level);
+        crate::render::markup(cx, r#">"#);
+        self.status_html().render(cx);
+        crate::render::markup(cx, r#"</header><p class="v-card-meta">"#);
+        crate::render::text(cx, &self.detail);
+        crate::render::markup(cx, r#"</p></article>"#);
+    }
 }
 impl HealthCard {
     pub fn new(title: impl Into<String>, status: Status, detail: impl Into<String>) -> Self {
@@ -184,8 +300,7 @@ impl HealthCard {
 }
 impl Component for HealthCard {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "identity_card.html")]
+#[derive(Debug, Clone)]
 pub struct IdentityCard {
     pub name: String,
     pub source: String,
@@ -193,6 +308,40 @@ pub struct IdentityCard {
     pub policies: u32,
     pub level: u8,
     pub href: Option<String>,
+}
+
+impl Render for IdentityCard {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<article class=\"v-card v-identity-card\"><header class=\"v-card-head\"><h",
+        );
+        crate::render::text(cx, &self.level);
+        crate::render::markup(cx, r#" class="v-card-title">"#);
+        if let Some(h) = &self.href {
+            crate::render::markup(cx, r#"<a href=""#);
+            crate::render::text(cx, &h);
+            crate::render::markup(cx, r#"">"#);
+            crate::render::text(cx, &self.name);
+            crate::render::markup(cx, r#"</a>"#);
+        } else {
+            crate::render::text(cx, &self.name);
+        }
+        crate::render::markup(cx, r#"</h"#);
+        crate::render::text(cx, &self.level);
+        crate::render::markup(cx, r#"><span class="v-card-meta">"#);
+        crate::render::text(cx, &self.source);
+        crate::render::markup(cx, r#"</span></header><p class="v-card-meta">"#);
+        if let Some(w) = &self.last_seen {
+            crate::render::markup(cx, r#"last seen "#);
+            crate::render::text(cx, &w);
+        } else {
+            crate::render::markup(cx, r#"never seen"#);
+        }
+        crate::render::markup(cx, r#" · "#);
+        crate::render::text(cx, &self.policy_count());
+        crate::render::markup(cx, r#"</p></article>"#);
+    }
 }
 impl IdentityCard {
     pub fn new(name: impl Into<String>, source: impl Into<String>, policies: u32) -> Self {

@@ -1,7 +1,7 @@
 //! Content components for the public site: prose, hero, sections, feature
 //! grid, CTA band, comparison table, FAQ and tier cards.
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::{Component, Html, Planned};
 
@@ -38,10 +38,56 @@ pub enum Block {
     Kv(String, String),
 }
 
-#[derive(Template, Debug, Clone, Default)]
-#[template(path = "prose.html")]
+#[derive(Debug, Clone, Default)]
 pub struct Prose {
     pub blocks: Vec<Block>,
+}
+
+impl Render for Prose {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<div class="v-prose">"#);
+        for b in &self.blocks {
+            match b {
+                Block::P(t) => {
+                    crate::render::markup(cx, r#"<p>"#);
+                    crate::render::text(cx, &t);
+                    crate::render::markup(cx, r#"</p>"#);
+                }
+                Block::Lead(t) => {
+                    crate::render::markup(cx, r#"<p class="v-lead">"#);
+                    crate::render::text(cx, &t);
+                    crate::render::markup(cx, r#"</p>"#);
+                }
+                Block::Sub(t) => {
+                    crate::render::markup(cx, r#"<h3>"#);
+                    crate::render::text(cx, &t);
+                    crate::render::markup(cx, r#"</h3>"#);
+                }
+                Block::List(items) => {
+                    crate::render::markup(cx, r#"<ul>"#);
+                    for i in items.iter() {
+                        crate::render::markup(cx, r#"<li>"#);
+                        crate::render::text(cx, &i);
+                        crate::render::markup(cx, r#"</li>"#);
+                    }
+                    crate::render::markup(cx, r#"</ul>"#);
+                }
+                Block::Quote(t) => {
+                    crate::render::markup(cx, r#"<blockquote>"#);
+                    crate::render::text(cx, &t);
+                    crate::render::markup(cx, r#"</blockquote>"#);
+                }
+                Block::Kv(k, v) => {
+                    crate::render::markup(cx, r#"<dl class="v-kv"><dt>"#);
+                    crate::render::text(cx, &k);
+                    crate::render::markup(cx, r#"</dt><dd>"#);
+                    crate::render::text(cx, &v);
+                    crate::render::markup(cx, r#"</dd></dl>"#);
+                }
+            }
+        }
+        crate::render::markup(cx, r#"</div>"#);
+    }
 }
 impl Prose {
     pub fn new() -> Self {
@@ -76,14 +122,57 @@ impl Prose {
 }
 impl Component for Prose {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "hero.html")]
+#[derive(Debug, Clone)]
 pub struct Hero {
     pub title: String,
     pub eyebrow: Option<String>,
     pub leads: Vec<String>,
     pub ctas: Vec<Cta>,
     pub aside: Option<Html>,
+}
+
+impl Render for Hero {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            r#"<section class="v-hero"><div class="v-wrap v-hero-grid"><div class="v-hero-copy">"#,
+        );
+        if let Some(e) = &self.eyebrow {
+            crate::render::markup(cx, r#"<p class="v-eyebrow">"#);
+            crate::render::text(cx, &e);
+            crate::render::markup(cx, r#"</p>"#);
+        }
+        crate::render::markup(cx, r#"<h1>"#);
+        crate::render::text(cx, &self.title);
+        crate::render::markup(cx, r#"</h1>"#);
+        for l in &self.leads {
+            crate::render::markup(cx, r#"<p class="v-lead">"#);
+            crate::render::text(cx, &l);
+            crate::render::markup(cx, r#"</p>"#);
+        }
+        if !self.ctas.is_empty() {
+            crate::render::markup(cx, r#"<p class="v-cta-row">"#);
+            for c in &self.ctas {
+                crate::render::markup(cx, r#"<a class="v-btn"#);
+                if !c.primary {
+                    crate::render::markup(cx, r#" v-btn-quiet"#);
+                }
+                crate::render::markup(cx, r#"" href=""#);
+                crate::render::text(cx, &c.href);
+                crate::render::markup(cx, r#"">"#);
+                crate::render::text(cx, &c.label);
+                crate::render::markup(cx, r#"</a>"#);
+            }
+            crate::render::markup(cx, r#"</p>"#);
+        }
+        crate::render::markup(cx, r#"</div>"#);
+        if let Some(a) = &self.aside {
+            crate::render::markup(cx, r#"<div class="v-hero-aside">"#);
+            a.render(cx);
+            crate::render::markup(cx, r#"</div>"#);
+        }
+        crate::render::markup(cx, r#"</div></section>"#);
+    }
 }
 impl Hero {
     pub fn new(title: impl Into<String>) -> Self {
@@ -114,14 +203,41 @@ impl Hero {
 }
 impl Component for Hero {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "section.html")]
+#[derive(Debug, Clone)]
 pub struct Section {
     pub title: String,
     pub id: Option<String>,
     pub eyebrow: Option<String>,
     pub alt: bool,
     pub bodies: Vec<Html>,
+}
+
+impl Render for Section {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<section class="v-section"#);
+        if self.alt {
+            crate::render::markup(cx, r#" v-section-alt"#);
+        }
+        crate::render::markup(cx, r#"""#);
+        if let Some(i) = &self.id {
+            crate::render::markup(cx, r#" id=""#);
+            crate::render::text(cx, &i);
+            crate::render::markup(cx, r#"""#);
+        }
+        crate::render::markup(cx, r#"><div class="v-wrap">"#);
+        if let Some(e) = &self.eyebrow {
+            crate::render::markup(cx, r#"<p class="v-eyebrow">"#);
+            crate::render::text(cx, &e);
+            crate::render::markup(cx, r#"</p>"#);
+        }
+        crate::render::markup(cx, r#"<h2>"#);
+        crate::render::text(cx, &self.title);
+        crate::render::markup(cx, r#"</h2>"#);
+        for b in &self.bodies {
+            b.render(cx);
+        }
+        crate::render::markup(cx, r#"</div></section>"#);
+    }
 }
 impl Section {
     pub fn new(title: impl Into<String>) -> Self {
@@ -166,10 +282,31 @@ impl Feature {
     }
 }
 
-#[derive(Template, Debug, Clone, Default)]
-#[template(path = "feature_grid.html")]
+#[derive(Debug, Clone, Default)]
 pub struct FeatureGrid {
     pub features: Vec<Feature>,
+}
+
+impl Render for FeatureGrid {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<div class="v-features">"#);
+        for f in &self.features {
+            crate::render::markup(cx, r#"<article class="v-feature"><h3>"#);
+            crate::render::text(cx, &f.title);
+            crate::render::markup(cx, r#"</h3><p>"#);
+            crate::render::text(cx, &f.body);
+            crate::render::markup(cx, r#"</p>"#);
+            if let Some(n) = &f.planned {
+                crate::render::markup(cx, r#"<p class="v-run-planned"><span>"#);
+                crate::render::text(cx, &n);
+                crate::render::markup(cx, r#"</span> "#);
+                f.marker().render(cx);
+                crate::render::markup(cx, r#"</p>"#);
+            }
+            crate::render::markup(cx, r#"</article>"#);
+        }
+        crate::render::markup(cx, r#"</div>"#);
+    }
 }
 impl FeatureGrid {
     pub fn new() -> Self {
@@ -199,12 +336,40 @@ impl FeatureGrid {
 }
 impl Component for FeatureGrid {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "cta_band.html")]
+#[derive(Debug, Clone)]
 pub struct CtaBand {
     pub title: String,
     pub lines: Vec<String>,
     pub ctas: Vec<Cta>,
+}
+
+impl Render for CtaBand {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<section class=\"v-cta-band\"><div class=\"v-wrap\"><h2>",
+        );
+        crate::render::text(cx, &self.title);
+        crate::render::markup(cx, r#"</h2>"#);
+        for l in &self.lines {
+            crate::render::markup(cx, r#"<p>"#);
+            crate::render::text(cx, &l);
+            crate::render::markup(cx, r#"</p>"#);
+        }
+        crate::render::markup(cx, r#"<p class="v-cta-row">"#);
+        for c in &self.ctas {
+            crate::render::markup(cx, r#"<a class="v-btn"#);
+            if !c.primary {
+                crate::render::markup(cx, r#" v-btn-quiet"#);
+            }
+            crate::render::markup(cx, r#"" href=""#);
+            crate::render::text(cx, &c.href);
+            crate::render::markup(cx, r#"">"#);
+            crate::render::text(cx, &c.label);
+            crate::render::markup(cx, r#"</a>"#);
+        }
+        crate::render::markup(cx, r#"</p></div></section>"#);
+    }
 }
 impl CtaBand {
     pub fn new(title: impl Into<String>) -> Self {
@@ -225,12 +390,46 @@ impl CtaBand {
 }
 impl Component for CtaBand {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "comparison_table.html")]
+#[derive(Debug, Clone)]
 pub struct ComparisonTable {
     pub head: Vec<String>,
     pub rows: Vec<Vec<String>>,
     pub highlight_last: bool,
+}
+
+impl Render for ComparisonTable {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<div class=\"v-table-wrap\"><table class=\"v-table\"><thead><tr>",
+        );
+        for h in &self.head {
+            crate::render::markup(cx, r#"<th scope="col">"#);
+            crate::render::text(cx, &h);
+            crate::render::markup(cx, r#"</th>"#);
+        }
+        crate::render::markup(cx, r#"</tr></thead><tbody>"#);
+        for (index_0, r) in self.rows.iter().enumerate() {
+            crate::render::markup(cx, r#"<tr"#);
+            if self.is_last(&index_0) {
+                crate::render::markup(cx, r#" class="v-row-highlight""#);
+            }
+            crate::render::markup(cx, r#">"#);
+            for (index_1, c) in r.iter().enumerate() {
+                if index_1 == 0 {
+                    crate::render::markup(cx, r#"<th scope="row">"#);
+                    crate::render::text(cx, &c);
+                    crate::render::markup(cx, r#"</th>"#);
+                } else {
+                    crate::render::markup(cx, r#"<td>"#);
+                    crate::render::text(cx, &c);
+                    crate::render::markup(cx, r#"</td>"#);
+                }
+            }
+            crate::render::markup(cx, r#"</tr>"#);
+        }
+        crate::render::markup(cx, r#"</tbody></table></div>"#);
+    }
 }
 impl ComparisonTable {
     pub fn new(head: &[&str]) -> Self {
@@ -261,10 +460,27 @@ pub struct FaqItem {
     pub answer: Vec<String>,
 }
 
-#[derive(Template, Debug, Clone, Default)]
-#[template(path = "faq.html")]
+#[derive(Debug, Clone, Default)]
 pub struct Faq {
     pub items: Vec<FaqItem>,
+}
+
+impl Render for Faq {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<div class="v-faq">"#);
+        for i in &self.items {
+            crate::render::markup(cx, r#"<details class="v-faq-item"><summary>"#);
+            crate::render::text(cx, &i.question);
+            crate::render::markup(cx, r#"</summary>"#);
+            for p in i.answer.iter() {
+                crate::render::markup(cx, r#"<p>"#);
+                crate::render::text(cx, &p);
+                crate::render::markup(cx, r#"</p>"#);
+            }
+            crate::render::markup(cx, r#"</details>"#);
+        }
+        crate::render::markup(cx, r#"</div>"#);
+    }
 }
 impl Faq {
     pub fn new() -> Self {
@@ -280,8 +496,7 @@ impl Faq {
 }
 impl Component for Faq {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "tier_card.html")]
+#[derive(Debug, Clone)]
 pub struct TierCard {
     pub name: String,
     pub price: String,
@@ -289,6 +504,42 @@ pub struct TierCard {
     pub includes: Vec<String>,
     pub live: bool,
     pub planned: Option<String>,
+}
+
+impl Render for TierCard {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            r#"<article class="v-card v-tier"><header class="v-card-head"><h3 class="v-card-title">"#,
+        );
+        crate::render::text(cx, &self.name);
+        crate::render::markup(cx, r#"</h3>"#);
+        if self.live {
+            crate::render::markup(cx, r#"<span class="v-tier-live">Available now</span>"#);
+        }
+        crate::render::markup(cx, r#"</header><p class="v-tier-price">"#);
+        crate::render::text(cx, &self.price);
+        crate::render::markup(cx, r#"</p><p class="v-card-meta">"#);
+        crate::render::text(cx, &self.tagline);
+        crate::render::markup(cx, r#"</p>"#);
+        if !self.includes.is_empty() {
+            crate::render::markup(cx, r#"<ul class="v-tier-includes">"#);
+            for i in &self.includes {
+                crate::render::markup(cx, r#"<li>"#);
+                crate::render::text(cx, &i);
+                crate::render::markup(cx, r#"</li>"#);
+            }
+            crate::render::markup(cx, r#"</ul>"#);
+        }
+        if let Some(n) = &self.planned {
+            crate::render::markup(cx, r#"<p class="v-run-planned"><span>"#);
+            crate::render::text(cx, &n);
+            crate::render::markup(cx, r#"</span> "#);
+            self.planned_html().render(cx);
+            crate::render::markup(cx, r#"</p>"#);
+        }
+        crate::render::markup(cx, r#"</article>"#);
+    }
 }
 impl TierCard {
     pub fn new(
@@ -325,10 +576,19 @@ impl TierCard {
 impl Component for TierCard {}
 
 /// A responsive grid of [`TierCard`]s.
-#[derive(Template, Debug, Clone, Default)]
-#[template(path = "tier_grid.html")]
+#[derive(Debug, Clone, Default)]
 pub struct TierGrid {
     pub cards: Vec<Html>,
+}
+
+impl Render for TierGrid {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<div class="v-tiers">"#);
+        for c in &self.cards {
+            c.render(cx);
+        }
+        crate::render::markup(cx, r#"</div>"#);
+    }
 }
 impl TierGrid {
     pub fn new() -> Self {
@@ -342,11 +602,27 @@ impl TierGrid {
 impl Component for TierGrid {}
 
 /// A block of content the product does not deliver yet. Do not nest one inside another.
-#[derive(Template, Debug, Clone)]
-#[template(path = "planned_block.html")]
+#[derive(Debug, Clone)]
 pub struct PlannedBlock {
     pub note: String,
     pub inner: Html,
+}
+
+impl Render for PlannedBlock {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<div class=\"v-planned-block\" role=\"note\" aria-label=\"Planned: ",
+        );
+        crate::render::text(cx, &self.note);
+        crate::render::markup(cx, r#""><p class="v-planned-note">"#);
+        self.planned_html().render(cx);
+        crate::render::markup(cx, r#" <span>"#);
+        crate::render::text(cx, &self.note);
+        crate::render::markup(cx, r#"</span></p>"#);
+        self.inner.render(cx);
+        crate::render::markup(cx, r#"</div>"#);
+    }
 }
 impl PlannedBlock {
     pub fn new(note: impl Into<String>, c: &impl Component) -> Self {

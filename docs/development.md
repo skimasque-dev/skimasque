@@ -51,9 +51,14 @@ cargo run -p skimasque-visual --features site --bin sitegen
 cargo run -p skimasque-visual --features site --bin sitegen -- --check
 ```
 
-The private control plane uses Askama templates and the same visual crate. Check
-its templates against the matching core revision. Content must distinguish
-implemented features, deployment-enabled services and planned capabilities.
+The visual crate uses `stucco-core` 0.2.1. Components implement stucco's `Render`
+trait and can be children of stucco elements and UI components. `Component::html()`
+remains available for callers that need an owned HTML fragment. See the
+[visual crate guide](../crates/skimasque-visual/README.md) for composition and
+stylesheet setup. The private control plane must use the matching visual crate
+revision; its own components must implement `Render` to nest in a visual component.
+Content must distinguish implemented features, deployment-enabled services and
+planned capabilities.
 
 ## Dependency notes
 

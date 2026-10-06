@@ -1,6 +1,6 @@
 //! Decision components: why access was granted or denied.
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::{Component, DecisionBadge, Html};
 
@@ -54,13 +54,71 @@ impl Check {
     }
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "decision_explainer.html")]
+#[derive(Debug, Clone)]
 pub struct DecisionExplainer {
     pub checks: Vec<Check>,
     pub allow: bool,
     pub reason: String,
     pub technical: bool,
+}
+
+impl Render for DecisionExplainer {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<div class="v-explain">"#);
+        if !self.checks.is_empty() {
+            crate::render::markup(cx, r#"<ul class="v-checks">"#);
+            for c in &self.checks {
+                crate::render::markup(cx, r#"<li class="v-check "#);
+                if c.pass {
+                    crate::render::markup(cx, r#"v-check-pass"#);
+                } else {
+                    crate::render::markup(cx, r#"v-check-fail"#);
+                }
+                crate::render::markup(cx, r#""><span class="v-check-glyph" aria-hidden="true">"#);
+                if c.pass {
+                    crate::render::markup(cx, r#"✓"#);
+                } else {
+                    crate::render::markup(
+                        cx,
+                        r#"<svg class="v-denial-mark" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 3 L9 9 M9 3 L3 9"/></svg>
+"#,
+                    );
+                }
+                crate::render::markup(cx, r#"</span><span class="v-check-label">"#);
+                crate::render::text(cx, &c.label);
+                crate::render::markup(cx, r#"</span>"#);
+                if c.narrated {
+                    crate::render::markup(cx, r#"<span class="v-sr">"#);
+                    if c.pass {
+                        crate::render::markup(cx, r#"passed"#);
+                    } else {
+                        crate::render::markup(cx, r#"failed"#);
+                    }
+                    crate::render::markup(cx, r#"</span>"#);
+                } else {
+                    crate::render::markup(cx, r#"<span class="v-check-word">"#);
+                    if c.pass {
+                        crate::render::markup(cx, r#"matched"#);
+                    } else {
+                        crate::render::markup(cx, r#"did not match"#);
+                    }
+                    crate::render::markup(cx, r#"</span>"#);
+                }
+                if let Some(d) = &c.detail {
+                    crate::render::markup(cx, r#"<span class="v-check-detail">"#);
+                    crate::render::text(cx, &d);
+                    crate::render::markup(cx, r#"</span>"#);
+                }
+                crate::render::markup(cx, r#"</li>"#);
+            }
+            crate::render::markup(cx, r#"</ul>"#);
+        }
+        crate::render::markup(cx, r#"<div class="v-explain-result">"#);
+        self.decision_html().render(cx);
+        crate::render::markup(cx, r#"<p class="v-explain-reason">"#);
+        crate::render::text(cx, &self.reason);
+        crate::render::markup(cx, r#"</p></div></div>"#);
+    }
 }
 impl DecisionExplainer {
     pub fn new(checks: Vec<Check>, allow: bool, reason: impl Into<String>) -> Self {
@@ -82,8 +140,7 @@ impl DecisionExplainer {
 }
 impl Component for DecisionExplainer {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "decision_card.html")]
+#[derive(Debug, Clone)]
 pub struct DecisionCard {
     pub allow: bool,
     pub who: String,
@@ -91,6 +148,35 @@ pub struct DecisionCard {
     pub policy: Option<String>,
     pub when: String,
     pub technical: bool,
+}
+
+impl Render for DecisionCard {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<article class=\"v-card v-decision-card\"><header class=\"v-card-head\">",
+        );
+        self.decision_html().render(cx);
+        crate::render::markup(cx, r#"<time class="v-card-meta">"#);
+        crate::render::text(cx, &self.when);
+        crate::render::markup(
+            cx,
+            "</time></header><p class=\"v-decision-line\"><span class=\"v-decision-who\">",
+        );
+        crate::render::text(cx, &self.who);
+        crate::render::markup(
+            cx,
+            r#"</span> <span aria-hidden="true">→</span> <span class="v-sr">to</span> <span class="v-decision-target">"#,
+        );
+        crate::render::text(cx, &self.target);
+        crate::render::markup(cx, r#"</span></p>"#);
+        if let Some(p) = &self.policy {
+            crate::render::markup(cx, r#"<p class="v-card-meta">Policy "#);
+            crate::render::text(cx, &p);
+            crate::render::markup(cx, r#"</p>"#);
+        }
+        crate::render::markup(cx, r#"</article>"#);
+    }
 }
 impl DecisionCard {
     pub fn new(
@@ -123,13 +209,31 @@ impl DecisionCard {
 }
 impl Component for DecisionCard {}
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "audit_event_card.html")]
+#[derive(Debug, Clone)]
 pub struct AuditEventCard {
     pub card: DecisionCard,
     pub reason: String,
     pub explainer: Option<DecisionExplainer>,
     pub technical: bool,
+}
+
+impl Render for AuditEventCard {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<div class="v-audit-event">"#);
+        self.card_html().render(cx);
+        crate::render::markup(cx, r#"<p class="v-audit-reason">"#);
+        crate::render::text(cx, &self.reason);
+        crate::render::markup(cx, r#"</p>"#);
+        if let Some(e) = &self.explainer_html() {
+            crate::render::markup(
+                cx,
+                r#"<details class="v-audit-why"><summary>Why?</summary>"#,
+            );
+            e.render(cx);
+            crate::render::markup(cx, r#"</details>"#);
+        }
+        crate::render::markup(cx, r#"</div>"#);
+    }
 }
 impl AuditEventCard {
     pub fn new(card: DecisionCard, reason: impl Into<String>) -> Self {
@@ -196,7 +300,11 @@ mod tests {
             "destination not allowed",
         );
         let s = e.html().as_str().to_owned();
-        assert!(s.contains("v-check-fail") && s.contains("v-denial-mark") && s.contains("did not match"));
+        assert!(
+            s.contains("v-check-fail")
+                && s.contains("v-denial-mark")
+                && s.contains("did not match")
+        );
         assert!(s.contains("db.staging:5432 is not in this policy") && s.contains("ACCESS DENIED"));
     }
 

@@ -1,7 +1,7 @@
 //! Deployment (`/deployment`): canonical spec §18. The run colours describe who
 //! operates what; they say nothing about quality.
 
-use askama::Template;
+use stucco_core::Render;
 
 use super::doc;
 use crate::diagrams::platform;
@@ -12,14 +12,19 @@ use crate::{
 };
 
 /// A single documentation link.
-#[derive(Template)]
-#[template(
-    source = r#"<p class="v-cta-row"><a class="v-btn" href="{{ href }}">{{ label }}</a></p>"#,
-    ext = "html"
-)]
 struct DocLink {
     label: String,
     href: String,
+}
+
+impl Render for DocLink {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<p class="v-cta-row"><a class="v-btn" href=""#);
+        crate::render::text(cx, &self.href);
+        crate::render::markup(cx, r#"">"#);
+        crate::render::text(cx, &self.label);
+        crate::render::markup(cx, r#"</a></p>"#);
+    }
 }
 impl Component for DocLink {}
 

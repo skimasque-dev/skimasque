@@ -3,8 +3,8 @@
 use super::{doc, DocLinks};
 use crate::site::Page;
 use crate::{Component, Hero, Section, SitePage};
-use askama::Template;
 use pulldown_cmark::{html, Event, Options, Parser, Tag};
+use stucco_core::Render;
 
 /// `(section, [(link label, file in docs/)])`, mirroring the canonical nav groups.
 const INDEX: &[(&str, &[(&str, &str)])] = &[
@@ -232,13 +232,16 @@ const GUIDES: &[Guide] = &[
     },
 ];
 
-#[derive(Template)]
-#[template(
-    source = r#"<article class="v-guide">{{ body|safe }}</article>"#,
-    ext = "html"
-)]
 struct GuideBody {
     body: String,
+}
+
+impl Render for GuideBody {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(cx, r#"<article class="v-guide">"#);
+        stucco_core::Raw::trusted(&self.body).render(cx);
+        crate::render::markup(cx, r#"</article>"#);
+    }
 }
 impl Component for GuideBody {}
 

@@ -25,9 +25,9 @@ serde_json = "1.0"
 serde_yaml = "0.9.34"
 toml = "0.8"
 thiserror = "2.0"
-# Server-rendered components (crate `skimasque-visual`). 0.12 to match the
-# control plane's dashboard, which renders these components.
-askama = "0.12"
+# Server-rendered components (crate `skimasque-visual`). The rendering core
+# keeps the custom visual language independent of stucco's UI/theme families.
+stucco-core = "0.2.1"
 tracing = "0.1"
 
 # GitHub Actions OIDC verification (crate `skimasque-identity`). `jsonwebtoken`

@@ -9,7 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-askama.workspace = true
+stucco-core.workspace = true
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"], optional = true }
 
 [features]

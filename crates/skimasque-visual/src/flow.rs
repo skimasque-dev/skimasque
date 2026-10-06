@@ -2,7 +2,7 @@
 //! ones (CSS), and an ordered list either way so the sequence survives
 //! without styles. The caption is the flow's text equivalent.
 
-use askama::Template;
+use stucco_core::Render;
 
 use crate::{Component, ConnKind, Connection, Html};
 
@@ -13,11 +13,38 @@ pub struct Step {
     pub next: Option<Connection>,
 }
 
-#[derive(Template, Debug, Clone)]
-#[template(path = "flow.html")]
+#[derive(Debug, Clone)]
 pub struct Flow {
     pub steps: Vec<Step>,
     pub caption: String,
+}
+
+impl Render for Flow {
+    fn render(&self, cx: &mut stucco_core::Cx) {
+        crate::render::markup(
+            cx,
+            "<figure class=\"v-flow-wrap\"><ol class=\"v-flow\" data-layout=\"",
+        );
+        crate::render::text(cx, &self.layout());
+        crate::render::markup(cx, r#"">"#);
+        for (index_0, s) in self.steps.iter().enumerate() {
+            crate::render::markup(cx, r#"<li class="v-flow-step">"#);
+            s.body.render(cx);
+            if index_0 + 1 != self.steps.len() {
+                if let Some(c) = &(Self::conn_html(s)) {
+                    c.render(cx);
+                }
+            }
+            crate::render::markup(cx, r#"</li>"#);
+        }
+        crate::render::markup(cx, r#"</ol><figcaption class="v-sr">"#);
+        crate::render::text(cx, &self.caption);
+        crate::render::markup(
+            cx,
+            r#"</figcaption></figure>
+"#,
+        );
+    }
 }
 
 impl Flow {

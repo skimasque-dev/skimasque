@@ -1,11 +1,9 @@
 //! SkiMasque's visual language, rendered on the server.
 //!
-//! Every component is a plain struct that renders itself with askama. Callers
-//! embed the result with `{{ component|safe }}`: the dashboard fills
-//! components with live data, the website's generator with examples, and both
-//! share [`CSS`]. Library components escape every string they are given (askama's
-//! default escaping); the only markup they accept is [`Html`], which a caller can
-//! only obtain by rendering a [`Component`].
+//! Components implement stucco's [`Render`] trait and compose directly with
+//! stucco UI components. The dashboard fills them with live data and the site
+//! generator with examples; both share [`CSS`]. Text and attribute values are
+//! escaped by stucco. [`Html`] holds trusted output from a [`Component`].
 
 #![forbid(unsafe_code)]
 
@@ -32,20 +30,24 @@ impl fmt::Display for Html {
     }
 }
 
-/// Anything that renders to [`Html`]. The trait is intentionally open: other
-/// crates (the dashboard) implement it for their own askama templates so they
-/// can be nested in a [`Flow`] or [`Boundary`]; such a component is responsible
-/// for escaping its own output.
-pub trait Component: askama::Template {
+/// Anything that renders to [`Html`]. Other crates can implement this for
+/// their own stucco components; they are responsible for escaping their output.
+pub trait Component: Render {
     fn html(&self) -> Html {
-        // Component templates only format owned strings; rendering cannot
-        // fail except on a formatter error, which would be a bug here.
-        Html(
-            self.render()
-                .expect("component templates render infallibly"),
-        )
+        Html(stucco_core::to_html(self))
     }
 }
+
+impl Render for Html {
+    fn render(&self, cx: &mut Cx) {
+        stucco_core::Raw::trusted(self.as_str()).render(cx);
+    }
+}
+
+/// Stucco's rendering interface, re-exported for downstream components.
+pub use stucco_core::{Cx, Render};
+
+mod render;
 
 pub mod access;
 pub mod boundary;
